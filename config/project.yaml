@@ -1,0 +1,133 @@
+# Mission-wide configuration capturing baseline constants and scenario references.
+metadata:
+  project_name: "Formation Satellite Programme Phase 2"  # Project identifier used in reports and exported data sets.
+  configuration_version: "0.1.0"  # Semantic version marking the maturity of this configuration snapshot.
+  authoring_team: "Guidance, Navigation, and Control Working Group"  # Responsible authority for updates.
+  last_updated: "2024-05-28"  # ISO 8601 date stamp for traceability.
+
+# Global constants shared by all scenarios and analysis products.
+global:
+  earth_model: "WGS84"  # Geodetic reference model applied in coordinate transforms.
+  gravitational_parameter_km3_s2: 398600.4418  # Standard gravitational parameter (mu) expressed in km^3/s^2.
+  nominal_altitude_km: 550.0  # Reference orbital altitude for baseline propagation and sizing.
+  window_targets:  # Observation or contact windows driving coverage studies.
+    - name: "AuroraScience"
+      latitude_deg: 69.0
+      longitude_deg: 23.0
+      altitude_threshold_km: 540.0
+      revisit_requirement_hours: 12
+    - name: "EquatorialEnergy"
+      latitude_deg: 0.0
+      longitude_deg: -75.0
+      altitude_threshold_km: 545.0
+      revisit_requirement_hours: 24
+  scenario_references:  # Canonical STK scenario files generated via tools/stk_export.py.
+    baseline: "sim/scenarios/baseline_reference.sc"
+    commissioning: "sim/scenarios/commissioning_reference.sc"
+    contingency: "sim/scenarios/contingency_safe_mode.sc"
+
+# Platform-level properties covering the bus, payload, and support subsystems.
+platform:
+  bus:
+    dry_mass_kg: 120.0  # Spacecraft dry mass at launch.
+    design_life_years: 5  # Planned operational lifetime.
+    power_margin_percent: 15  # Power budget margin reserved for contingencies.
+    structure_dimensions_m: [1.2, 1.0, 0.8]  # X, Y, Z envelope dimensions in metres.
+  payload:
+    primary_sensor:
+      type: "Multispectral Imager"  # Instrument classification.
+      swath_width_km: 60.0  # Ground swath at nominal altitude.
+      spectral_bands: ["VNIR", "SWIR"]  # Dominant spectral channels.
+      pointing_accuracy_deg: 0.05  # 3-sigma pointing performance.
+    secondary_sensor:
+      type: "GNSS Radio Occultation"  # Supplemental payload capability.
+      occultation_pairs: 24  # Daily occultation opportunities required.
+  communications:
+    transponder_band: "X"  # Link band for downlink operations.
+    downlink_rate_mbps: 150  # Peak downlink rate to ground terminals.
+    antenna_gain_dbi: 12.5  # Antenna gain supporting the link budget.
+    ground_network: ["Kiruna", "Svalbard", "Inuvik"]  # Certified ground stations.
+  propulsion:
+    system: "Cold Gas"  # Propulsion technology baseline.
+    total_delta_v_m_s: 45.0  # Station-keeping budget.
+    thrust_newton: 0.2  # Nominal thrust level.
+    isp_seconds: 70.0  # Specific impulse performance.
+
+# Orbital elements defining the reference trajectory and formation geometry.
+orbit:
+  reference_epoch_utc: "2026-03-21T00:00:00Z"  # Epoch for the classical orbital elements.
+  central_body: "Earth"  # Propagated central body.
+  classical_elements:
+    semi_major_axis_km: 6878.137  # Earth radius plus nominal altitude.
+    eccentricity: 0.0001  # Near-circular orbit assumption.
+    inclination_deg: 97.6  # Sun-synchronous inclination.
+    raan_deg: 120.0  # Right ascension of the ascending node.
+    argument_of_perigee_deg: 0.0  # Argument of perigee set for near-circular orbit.
+    true_anomaly_deg: 0.0  # True anomaly at epoch for the leader spacecraft.
+  formation_design:
+    leader:
+      identifier: "FSAT-LDR"  # Leader spacecraft identifier used across analyses.
+      phase_angle_deg: 0.0  # Leader reference phase.
+    deputies:
+      - identifier: "FSAT-DP1"
+        along_track_offset_km: 20.0  # Deputy separation along the flight path.
+        cross_track_offset_km: 0.2  # Deputy cross-track displacement.
+        radial_offset_km: -0.05  # Deputy radial displacement.
+      - identifier: "FSAT-DP2"
+        along_track_offset_km: -20.0
+        cross_track_offset_km: -0.2
+        radial_offset_km: 0.05
+  maintenance_strategy:
+    manoeuvre_cadence_days: 14  # Routine station-keeping cadence.
+    target_separation_tolerance_m: 100  # Maximum allowable relative separation error.
+    delta_v_reserve_fraction: 0.2  # Reserved delta-V fraction for contingencies.
+
+# Simulation controls guiding time span, propagation fidelity, and analysis variants.
+simulation:
+  start_time_utc: "2026-03-21T00:00:00Z"  # Simulation start bound.
+  stop_time_utc: "2026-03-28T00:00:00Z"  # Simulation end bound.
+  time_step_seconds: 30  # Numerical integrator step size.
+  integrator:
+    method: "RKF78"  # Propagator method utilised by the numerical solver.
+    relative_tolerance: 1.0e-9  # Integrator relative tolerance.
+    absolute_tolerance: 1.0e-12  # Integrator absolute tolerance.
+  force_models:
+    central_body: true  # Enables Earth point-mass gravity.
+    j2: true  # Includes J2 oblateness perturbation.
+    atmospheric_drag:
+      enabled: true  # Toggles drag perturbation model.
+      density_model: "NRLMSISE-00"  # Atmospheric density model selection.
+      solar_activity_index: 150  # Representative F10.7 solar flux index.
+    solar_radiation_pressure:
+      enabled: false  # Placeholder for SRP inclusion.
+      reflectivity_coefficient: 1.2  # SRP reflectivity factor when enabled.
+  attitude_profile:
+    mode: "Nadir-Pointing"  # Primary attitude law.
+    control_law: "B-dot with momentum management"  # Algorithmic description of attitude control.
+  monte_carlo:
+    enabled: true  # Enables statistical dispersion analysis.
+    runs: 200  # Number of Monte Carlo samples.
+    dispersions:
+      semi_major_axis_sigma_m: 5.0  # 1-sigma dispersions for semi-major axis.
+      inclination_sigma_deg: 0.01  # Inclination dispersion.
+      drag_coefficient_sigma: 0.05  # Drag coefficient dispersion.
+      clock_bias_sigma_ms: 0.5  # Receiver clock bias dispersion.
+
+# Output controls determining artefacts, cadence, and export options.
+output:
+  directory: "outputs/baseline"  # Default directory for generated artefacts.
+  file_naming: "FSAT_{asset}_{product}_{epoch}"  # String template applied to exported files.
+  include_products:
+    ephemeris_oem: true  # Export CCSDS OEM ephemerides.
+    ground_track_kml: true  # Export ground-track overlays.
+    attitude_quaternions: false  # Export attitude profile data when required.
+    contact_windows: true  # Export access intervals for target windows.
+  reporting_interval_seconds: 60  # Cadence for reporting outputs.
+  stk_export:
+    enabled: true  # Toggle for generating STK-compatible artefacts.
+    scenario_tag: "FormationSatBaseline"  # Tag appended to exported scenario files.
+    include_facilities: ["Kiruna", "Svalbard", "Inuvik"]  # Facilities embedded in STK scenario exports.
+  data_retention_days: 365  # Minimum retention period for mission data products.
+  quality_checks:
+    checksum: "sha256"  # Digest algorithm for integrity verification.
+    schema_version: "1.0"  # Schema compatibility identifier for downstream tooling.
