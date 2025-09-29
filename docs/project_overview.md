@@ -16,7 +16,7 @@ The mission must employ two satellites within Orbital Plane A and a third satell
 - A catalogue of baseline Keplerian elements for the three spacecraft, annotated with rationales and sensitivity notes.
 - A maintenance concept describing delta-v expenditures or drag modulation policies necessary for keeping the formation within tolerance.
 - Simulation artefacts illustrating access windows, relative kinematics, and robustness analyses.
-- Documentation templates for future experiment briefs and verification protocols.
+- Documentation templates for future experiment briefs and verification protocols, including [`concept_of_operations.md`](concept_of_operations.md), [`system_requirements.md`](system_requirements.md), [`compliance_matrix.md`](compliance_matrix.md), and [`verification_plan.md`](verification_plan.md).
 
 ## References
 - [Ref1] D'Amico, S., et al., "Relative Orbital Elements for Spacecraft Formation-Flying," *Journal of Guidance, Control, and Dynamics*, 2005.

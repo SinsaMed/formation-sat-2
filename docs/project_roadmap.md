@@ -7,6 +7,7 @@ The roadmap decomposes the mission brief into sequential, academically framed wo
 1. **Define the core problem.** Clarify the operational scenario, target city coordinates, and mission stakeholders, yielding a concise statement of need.
 2. **Catalogue assumptions.** Document orbital regimes, spacecraft class (e.g., CubeSat specifications), and communication constraints.
 3. **Translate objectives into requirements.** Populate the requirement matrix in [`mission_requirements.md`](mission_requirements.md) and review traceability against stakeholder goals.
+4. **Draft baseline documentation.** Initialise the [`concept_of_operations.md`](concept_of_operations.md), [`system_requirements.md`](system_requirements.md), and [`verification_plan.md`](verification_plan.md) templates so that operational narratives, requirement hierarchies, and validation strategies evolve alongside the roadmap.
 
 ## Stage 2 – Orbital Architecture Synthesis
 1. **Select baseline orbital parameters.** Determine altitude, inclination, and repeat-ground-track conditions that align the nodal intersection with the target city.
@@ -26,7 +27,15 @@ The roadmap decomposes the mission brief into sequential, academically framed wo
 ## Stage 5 – Verification and Validation
 1. **Develop automated checks.** Implement scripts or notebooks that reproduce key metrics and place them under `tests/`.
 2. **Conduct sensitivity studies.** Perturb initial conditions to evaluate robustness against injection errors and environmental uncertainties.
-3. **Compile final dossier.** Aggregate findings into a publishable report summarising methodology, results, and recommendations for deployment.
+3. **Compile final dossier.** Aggregate findings into a publishable report summarising methodology, results, and recommendations for deployment, ensuring the [`compliance_matrix.md`](compliance_matrix.md) captures the verification outcomes.
+
+## Supporting Documentation Templates
+The following templates within the `docs/` directory scaffold the broader systems engineering artefacts that accompany the roadmap. Populate them progressively as analyses mature to keep operational planning, requirement definition, and assurance evidence aligned.
+
+- [`concept_of_operations.md`](concept_of_operations.md) – outlines the mission narrative, operational scenarios, and contingency planning structures.
+- [`system_requirements.md`](system_requirements.md) – captures the hierarchical system requirements and traceability framework.
+- [`compliance_matrix.md`](compliance_matrix.md) – records the evolving compliance status for each requirement across the document set.
+- [`verification_plan.md`](verification_plan.md) – plans verification and validation activities, including matrices, schedules, and resource allocations.
 
 ## References
 - [Ref1] Wertz, J. R., *Mission Analysis and Design*, Microcosm Press, 2011.
