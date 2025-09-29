@@ -38,8 +38,12 @@ test: $(VENV_PYTHON)
 simulate: $(VENV_PYTHON)
 	$(VENV_PYTHON) tools/run_simulation_stub.py --output-dir $(PLOTS_DIR)
 
+BASELINE_DIR := tests/data/baselines
+BASELINE_OUTPUT_DIR := outputs/baseline
+
 baselines: $(VENV_PYTHON)
 	$(VENV_PYTHON) tools/probe_analysis_interfaces.py
+	$(VENV_PYTHON) tests/baseline_compare.py --baseline-dir $(BASELINE_DIR) --candidate-dir $(BASELINE_OUTPUT_DIR) --allow-missing
 
 docs: $(VENV_PYTHON)
 	$(VENV_PYTHON) tools/generate_docs_summary.py --output-dir $(DOCS_DIR)
