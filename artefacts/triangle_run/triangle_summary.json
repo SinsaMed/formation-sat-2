@@ -1,0 +1,2957 @@
+{
+  "metrics": {
+    "triangle": {
+      "mean_area_m2": 15588457.268119823,
+      "min_area_m2": 15588457.268116655,
+      "max_area_m2": 15588457.268123234,
+      "mean_aspect_ratio": 1.0000000000000753,
+      "aspect_ratio_max": 1.0000000000001763,
+      "mean_side_lengths_m": [
+        5999.9999999999945,
+        5999.999999999982,
+        5999.999999999981
+      ]
+    },
+    "ground_track": {
+      "max_ground_distance_km": 641.8886785208678,
+      "min_ground_distance_km": 2.774548468951124,
+      "ground_distance_tolerance_km": 350.0
+    },
+    "formation_window": {
+      "duration_s": 96.0,
+      "start": "2026-03-21T09:31:12Z",
+      "end": "2026-03-21T09:32:48Z"
+    },
+    "orbital_elements": {
+      "SAT-1": {
+        "semi_major_axis_km": 6891.215133849463,
+        "eccentricity": 0.0007532006701296457,
+        "inclination_deg": 97.69999999999958,
+        "raan_deg": 18.88065601895067,
+        "argument_of_perigee_deg": 216.03962282414915,
+        "mean_anomaly_deg": 180.0,
+        "assigned_plane": "Plane A"
+      },
+      "SAT-2": {
+        "semi_major_axis_km": 6891.215133849365,
+        "eccentricity": 0.0007532006701442121,
+        "inclination_deg": 97.69999999999963,
+        "raan_deg": 18.88065601895071,
+        "argument_of_perigee_deg": 216.08947121086808,
+        "mean_anomaly_deg": 180.0,
+        "assigned_plane": "Plane A"
+      },
+      "SAT-3": {
+        "semi_major_axis_km": 6912.016744922933,
+        "eccentricity": 0.0015068891890989713,
+        "inclination_deg": 97.69999999999959,
+        "raan_deg": 18.88065601895067,
+        "argument_of_perigee_deg": 36.06454701792865,
+        "mean_anomaly_deg": 0.0,
+        "assigned_plane": "Plane B"
+      }
+    }
+  },
+  "samples": [
+    {
+      "time": "2026-03-21T09:30:30Z",
+      "triangle_area_m2": 15588457.268118737,
+      "triangle_aspect_ratio": 1.0000000000000218,
+      "triangle_side_lengths_m": [
+        5999.999999999862,
+        5999.999999999741,
+        5999.999999999731
+      ],
+      "centroid": {
+        "latitude_deg": 30.07966979113096,
+        "longitude_deg": 52.84663245506394,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 641.8886785208678
+    },
+    {
+      "time": "2026-03-21T09:30:31Z",
+      "triangle_area_m2": 15588457.26812112,
+      "triangle_aspect_ratio": 1.0000000000000953,
+      "triangle_side_lengths_m": [
+        6000.000000000402,
+        6000.000000000438,
+        5999.999999999866
+      ],
+      "centroid": {
+        "latitude_deg": 30.142046278953597,
+        "longitude_deg": 52.83114954582985,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 634.7867341788118
+    },
+    {
+      "time": "2026-03-21T09:30:32Z",
+      "triangle_area_m2": 15588457.26812068,
+      "triangle_aspect_ratio": 1.000000000000075,
+      "triangle_side_lengths_m": [
+        6000.000000000403,
+        6000.000000000097,
+        5999.999999999953
+      ],
+      "centroid": {
+        "latitude_deg": 30.204421796951138,
+        "longitude_deg": 52.815652333919616,
+        "altitude_m": 520000.00000000186
+      },
+      "max_ground_distance_km": 627.6848033794336
+    },
+    {
+      "time": "2026-03-21T09:30:33Z",
+      "triangle_area_m2": 15588457.268119449,
+      "triangle_aspect_ratio": 1.0000000000000682,
+      "triangle_side_lengths_m": [
+        5999.999999999719,
+        6000.000000000128,
+        5999.999999999894
+      ],
+      "centroid": {
+        "latitude_deg": 30.26679634145915,
+        "longitude_deg": 52.80014076750578,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 620.5828861863267
+    },
+    {
+      "time": "2026-03-21T09:30:34Z",
+      "triangle_area_m2": 15588457.268120587,
+      "triangle_aspect_ratio": 1.0000000000000737,
+      "triangle_side_lengths_m": [
+        6000.0000000000655,
+        5999.999999999946,
+        6000.000000000388
+      ],
+      "centroid": {
+        "latitude_deg": 30.329169908799347,
+        "longitude_deg": 52.78461479108184,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 613.4809825940059
+    },
+    {
+      "time": "2026-03-21T09:30:35Z",
+      "triangle_area_m2": 15588457.268118406,
+      "triangle_aspect_ratio": 1.0000000000001006,
+      "triangle_side_lengths_m": [
+        5999.999999999654,
+        6000.000000000044,
+        5999.999999999441
+      ],
+      "centroid": {
+        "latitude_deg": 30.391542495279488,
+        "longitude_deg": 52.769074351421956,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 606.3790926463246
+    },
+    {
+      "time": "2026-03-21T09:30:36Z",
+      "triangle_area_m2": 15588457.268118808,
+      "triangle_aspect_ratio": 1.0000000000000517,
+      "triangle_side_lengths_m": [
+        5999.999999999931,
+        5999.99999999962,
+        5999.999999999822
+      ],
+      "centroid": {
+        "latitude_deg": 30.45391409719335,
+        "longitude_deg": 52.75351922522288,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 599.2772130147189
+    },
+    {
+      "time": "2026-03-21T09:30:37Z",
+      "triangle_area_m2": 15588457.268121626,
+      "triangle_aspect_ratio": 1.0000000000000693,
+      "triangle_side_lengths_m": [
+        6000.0000000003765,
+        6000.000000000104,
+        6000.000000000519
+      ],
+      "centroid": {
+        "latitude_deg": 30.516284710820585,
+        "longitude_deg": 52.737949694125554,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 592.1753503997302
+    },
+    {
+      "time": "2026-03-21T09:30:38Z",
+      "triangle_area_m2": 15588457.268121136,
+      "triangle_aspect_ratio": 1.0000000000000766,
+      "triangle_side_lengths_m": [
+        6000.000000000476,
+        6000.0000000000155,
+        6000.000000000225
+      ],
+      "centroid": {
+        "latitude_deg": 30.57865433242668,
+        "longitude_deg": 52.7223655359054,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 585.0735015017782
+    },
+    {
+      "time": "2026-03-21T09:30:39Z",
+      "triangle_area_m2": 15588457.268119002,
+      "triangle_aspect_ratio": 1.0000000000001077,
+      "triangle_side_lengths_m": [
+        5999.9999999996035,
+        5999.999999999631,
+        6000.000000000249
+      ],
+      "centroid": {
+        "latitude_deg": 30.64102295826292,
+        "longitude_deg": 52.70676669402992,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 577.9716663154321
+    },
+    {
+      "time": "2026-03-21T09:30:40Z",
+      "triangle_area_m2": 15588457.268121691,
+      "triangle_aspect_ratio": 1.0000000000001024,
+      "triangle_side_lengths_m": [
+        6000.000000000271,
+        6000.000000000689,
+        6000.0000000000755
+      ],
+      "centroid": {
+        "latitude_deg": 30.703390584566232,
+        "longitude_deg": 52.69115311523515,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 570.8698449042724
+    },
+    {
+      "time": "2026-03-21T09:30:41Z",
+      "triangle_area_m2": 15588457.268118868,
+      "triangle_aspect_ratio": 1.0000000000000346,
+      "triangle_side_lengths_m": [
+        5999.999999999751,
+        5999.999999999933,
+        5999.999999999725
+      ],
+      "centroid": {
+        "latitude_deg": 30.76575720755909,
+        "longitude_deg": 52.67552474257036,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 563.7680372628944
+    },
+    {
+      "time": "2026-03-21T09:30:42Z",
+      "triangle_area_m2": 15588457.268119374,
+      "triangle_aspect_ratio": 1.0000000000000928,
+      "triangle_side_lengths_m": [
+        5999.999999999698,
+        5999.999999999744,
+        6000.000000000256
+      ],
+      "centroid": {
+        "latitude_deg": 30.82812282344963,
+        "longitude_deg": 52.659881521357676,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 556.6662434351672
+    },
+    {
+      "time": "2026-03-21T09:30:43Z",
+      "triangle_area_m2": 15588457.26811783,
+      "triangle_aspect_ratio": 1.000000000000057,
+      "triangle_side_lengths_m": [
+        5999.999999999474,
+        5999.999999999816,
+        5999.999999999516
+      ],
+      "centroid": {
+        "latitude_deg": 30.890487428431246,
+        "longitude_deg": 52.64422339521706,
+        "altitude_m": 520000.00000000186
+      },
+      "max_ground_distance_km": 549.5644634354169
+    },
+    {
+      "time": "2026-03-21T09:30:44Z",
+      "triangle_area_m2": 15588457.268118989,
+      "triangle_aspect_ratio": 1.000000000000094,
+      "triangle_side_lengths_m": [
+        5999.999999999581,
+        6000.000000000145,
+        5999.999999999751
+      ],
+      "centroid": {
+        "latitude_deg": 30.952851018682853,
+        "longitude_deg": 52.628550139172255,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 542.4626939401553
+    },
+    {
+      "time": "2026-03-21T09:30:45Z",
+      "triangle_area_m2": 15588457.268120697,
+      "triangle_aspect_ratio": 1.000000000000047,
+      "triangle_side_lengths_m": [
+        6000.000000000223,
+        6000.000000000261,
+        5999.999999999978
+      ],
+      "centroid": {
+        "latitude_deg": 31.015213590368564,
+        "longitude_deg": 52.612862034672354,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 535.360941669564
+    },
+    {
+      "time": "2026-03-21T09:30:46Z",
+      "triangle_area_m2": 15588457.268121202,
+      "triangle_aspect_ratio": 1.0000000000000824,
+      "triangle_side_lengths_m": [
+        6000.000000000383,
+        6000.000000000433,
+        5999.999999999938
+      ],
+      "centroid": {
+        "latitude_deg": 31.077575139637702,
+        "longitude_deg": 52.59715885531801,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 528.2592032798593
+    },
+    {
+      "time": "2026-03-21T09:30:47Z",
+      "triangle_area_m2": 15588457.268120473,
+      "triangle_aspect_ratio": 1.0000000000000258,
+      "triangle_side_lengths_m": [
+        6000.00000000013,
+        6000.000000000025,
+        6000.000000000179
+      ],
+      "centroid": {
+        "latitude_deg": 31.139935662624726,
+        "longitude_deg": 52.58144054635331,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 521.1574788346338
+    },
+    {
+      "time": "2026-03-21T09:30:48Z",
+      "triangle_area_m2": 15588457.268120054,
+      "triangle_aspect_ratio": 1.000000000000118,
+      "triangle_side_lengths_m": [
+        6000.000000000287,
+        5999.99999999958,
+        6000.000000000225
+      ],
+      "centroid": {
+        "latitude_deg": 31.20229515544913,
+        "longitude_deg": 52.56570704982454,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 514.0557683384377
+    },
+    {
+      "time": "2026-03-21T09:30:49Z",
+      "triangle_area_m2": 15588457.268119942,
+      "triangle_aspect_ratio": 1.0000000000000469,
+      "triangle_side_lengths_m": [
+        5999.9999999998745,
+        5999.999999999996,
+        6000.0000000001555
+      ],
+      "centroid": {
+        "latitude_deg": 31.26465361421534,
+        "longitude_deg": 52.54995830805553,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 506.9540718056814
+    },
+    {
+      "time": "2026-03-21T09:30:50Z",
+      "triangle_area_m2": 15588457.268119613,
+      "triangle_aspect_ratio": 1.0000000000000107,
+      "triangle_side_lengths_m": [
+        5999.999999999909,
+        5999.999999999955,
+        5999.999999999973
+      ],
+      "centroid": {
+        "latitude_deg": 31.327011035012696,
+        "longitude_deg": 52.53419426464022,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 499.85238928030697
+    },
+    {
+      "time": "2026-03-21T09:30:51Z",
+      "triangle_area_m2": 15588457.268120516,
+      "triangle_aspect_ratio": 1.0000000000000344,
+      "triangle_side_lengths_m": [
+        6000.000000000209,
+        6000.000000000146,
+        6000.000000000003
+      ],
+      "centroid": {
+        "latitude_deg": 31.389367413915302,
+        "longitude_deg": 52.51841469307787,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 492.7507174434075
+    },
+    {
+      "time": "2026-03-21T09:30:52Z",
+      "triangle_area_m2": 15588457.26811979,
+      "triangle_aspect_ratio": 1.0000000000000508,
+      "triangle_side_lengths_m": [
+        6000.0000000001455,
+        5999.999999999953,
+        5999.999999999841
+      ],
+      "centroid": {
+        "latitude_deg": 31.45172274698196,
+        "longitude_deg": 52.50261987179466,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 485.64906297680443
+    },
+    {
+      "time": "2026-03-21T09:30:53Z",
+      "triangle_area_m2": 15588457.268119974,
+      "triangle_aspect_ratio": 1.0000000000000575,
+      "triangle_side_lengths_m": [
+        6000.000000000238,
+        5999.999999999914,
+        5999.999999999894
+      ],
+      "centroid": {
+        "latitude_deg": 31.514077030256132,
+        "longitude_deg": 52.486809575333666,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 478.54742259048453
+    },
+    {
+      "time": "2026-03-21T09:30:54Z",
+      "triangle_area_m2": 15588457.26811987,
+      "triangle_aspect_ratio": 1.0000000000000329,
+      "triangle_side_lengths_m": [
+        5999.999999999879,
+        6000.00000000003,
+        6000.000000000076
+      ],
+      "centroid": {
+        "latitude_deg": 31.57643025976578,
+        "longitude_deg": 52.47098374391259,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 471.4457962793067
+    },
+    {
+      "time": "2026-03-21T09:30:55Z",
+      "triangle_area_m2": 15588457.2681196,
+      "triangle_aspect_ratio": 1.0000000000001026,
+      "triangle_side_lengths_m": [
+        5999.999999999882,
+        6000.000000000281,
+        5999.999999999665
+      ],
+      "centroid": {
+        "latitude_deg": 31.638782431523307,
+        "longitude_deg": 52.455142320999954,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 464.3441841069527
+    },
+    {
+      "time": "2026-03-21T09:30:56Z",
+      "triangle_area_m2": 15588457.268117543,
+      "triangle_aspect_ratio": 1.0000000000000595,
+      "triangle_side_lengths_m": [
+        5999.9999999993215,
+        5999.999999999679,
+        5999.999999999642
+      ],
+      "centroid": {
+        "latitude_deg": 31.70113354152556,
+        "longitude_deg": 52.439285246359745,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 457.24258606832973
+    },
+    {
+      "time": "2026-03-21T09:30:57Z",
+      "triangle_area_m2": 15588457.268120315,
+      "triangle_aspect_ratio": 1.0000000000000053,
+      "triangle_side_lengths_m": [
+        6000.000000000085,
+        6000.0000000000955,
+        6000.000000000064
+      ],
+      "centroid": {
+        "latitude_deg": 31.76348358575359,
+        "longitude_deg": 52.423412462010916,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 450.1410022075116
+    },
+    {
+      "time": "2026-03-21T09:30:58Z",
+      "triangle_area_m2": 15588457.268118354,
+      "triangle_aspect_ratio": 1.0000000000001013,
+      "triangle_side_lengths_m": [
+        5999.999999999327,
+        5999.9999999999345,
+        5999.999999999847
+      ],
+      "centroid": {
+        "latitude_deg": 31.825832560172675,
+        "longitude_deg": 52.40752390725881,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 443.0394325194864
+    },
+    {
+      "time": "2026-03-21T09:30:59Z",
+      "triangle_area_m2": 15588457.268122306,
+      "triangle_aspect_ratio": 1.000000000000098,
+      "triangle_side_lengths_m": [
+        6000.000000000726,
+        6000.0000000005275,
+        6000.000000000138
+      ],
+      "centroid": {
+        "latitude_deg": 31.888180460732194,
+        "longitude_deg": 52.39161935676827,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 435.9378737497554
+    },
+    {
+      "time": "2026-03-21T09:31:00Z",
+      "triangle_area_m2": 15588457.26811967,
+      "triangle_aspect_ratio": 1.0000000000000335,
+      "triangle_side_lengths_m": [
+        5999.999999999834,
+        6000.000000000035,
+        6000.000000000003
+      ],
+      "centroid": {
+        "latitude_deg": 31.95052728336552,
+        "longitude_deg": 52.375699085650524,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 428.8363325404
+    },
+    {
+      "time": "2026-03-21T09:31:01Z",
+      "triangle_area_m2": 15588457.268117514,
+      "triangle_aspect_ratio": 1.0000000000000535,
+      "triangle_side_lengths_m": [
+        5999.9999999993515,
+        5999.999999999601,
+        5999.999999999673
+      ],
+      "centroid": {
+        "latitude_deg": 32.012873023990004,
+        "longitude_deg": 52.35976286512382,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 421.73480557742096
+    },
+    {
+      "time": "2026-03-21T09:31:02Z",
+      "triangle_area_m2": 15588457.26811903,
+      "triangle_aspect_ratio": 1.000000000000067,
+      "triangle_side_lengths_m": [
+        6000.000000000028,
+        5999.999999999846,
+        5999.999999999626
+      ],
+      "centroid": {
+        "latitude_deg": 32.075217678506824,
+        "longitude_deg": 52.343810637038146,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 414.6332929246805
+    },
+    {
+      "time": "2026-03-21T09:31:03Z",
+      "triangle_area_m2": 15588457.26812033,
+      "triangle_aspect_ratio": 1.0000000000000693,
+      "triangle_side_lengths_m": [
+        6000.0000000003565,
+        5999.999999999954,
+        5999.999999999941
+      ],
+      "centroid": {
+        "latitude_deg": 32.137561242800885,
+        "longitude_deg": 52.32784233953011,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 407.53179457739105
+    },
+    {
+      "time": "2026-03-21T09:31:04Z",
+      "triangle_area_m2": 15588457.268120756,
+      "triangle_aspect_ratio": 1.000000000000043,
+      "triangle_side_lengths_m": [
+        6000.000000000074,
+        6000.000000000332,
+        6000.000000000092
+      ],
+      "centroid": {
+        "latitude_deg": 32.19990371274077,
+        "longitude_deg": 52.3118579129823,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 400.4303105798758
+    },
+    {
+      "time": "2026-03-21T09:31:05Z",
+      "triangle_area_m2": 15588457.268119242,
+      "triangle_aspect_ratio": 1.000000000000116,
+      "triangle_side_lengths_m": [
+        5999.999999999453,
+        6000.000000000021,
+        6000.000000000149
+      ],
+      "centroid": {
+        "latitude_deg": 32.26224508417863,
+        "longitude_deg": 52.2958572950548,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 393.32884092747156
+    },
+    {
+      "time": "2026-03-21T09:31:06Z",
+      "triangle_area_m2": 15588457.268120678,
+      "triangle_aspect_ratio": 1.000000000000005,
+      "triangle_side_lengths_m": [
+        6000.000000000139,
+        6000.000000000169,
+        6000.000000000142
+      ],
+      "centroid": {
+        "latitude_deg": 32.32458535295011,
+        "longitude_deg": 52.27984025875794,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 386.2273823707219
+    },
+    {
+      "time": "2026-03-21T09:31:07Z",
+      "triangle_area_m2": 15588457.26811913,
+      "triangle_aspect_ratio": 1.0000000000001048,
+      "triangle_side_lengths_m": [
+        5999.999999999484,
+        5999.999999999962,
+        6000.000000000113
+      ],
+      "centroid": {
+        "latitude_deg": 32.38692451487423,
+        "longitude_deg": 52.26380707753968,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 379.125941542598
+    },
+    {
+      "time": "2026-03-21T09:31:08Z",
+      "triangle_area_m2": 15588457.26812078,
+      "triangle_aspect_ratio": 1.0000000000000664,
+      "triangle_side_lengths_m": [
+        6000.000000000176,
+        6000.0000000003665,
+        5999.999999999968
+      ],
+      "centroid": {
+        "latitude_deg": 32.44926256575332,
+        "longitude_deg": 52.247757520945655,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 372.02451513426917
+    },
+    {
+      "time": "2026-03-21T09:31:09Z",
+      "triangle_area_m2": 15588457.268118303,
+      "triangle_aspect_ratio": 1.0000000000000413,
+      "triangle_side_lengths_m": [
+        5999.999999999653,
+        5999.99999999959,
+        5999.999999999837
+      ],
+      "centroid": {
+        "latitude_deg": 32.51159950137288,
+        "longitude_deg": 52.23169152914392,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 364.9231032099803
+    },
+    {
+      "time": "2026-03-21T09:31:10Z",
+      "triangle_area_m2": 15588457.268120468,
+      "triangle_aspect_ratio": 1.0000000000001232,
+      "triangle_side_lengths_m": [
+        6000.000000000518,
+        6000.000000000032,
+        5999.999999999779
+      ],
+      "centroid": {
+        "latitude_deg": 32.57393531750156,
+        "longitude_deg": 52.21560903907688,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 357.8217057752601
+    },
+    {
+      "time": "2026-03-21T09:31:11Z",
+      "triangle_area_m2": 15588457.26812018,
+      "triangle_aspect_ratio": 1.0000000000000455,
+      "triangle_side_lengths_m": [
+        6000.000000000138,
+        6000.00000000015,
+        5999.999999999876
+      ],
+      "centroid": {
+        "latitude_deg": 32.636270009891,
+        "longitude_deg": 52.19950998793651,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 350.72032284554814
+    },
+    {
+      "time": "2026-03-21T09:31:12Z",
+      "triangle_area_m2": 15588457.268120803,
+      "triangle_aspect_ratio": 1.0000000000000477,
+      "triangle_side_lengths_m": [
+        6000.000000000364,
+        6000.000000000077,
+        6000.000000000082
+      ],
+      "centroid": {
+        "latitude_deg": 32.69860357427577,
+        "longitude_deg": 52.183394314156736,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 343.61895446577216
+    },
+    {
+      "time": "2026-03-21T09:31:13Z",
+      "triangle_area_m2": 15588457.268120574,
+      "triangle_aspect_ratio": 1.000000000000081,
+      "triangle_side_lengths_m": [
+        6000.000000000346,
+        6000.000000000187,
+        5999.999999999859
+      ],
+      "centroid": {
+        "latitude_deg": 32.76093600637328,
+        "longitude_deg": 52.167261786048456,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 336.51759733329436
+    },
+    {
+      "time": "2026-03-21T09:31:14Z",
+      "triangle_area_m2": 15588457.268119493,
+      "triangle_aspect_ratio": 1.0000000000000266,
+      "triangle_side_lengths_m": [
+        5999.999999999969,
+        5999.999999999979,
+        5999.999999999819
+      ],
+      "centroid": {
+        "latitude_deg": 32.82326730188361,
+        "longitude_deg": 52.15111267682097,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 329.4162581012665
+    },
+    {
+      "time": "2026-03-21T09:31:15Z",
+      "triangle_area_m2": 15588457.268118756,
+      "triangle_aspect_ratio": 1.0000000000001315,
+      "triangle_side_lengths_m": [
+        5999.999999999295,
+        6000.000000000084,
+        5999.999999999962
+      ],
+      "centroid": {
+        "latitude_deg": 32.88559745648956,
+        "longitude_deg": 52.13494675577185,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 322.3149334959739
+    },
+    {
+      "time": "2026-03-21T09:31:16Z",
+      "triangle_area_m2": 15588457.2681212,
+      "triangle_aspect_ratio": 1.0000000000000175,
+      "triangle_side_lengths_m": [
+        6000.000000000318,
+        6000.000000000221,
+        6000.000000000213
+      ],
+      "centroid": {
+        "latitude_deg": 32.947926465856405,
+        "longitude_deg": 52.11876395784435,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 315.213623513973
+    },
+    {
+      "time": "2026-03-21T09:31:17Z",
+      "triangle_area_m2": 15588457.268119892,
+      "triangle_aspect_ratio": 1.0000000000000828,
+      "triangle_side_lengths_m": [
+        6000.0000000002565,
+        5999.999999999982,
+        5999.99999999976
+      ],
+      "centroid": {
+        "latitude_deg": 33.010254325631884,
+        "longitude_deg": 52.10256422120352,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 308.1123282204926
+    },
+    {
+      "time": "2026-03-21T09:31:18Z",
+      "triangle_area_m2": 15588457.268119477,
+      "triangle_aspect_ratio": 1.0000000000000524,
+      "triangle_side_lengths_m": [
+        6000.00000000002,
+        5999.999999999712,
+        6000.0000000000255
+      ],
+      "centroid": {
+        "latitude_deg": 33.07258103144606,
+        "longitude_deg": 52.08634748028069,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 301.01104761248854
+    },
+    {
+      "time": "2026-03-21T09:31:19Z",
+      "triangle_area_m2": 15588457.268120537,
+      "triangle_aspect_ratio": 1.0000000000001437,
+      "triangle_side_lengths_m": [
+        6000.000000000572,
+        5999.99999999971,
+        6000.000000000087
+      ],
+      "centroid": {
+        "latitude_deg": 33.134906578911234,
+        "longitude_deg": 52.07011367173267,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 293.909781736054
+    },
+    {
+      "time": "2026-03-21T09:31:20Z",
+      "triangle_area_m2": 15588457.268119298,
+      "triangle_aspect_ratio": 1.0000000000001295,
+      "triangle_side_lengths_m": [
+        6000.000000000167,
+        6000.0000000000955,
+        5999.999999999391
+      ],
+      "centroid": {
+        "latitude_deg": 33.19723096362187,
+        "longitude_deg": 52.05386272996988,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 286.80853059842997
+    },
+    {
+      "time": "2026-03-21T09:31:21Z",
+      "triangle_area_m2": 15588457.268119216,
+      "triangle_aspect_ratio": 1.0000000000000602,
+      "triangle_side_lengths_m": [
+        5999.999999999761,
+        6000.000000000104,
+        5999.999999999743
+      ],
+      "centroid": {
+        "latitude_deg": 33.25955418115447,
+        "longitude_deg": 52.037594422745464,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 279.70729093406936
+    },
+    {
+      "time": "2026-03-21T09:31:22Z",
+      "triangle_area_m2": 15588457.268120503,
+      "triangle_aspect_ratio": 1.0000000000001206,
+      "triangle_side_lengths_m": [
+        6000.000000000224,
+        5999.999999999702,
+        6000.000000000425
+      ],
+      "centroid": {
+        "latitude_deg": 33.32187622706744,
+        "longitude_deg": 52.021309021209426,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 272.6060693858
+    },
+    {
+      "time": "2026-03-21T09:31:23Z",
+      "triangle_area_m2": 15588457.26812022,
+      "triangle_aspect_ratio": 1.0000000000001035,
+      "triangle_side_lengths_m": [
+        5999.999999999903,
+        6000.000000000453,
+        5999.999999999833
+      ],
+      "centroid": {
+        "latitude_deg": 33.38419709690106,
+        "longitude_deg": 52.00500629060171,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 265.50486264890964
+    },
+    {
+      "time": "2026-03-21T09:31:24Z",
+      "triangle_area_m2": 15588457.268121092,
+      "triangle_aspect_ratio": 1.000000000000097,
+      "triangle_side_lengths_m": [
+        6000.000000000609,
+        6000.000000000027,
+        6000.000000000055
+      ],
+      "centroid": {
+        "latitude_deg": 33.44651678617735,
+        "longitude_deg": 51.98868616726035,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 258.4036707906977
+    },
+    {
+      "time": "2026-03-21T09:31:25Z",
+      "triangle_area_m2": 15588457.268119456,
+      "triangle_aspect_ratio": 1.0000000000001357,
+      "triangle_side_lengths_m": [
+        5999.999999999586,
+        5999.99999999976,
+        6000.0000000004
+      ],
+      "centroid": {
+        "latitude_deg": 33.50883529039994,
+        "longitude_deg": 51.97234858377951,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 251.30249381058948
+    },
+    {
+      "time": "2026-03-21T09:31:26Z",
+      "triangle_area_m2": 15588457.268119194,
+      "triangle_aspect_ratio": 1.000000000000057,
+      "triangle_side_lengths_m": [
+        5999.99999999975,
+        6000.000000000093,
+        5999.999999999753
+      ],
+      "centroid": {
+        "latitude_deg": 33.57115260505399,
+        "longitude_deg": 51.95599347496858,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 244.2013317573947
+    },
+    {
+      "time": "2026-03-21T09:31:27Z",
+      "triangle_area_m2": 15588457.26811842,
+      "triangle_aspect_ratio": 1.000000000000138,
+      "triangle_side_lengths_m": [
+        5999.999999999236,
+        6000.000000000064,
+        5999.999999999848
+      ],
+      "centroid": {
+        "latitude_deg": 33.6334687256061,
+        "longitude_deg": 51.93962077338025,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 237.10018464152395
+    },
+    {
+      "time": "2026-03-21T09:31:28Z",
+      "triangle_area_m2": 15588457.268118821,
+      "triangle_aspect_ratio": 1.0000000000000717,
+      "triangle_side_lengths_m": [
+        5999.999999999943,
+        5999.999999999925,
+        5999.9999999995125
+      ],
+      "centroid": {
+        "latitude_deg": 33.69578364750421,
+        "longitude_deg": 51.92323024489958,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 229.9990492068959
+    },
+    {
+      "time": "2026-03-21T09:31:29Z",
+      "triangle_area_m2": 15588457.268120544,
+      "triangle_aspect_ratio": 1.0000000000001144,
+      "triangle_side_lengths_m": [
+        6000.0000000001655,
+        5999.999999999762,
+        6000.0000000004475
+      ],
+      "centroid": {
+        "latitude_deg": 33.75809736617742,
+        "longitude_deg": 51.90682215879804,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 222.89793208875108
+    },
+    {
+      "time": "2026-03-21T09:31:30Z",
+      "triangle_area_m2": 15588457.268119792,
+      "triangle_aspect_ratio": 1.0000000000000289,
+      "triangle_side_lengths_m": [
+        6000.00000000003,
+        6000.000000000042,
+        5999.999999999868
+      ],
+      "centroid": {
+        "latitude_deg": 33.820409877035964,
+        "longitude_deg": 51.89039627842658,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 215.79682999298305
+    },
+    {
+      "time": "2026-03-21T09:31:31Z",
+      "triangle_area_m2": 15588457.268120863,
+      "triangle_aspect_ratio": 1.0000000000000628,
+      "triangle_side_lengths_m": [
+        6000.000000000336,
+        6000.000000000264,
+        5999.999999999958
+      ],
+      "centroid": {
+        "latitude_deg": 33.8827211754711,
+        "longitude_deg": 51.87395253822351,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 208.69574299232167
+    },
+    {
+      "time": "2026-03-21T09:31:32Z",
+      "triangle_area_m2": 15588457.268121762,
+      "triangle_aspect_ratio": 1.000000000000032,
+      "triangle_side_lengths_m": [
+        6000.00000000039,
+        6000.000000000247,
+        6000.000000000439
+      ],
+      "centroid": {
+        "latitude_deg": 33.945031256854946,
+        "longitude_deg": 51.857490869369606,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 201.5946711023855
+    },
+    {
+      "time": "2026-03-21T09:31:33Z",
+      "triangle_area_m2": 15588457.268119993,
+      "triangle_aspect_ratio": 1.0000000000000875,
+      "triangle_side_lengths_m": [
+        6000.000000000209,
+        6000.000000000162,
+        5999.999999999684
+      ],
+      "centroid": {
+        "latitude_deg": 34.00734011654042,
+        "longitude_deg": 51.841011203263086,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 194.4936143501983
+    },
+    {
+      "time": "2026-03-21T09:31:34Z",
+      "triangle_area_m2": 15588457.268119695,
+      "triangle_aspect_ratio": 1.00000000000011,
+      "triangle_side_lengths_m": [
+        5999.999999999985,
+        5999.99999999962,
+        6000.000000000279
+      ],
+      "centroid": {
+        "latitude_deg": 34.06964774986115,
+        "longitude_deg": 51.824513472511825,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 187.39257279395275
+    },
+    {
+      "time": "2026-03-21T09:31:35Z",
+      "triangle_area_m2": 15588457.268119417,
+      "triangle_aspect_ratio": 1.0000000000001117,
+      "triangle_side_lengths_m": [
+        5999.999999999614,
+        5999.9999999998245,
+        6000.000000000285
+      ],
+      "centroid": {
+        "latitude_deg": 34.131954152131264,
+        "longitude_deg": 51.80799760745457,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 180.2915464552267
+    },
+    {
+      "time": "2026-03-21T09:31:36Z",
+      "triangle_area_m2": 15588457.268120565,
+      "triangle_aspect_ratio": 1.0000000000000748,
+      "triangle_side_lengths_m": [
+        6000.000000000308,
+        6000.000000000218,
+        5999.99999999986
+      ],
+      "centroid": {
+        "latitude_deg": 34.1942593186454,
+        "longitude_deg": 51.791463371750055,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 173.19053209904888
+    },
+    {
+      "time": "2026-03-21T09:31:37Z",
+      "triangle_area_m2": 15588457.268120665,
+      "triangle_aspect_ratio": 1.0000000000001301,
+      "triangle_side_lengths_m": [
+        6000.00000000023,
+        5999.999999999716,
+        6000.000000000497
+      ],
+      "centroid": {
+        "latitude_deg": 34.25656324467851,
+        "longitude_deg": 51.77491103243089,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 166.08953636072783
+    },
+    {
+      "time": "2026-03-21T09:31:38Z",
+      "triangle_area_m2": 15588457.26812099,
+      "triangle_aspect_ratio": 1.0000000000000648,
+      "triangle_side_lengths_m": [
+        6000.000000000442,
+        6000.000000000053,
+        6000.000000000136
+      ],
+      "centroid": {
+        "latitude_deg": 34.318865925485795,
+        "longitude_deg": 51.75834035059652,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 158.9885559728755
+    },
+    {
+      "time": "2026-03-21T09:31:39Z",
+      "triangle_area_m2": 15588457.268120494,
+      "triangle_aspect_ratio": 1.000000000000047,
+      "triangle_side_lengths_m": [
+        6000.000000000164,
+        5999.999999999949,
+        6000.000000000232
+      ],
+      "centroid": {
+        "latitude_deg": 34.38116735630258,
+        "longitude_deg": 51.74175125842125,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 151.88759103102382
+    },
+    {
+      "time": "2026-03-21T09:31:40Z",
+      "triangle_area_m2": 15588457.268120077,
+      "triangle_aspect_ratio": 1.0000000000001055,
+      "triangle_side_lengths_m": [
+        6000.000000000337,
+        5999.999999999704,
+        6000.000000000063
+      ],
+      "centroid": {
+        "latitude_deg": 34.44346753234419,
+        "longitude_deg": 51.72514368431214,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 144.78664156905984
+    },
+    {
+      "time": "2026-03-21T09:31:41Z",
+      "triangle_area_m2": 15588457.268120257,
+      "triangle_aspect_ratio": 1.0000000000000622,
+      "triangle_side_lengths_m": [
+        6000.000000000293,
+        5999.99999999992,
+        5999.999999999995
+      ],
+      "centroid": {
+        "latitude_deg": 34.505766448805836,
+        "longitude_deg": 51.70851755886792,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 137.6857076775569
+    },
+    {
+      "time": "2026-03-21T09:31:42Z",
+      "triangle_area_m2": 15588457.26812006,
+      "triangle_aspect_ratio": 1.000000000000092,
+      "triangle_side_lengths_m": [
+        6000.000000000118,
+        6000.000000000264,
+        5999.999999999713
+      ],
+      "centroid": {
+        "latitude_deg": 34.568064100862514,
+        "longitude_deg": 51.69187281040691,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 130.58478941850842
+    },
+    {
+      "time": "2026-03-21T09:31:43Z",
+      "triangle_area_m2": 15588457.268119106,
+      "triangle_aspect_ratio": 1.000000000000031,
+      "triangle_side_lengths_m": [
+        5999.999999999907,
+        5999.999999999912,
+        5999.999999999725
+      ],
+      "centroid": {
+        "latitude_deg": 34.63036048366889,
+        "longitude_deg": 51.67520920055598,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 123.48388361701923
+    },
+    {
+      "time": "2026-03-21T09:31:44Z",
+      "triangle_area_m2": 15588457.268118845,
+      "triangle_aspect_ratio": 1.0000000000000566,
+      "triangle_side_lengths_m": [
+        5999.999999999888,
+        5999.9999999995825,
+        5999.999999999923
+      ],
+      "centroid": {
+        "latitude_deg": 34.69265559235917,
+        "longitude_deg": 51.65852699430439,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 116.38299695491844
+    },
+    {
+      "time": "2026-03-21T09:31:45Z",
+      "triangle_area_m2": 15588457.268120063,
+      "triangle_aspect_ratio": 1.0000000000000469,
+      "triangle_side_lengths_m": [
+        6000.000000000186,
+        5999.999999999905,
+        6000.000000000005
+      ],
+      "centroid": {
+        "latitude_deg": 34.754949422046984,
+        "longitude_deg": 51.641825950696735,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 109.28212625712254
+    },
+    {
+      "time": "2026-03-21T09:31:46Z",
+      "triangle_area_m2": 15588457.268120429,
+      "triangle_aspect_ratio": 1.000000000000021,
+      "triangle_side_lengths_m": [
+        6000.000000000035,
+        6000.000000000161,
+        6000.000000000113
+      ],
+      "centroid": {
+        "latitude_deg": 34.817241967825275,
+        "longitude_deg": 51.62510599984065,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 102.18127172808047
+    },
+    {
+      "time": "2026-03-21T09:31:47Z",
+      "triangle_area_m2": 15588457.268119356,
+      "triangle_aspect_ratio": 1.0000000000000557,
+      "triangle_side_lengths_m": [
+        5999.999999999699,
+        5999.999999999955,
+        6000.000000000034
+      ],
+      "centroid": {
+        "latitude_deg": 34.879533224766185,
+        "longitude_deg": 51.60836706806504,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 95.08043354674989
+    },
+    {
+      "time": "2026-03-21T09:31:48Z",
+      "triangle_area_m2": 15588457.268118916,
+      "triangle_aspect_ratio": 1.0000000000001128,
+      "triangle_side_lengths_m": [
+        5999.999999999363,
+        6000.000000000031,
+        6000.00000000004
+      ],
+      "centroid": {
+        "latitude_deg": 34.94182318792093,
+        "longitude_deg": 51.591609083878566,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 87.97961199997924
+    },
+    {
+      "time": "2026-03-21T09:31:49Z",
+      "triangle_area_m2": 15588457.268119114,
+      "triangle_aspect_ratio": 1.000000000000025,
+      "triangle_side_lengths_m": [
+        5999.999999999864,
+        5999.999999999766,
+        5999.999999999917
+      ],
+      "centroid": {
+        "latitude_deg": 35.004111852319674,
+        "longitude_deg": 51.574831973497616,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 80.87880742144918
+    },
+    {
+      "time": "2026-03-21T09:31:50Z",
+      "triangle_area_m2": 15588457.26811986,
+      "triangle_aspect_ratio": 1.000000000000051,
+      "triangle_side_lengths_m": [
+        5999.999999999962,
+        6000.000000000163,
+        5999.999999999856
+      ],
+      "centroid": {
+        "latitude_deg": 35.066399212971405,
+        "longitude_deg": 51.55803566481836,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 73.77802031024319
+    },
+    {
+      "time": "2026-03-21T09:31:51Z",
+      "triangle_area_m2": 15588457.268120343,
+      "triangle_aspect_ratio": 1.0000000000001217,
+      "triangle_side_lengths_m": [
+        5999.999999999755,
+        6000.000000000016,
+        6000.000000000486
+      ],
+      "centroid": {
+        "latitude_deg": 35.12868526486381,
+        "longitude_deg": 51.54121991555475,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 66.67724806155393
+    },
+    {
+      "time": "2026-03-21T09:31:52Z",
+      "triangle_area_m2": 15588457.268117355,
+      "triangle_aspect_ratio": 1.0000000000000404,
+      "triangle_side_lengths_m": [
+        5999.9999999993815,
+        5999.9999999996235,
+        5999.99999999953
+      ],
+      "centroid": {
+        "latitude_deg": 35.19097000296322,
+        "longitude_deg": 51.52438498776281,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 59.57649818259622
+    },
+    {
+      "time": "2026-03-21T09:31:53Z",
+      "triangle_area_m2": 15588457.26811955,
+      "triangle_aspect_ratio": 1.0000000000000584,
+      "triangle_side_lengths_m": [
+        5999.999999999931,
+        6000.00000000011,
+        5999.99999999976
+      ],
+      "centroid": {
+        "latitude_deg": 35.25325342221437,
+        "longitude_deg": 51.507530641016885,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 52.47576894283133
+    },
+    {
+      "time": "2026-03-21T09:31:54Z",
+      "triangle_area_m2": 15588457.268120188,
+      "triangle_aspect_ratio": 1.0000000000000273,
+      "triangle_side_lengths_m": [
+        6000.0000000001555,
+        5999.999999999992,
+        6000.000000000021
+      ],
+      "centroid": {
+        "latitude_deg": 35.315535517540354,
+        "longitude_deg": 51.49065679948345,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 45.37506274342634
+    },
+    {
+      "time": "2026-03-21T09:31:55Z",
+      "triangle_area_m2": 15588457.26811888,
+      "triangle_aspect_ratio": 1.000000000000048,
+      "triangle_side_lengths_m": [
+        5999.999999999988,
+        5999.9999999997,
+        5999.999999999725
+      ],
+      "centroid": {
+        "latitude_deg": 35.37781628384247,
+        "longitude_deg": 51.473763389496405,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 38.27438381919707
+    },
+    {
+      "time": "2026-03-21T09:31:56Z",
+      "triangle_area_m2": 15588457.268119514,
+      "triangle_aspect_ratio": 1.0000000000000326,
+      "triangle_side_lengths_m": [
+        5999.99999999987,
+        6000.000000000054,
+        5999.999999999857
+      ],
+      "centroid": {
+        "latitude_deg": 35.44009571600014,
+        "longitude_deg": 51.45685033558169,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 31.17374019520906
+    },
+    {
+      "time": "2026-03-21T09:31:57Z",
+      "triangle_area_m2": 15588457.268120198,
+      "triangle_aspect_ratio": 1.0000000000000073,
+      "triangle_side_lengths_m": [
+        6000.000000000067,
+        6000.0000000000755,
+        6000.000000000032
+      ],
+      "centroid": {
+        "latitude_deg": 35.502373808870686,
+        "longitude_deg": 51.439917561945606,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 24.073149348079355
+    },
+    {
+      "time": "2026-03-21T09:31:58Z",
+      "triangle_area_m2": 15588457.26812059,
+      "triangle_aspect_ratio": 1.000000000000088,
+      "triangle_side_lengths_m": [
+        5999.99999999995,
+        5999.999999999973,
+        6000.0000000004775
+      ],
+      "centroid": {
+        "latitude_deg": 35.56465055728932,
+        "longitude_deg": 51.422964825579996,
+        "altitude_m": 519999.99999999814
+      },
+      "max_ground_distance_km": 16.97265483460843
+    },
+    {
+      "time": "2026-03-21T09:31:59Z",
+      "triangle_area_m2": 15588457.268119609,
+      "triangle_aspect_ratio": 1.000000000000084,
+      "triangle_side_lengths_m": [
+        5999.999999999787,
+        5999.999999999772,
+        6000.000000000275
+      ],
+      "centroid": {
+        "latitude_deg": 35.62692595606893,
+        "longitude_deg": 51.40599238681265,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 9.872444086215364
+    },
+    {
+      "time": "2026-03-21T09:32:00Z",
+      "triangle_area_m2": 15588457.268120648,
+      "triangle_aspect_ratio": 1.0000000000000535,
+      "triangle_side_lengths_m": [
+        5999.999999999998,
+        6000.000000000319,
+        6000.000000000116
+      ],
+      "centroid": {
+        "latitude_deg": 35.68919999999999,
+        "longitude_deg": 51.389,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 2.774548468951124
+    },
+    {
+      "time": "2026-03-21T09:32:01Z",
+      "triangle_area_m2": 15588457.26812008,
+      "triangle_aspect_ratio": 1.0000000000000504,
+      "triangle_side_lengths_m": [
+        6000.000000000088,
+        5999.999999999858,
+        6000.000000000161
+      ],
+      "centroid": {
+        "latitude_deg": 35.75147268385044,
+        "longitude_deg": 51.371987590534935,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 9.872428329671688
+    },
+    {
+      "time": "2026-03-21T09:32:02Z",
+      "triangle_area_m2": 15588457.268120019,
+      "triangle_aspect_ratio": 1.0000000000000742,
+      "triangle_side_lengths_m": [
+        6000.000000000264,
+        5999.999999999819,
+        5999.999999999986
+      ],
+      "centroid": {
+        "latitude_deg": 35.81374400236545,
+        "longitude_deg": 51.35495508000432,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 16.972591953019244
+    },
+    {
+      "time": "2026-03-21T09:32:03Z",
+      "triangle_area_m2": 15588457.268120404,
+      "triangle_aspect_ratio": 1.0000000000000662,
+      "triangle_side_lengths_m": [
+        6000.000000000055,
+        6000.000000000318,
+        5999.999999999921
+      ],
+      "centroid": {
+        "latitude_deg": 35.87601395026748,
+        "longitude_deg": 51.33790239214784,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 24.07300474484424
+    },
+    {
+      "time": "2026-03-21T09:32:04Z",
+      "triangle_area_m2": 15588457.268119814,
+      "triangle_aspect_ratio": 1.0000000000000755,
+      "triangle_side_lengths_m": [
+        6000.000000000003,
+        5999.999999999748,
+        6000.000000000201
+      ],
+      "centroid": {
+        "latitude_deg": 35.938282522255975,
+        "longitude_deg": 51.320829448385496,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 31.173485678754844
+    },
+    {
+      "time": "2026-03-21T09:32:05Z",
+      "triangle_area_m2": 15588457.268117893,
+      "triangle_aspect_ratio": 1.0000000000001172,
+      "triangle_side_lengths_m": [
+        5999.999999999455,
+        6000.000000000046,
+        5999.999999999342
+      ],
+      "centroid": {
+        "latitude_deg": 36.0005497130073,
+        "longitude_deg": 51.30373600340641,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 38.27399125541525
+    },
+    {
+      "time": "2026-03-21T09:32:06Z",
+      "triangle_area_m2": 15588457.268121298,
+      "triangle_aspect_ratio": 1.000000000000121,
+      "triangle_side_lengths_m": [
+        6000.000000000657,
+        6000.000000000222,
+        5999.999999999931
+      ],
+      "centroid": {
+        "latitude_deg": 36.062815517174634,
+        "longitude_deg": 51.28662231522241,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 45.374497530626634
+    },
+    {
+      "time": "2026-03-21T09:32:07Z",
+      "triangle_area_m2": 15588457.268120088,
+      "triangle_aspect_ratio": 1.0000000000001326,
+      "triangle_side_lengths_m": [
+        6000.000000000453,
+        6000.000000000001,
+        5999.999999999657
+      ],
+      "centroid": {
+        "latitude_deg": 36.12507992938777,
+        "longitude_deg": 51.26948813586059,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 52.474999712858725
+    },
+    {
+      "time": "2026-03-21T09:32:08Z",
+      "triangle_area_m2": 15588457.268118275,
+      "triangle_aspect_ratio": 1.000000000000084,
+      "triangle_side_lengths_m": [
+        5999.999999999392,
+        5999.9999999998945,
+        5999.99999999978
+      ],
+      "centroid": {
+        "latitude_deg": 36.18734294425299,
+        "longitude_deg": 51.252333388370936,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 59.575493548206175
+    },
+    {
+      "time": "2026-03-21T09:32:09Z",
+      "triangle_area_m2": 15588457.268119259,
+      "triangle_aspect_ratio": 1.0000000000000537,
+      "triangle_side_lengths_m": [
+        5999.999999999764,
+        5999.99999999978,
+        6000.000000000087
+      ],
+      "centroid": {
+        "latitude_deg": 36.249604556353,
+        "longitude_deg": 51.23515799198412,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 66.67597663538639
+    },
+    {
+      "time": "2026-03-21T09:32:10Z",
+      "triangle_area_m2": 15588457.268121157,
+      "triangle_aspect_ratio": 1.0000000000000342,
+      "triangle_side_lengths_m": [
+        6000.000000000217,
+        6000.000000000358,
+        6000.000000000153
+      ],
+      "centroid": {
+        "latitude_deg": 36.31186476024671,
+        "longitude_deg": 51.21796186806982,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 73.77644745145516
+    },
+    {
+      "time": "2026-03-21T09:32:11Z",
+      "triangle_area_m2": 15588457.268117996,
+      "triangle_aspect_ratio": 1.0000000000000393,
+      "triangle_side_lengths_m": [
+        5999.999999999522,
+        5999.999999999758,
+        5999.9999999996235
+      ],
+      "centroid": {
+        "latitude_deg": 36.3741235504691,
+        "longitude_deg": 51.200744935664396,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 80.87690503158781
+    },
+    {
+      "time": "2026-03-21T09:32:12Z",
+      "triangle_area_m2": 15588457.268120006,
+      "triangle_aspect_ratio": 1.0000000000000295,
+      "triangle_side_lengths_m": [
+        5999.999999999931,
+        6000.000000000108,
+        6000.000000000025
+      ],
+      "centroid": {
+        "latitude_deg": 36.43638092153116,
+        "longitude_deg": 51.18350711544266,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 87.97734868246862
+    },
+    {
+      "time": "2026-03-21T09:32:13Z",
+      "triangle_area_m2": 15588457.268121973,
+      "triangle_aspect_ratio": 1.0000000000000742,
+      "triangle_side_lengths_m": [
+        6000.000000000379,
+        6000.000000000187,
+        6000.000000000632
+      ],
+      "centroid": {
+        "latitude_deg": 36.49863686791964,
+        "longitude_deg": 51.16624815785558,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 95.07778119875519
+    },
+    {
+      "time": "2026-03-21T09:32:14Z",
+      "triangle_area_m2": 15588457.268119397,
+      "triangle_aspect_ratio": 1.000000000000113,
+      "triangle_side_lengths_m": [
+        5999.999999999585,
+        6000.000000000264,
+        5999.999999999862
+      ],
+      "centroid": {
+        "latitude_deg": 36.560891384096976,
+        "longitude_deg": 51.14896831765436,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 102.17819571774733
+    },
+    {
+      "time": "2026-03-21T09:32:15Z",
+      "triangle_area_m2": 15588457.26811963,
+      "triangle_aspect_ratio": 1.0000000000000637,
+      "triangle_side_lengths_m": [
+        5999.999999999993,
+        5999.999999999735,
+        6000.000000000118
+      ],
+      "centroid": {
+        "latitude_deg": 36.623144464501145,
+        "longitude_deg": 51.131667347066376,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 109.2785951971137
+    },
+    {
+      "time": "2026-03-21T09:32:16Z",
+      "triangle_area_m2": 15588457.268118804,
+      "triangle_aspect_ratio": 1.0000000000000755,
+      "triangle_side_lengths_m": [
+        5999.999999999521,
+        5999.999999999974,
+        5999.999999999876
+      ],
+      "centroid": {
+        "latitude_deg": 36.68539610354546,
+        "longitude_deg": 51.114345162868744,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 116.37897945769554
+    },
+    {
+      "time": "2026-03-21T09:32:17Z",
+      "triangle_area_m2": 15588457.26811998,
+      "triangle_aspect_ratio": 1.0000000000000682,
+      "triangle_side_lengths_m": [
+        5999.999999999772,
+        6000.00000000018,
+        6000.000000000096
+      ],
+      "centroid": {
+        "latitude_deg": 36.747646295618544,
+        "longitude_deg": 51.09700168396307,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 123.47934831452874
+    },
+    {
+      "time": "2026-03-21T09:32:18Z",
+      "triangle_area_m2": 15588457.268118,
+      "triangle_aspect_ratio": 1.0000000000000506,
+      "triangle_side_lengths_m": [
+        5999.999999999532,
+        5999.999999999835,
+        5999.999999999539
+      ],
+      "centroid": {
+        "latitude_deg": 36.809895035084025,
+        "longitude_deg": 51.07963682740031,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 130.57970164238483
+    },
+    {
+      "time": "2026-03-21T09:32:19Z",
+      "triangle_area_m2": 15588457.268119264,
+      "triangle_aspect_ratio": 1.0000000000000624,
+      "triangle_side_lengths_m": [
+        5999.999999999806,
+        5999.999999999728,
+        6000.000000000102
+      ],
+      "centroid": {
+        "latitude_deg": 36.87214231628055,
+        "longitude_deg": 51.0622505098683,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 137.68003933893803
+    },
+    {
+      "time": "2026-03-21T09:32:20Z",
+      "triangle_area_m2": 15588457.26812051,
+      "triangle_aspect_ratio": 1.000000000000074,
+      "triangle_side_lengths_m": [
+        6000.000000000131,
+        5999.99999999989,
+        6000.000000000334
+      ],
+      "centroid": {
+        "latitude_deg": 36.93438813352153,
+        "longitude_deg": 51.044842480796866,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 144.7803645584485
+    },
+    {
+      "time": "2026-03-21T09:32:21Z",
+      "triangle_area_m2": 15588457.2681187,
+      "triangle_aspect_ratio": 1.0000000000000706,
+      "triangle_side_lengths_m": [
+        5999.9999999996235,
+        5999.999999999641,
+        6000.000000000047
+      ],
+      "centroid": {
+        "latitude_deg": 36.996632481094984,
+        "longitude_deg": 51.02741299191454,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 151.8806707119561
+    },
+    {
+      "time": "2026-03-21T09:32:22Z",
+      "triangle_area_m2": 15588457.26812062,
+      "triangle_aspect_ratio": 1.0000000000000349,
+      "triangle_side_lengths_m": [
+        6000.0000000000155,
+        6000.000000000178,
+        6000.000000000225
+      ],
+      "centroid": {
+        "latitude_deg": 37.0588753532635,
+        "longitude_deg": 51.009961792907966,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 158.98096095783683
+    },
+    {
+      "time": "2026-03-21T09:32:23Z",
+      "triangle_area_m2": 15588457.268120324,
+      "triangle_aspect_ratio": 1.0000000000000815,
+      "triangle_side_lengths_m": [
+        6000.000000000297,
+        6000.000000000142,
+        5999.999999999809
+      ],
+      "centroid": {
+        "latitude_deg": 37.12111674426396,
+        "longitude_deg": 50.9924887989919,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 166.08123524263794
+    },
+    {
+      "time": "2026-03-21T09:32:24Z",
+      "triangle_area_m2": 15588457.268118242,
+      "triangle_aspect_ratio": 1.0000000000000693,
+      "triangle_side_lengths_m": [
+        5999.999999999416,
+        5999.999999999832,
+        5999.999999999795
+      ],
+      "centroid": {
+        "latitude_deg": 37.18335664830746,
+        "longitude_deg": 50.974993923517324,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 173.1814935482601
+    },
+    {
+      "time": "2026-03-21T09:32:25Z",
+      "triangle_area_m2": 15588457.268120581,
+      "triangle_aspect_ratio": 1.0000000000001152,
+      "triangle_side_lengths_m": [
+        6000.000000000407,
+        5999.999999999716,
+        6000.000000000273
+      ],
+      "centroid": {
+        "latitude_deg": 37.2455950595791,
+        "longitude_deg": 50.95747708392971,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 180.28173577498495
+    },
+    {
+      "time": "2026-03-21T09:32:26Z",
+      "triangle_area_m2": 15588457.268119747,
+      "triangle_aspect_ratio": 1.0000000000000888,
+      "triangle_side_lengths_m": [
+        6000.0000000003065,
+        5999.9999999998345,
+        5999.9999999997735
+      ],
+      "centroid": {
+        "latitude_deg": 37.307831972237906,
+        "longitude_deg": 50.93993819332266,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 187.381961904406
+    },
+    {
+      "time": "2026-03-21T09:32:27Z",
+      "triangle_area_m2": 15588457.268117966,
+      "triangle_aspect_ratio": 1.0000000000000846,
+      "triangle_side_lengths_m": [
+        5999.999999999304,
+        5999.999999999812,
+        5999.999999999771
+      ],
+      "centroid": {
+        "latitude_deg": 37.370067380416636,
+        "longitude_deg": 50.922377166893085,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 194.4821718733344
+    },
+    {
+      "time": "2026-03-21T09:32:28Z",
+      "triangle_area_m2": 15588457.26811962,
+      "triangle_aspect_ratio": 1.0000000000000513,
+      "triangle_side_lengths_m": [
+        6000.000000000108,
+        5999.9999999998,
+        5999.999999999933
+      ],
+      "centroid": {
+        "latitude_deg": 37.43230127822156,
+        "longitude_deg": 50.90479374958198,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 201.5823689176083
+    },
+    {
+      "time": "2026-03-21T09:32:29Z",
+      "triangle_area_m2": 15588457.268120462,
+      "triangle_aspect_ratio": 1.0000000000000655,
+      "triangle_side_lengths_m": [
+        6000.000000000322,
+        6000.0000000000755,
+        5999.999999999929
+      ],
+      "centroid": {
+        "latitude_deg": 37.49453365973245,
+        "longitude_deg": 50.887188190598295,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 208.68254648286472
+    },
+    {
+      "time": "2026-03-21T09:32:30Z",
+      "triangle_area_m2": 15588457.268122843,
+      "triangle_aspect_ratio": 1.0000000000000777,
+      "triangle_side_lengths_m": [
+        6000.000000000698,
+        6000.000000000269,
+        6000.000000000736
+      ],
+      "centroid": {
+        "latitude_deg": 37.55676451900224,
+        "longitude_deg": 50.869560237091314,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 215.78270775166396
+    },
+    {
+      "time": "2026-03-21T09:32:31Z",
+      "triangle_area_m2": 15588457.268120537,
+      "triangle_aspect_ratio": 1.0000000000000668,
+      "triangle_side_lengths_m": [
+        5999.999999999944,
+        6000.000000000083,
+        6000.000000000345
+      ],
+      "centroid": {
+        "latitude_deg": 37.618993850057045,
+        "longitude_deg": 50.851909798740365,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 222.88285274665452
+    },
+    {
+      "time": "2026-03-21T09:32:32Z",
+      "triangle_area_m2": 15588457.268120224,
+      "triangle_aspect_ratio": 1.0000000000000375,
+      "triangle_side_lengths_m": [
+        6000.000000000093,
+        6000.000000000161,
+        5999.999999999935
+      ],
+      "centroid": {
+        "latitude_deg": 37.68122164689587,
+        "longitude_deg": 50.834236790296885,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 229.9829813858756
+    },
+    {
+      "time": "2026-03-21T09:32:33Z",
+      "triangle_area_m2": 15588457.268118765,
+      "triangle_aspect_ratio": 1.0000000000001052,
+      "triangle_side_lengths_m": [
+        6000.000000000145,
+        5999.999999999513,
+        5999.99999999969
+      ],
+      "centroid": {
+        "latitude_deg": 37.74344790349047,
+        "longitude_deg": 50.816541122144564,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 237.0830936656282
+    },
+    {
+      "time": "2026-03-21T09:32:34Z",
+      "triangle_area_m2": 15588457.26811867,
+      "triangle_aspect_ratio": 1.0000000000000409,
+      "triangle_side_lengths_m": [
+        5999.999999999922,
+        5999.999999999676,
+        5999.999999999696
+      ],
+      "centroid": {
+        "latitude_deg": 37.805672613785276,
+        "longitude_deg": 50.79882270675432,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 244.18318953504988
+    },
+    {
+      "time": "2026-03-21T09:32:35Z",
+      "triangle_area_m2": 15588457.268120548,
+      "triangle_aspect_ratio": 1.0000000000001046,
+      "triangle_side_lengths_m": [
+        6000.000000000441,
+        5999.999999999814,
+        6000.000000000122
+      ],
+      "centroid": {
+        "latitude_deg": 37.86789577169711,
+        "longitude_deg": 50.78108128632507,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 251.28327223791712
+    },
+    {
+      "time": "2026-03-21T09:32:36Z",
+      "triangle_area_m2": 15588457.268119814,
+      "triangle_aspect_ratio": 1.0000000000001177,
+      "triangle_side_lengths_m": [
+        6000.000000000377,
+        5999.9999999999045,
+        5999.999999999671
+      ],
+      "centroid": {
+        "latitude_deg": 37.930117371115095,
+        "longitude_deg": 50.7633171078041,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 258.3833352237016
+    },
+    {
+      "time": "2026-03-21T09:32:37Z",
+      "triangle_area_m2": 15588457.268120449,
+      "triangle_aspect_ratio": 1.000000000000027,
+      "triangle_side_lengths_m": [
+        6000.000000000184,
+        6000.000000000021,
+        6000.000000000115
+      ],
+      "centroid": {
+        "latitude_deg": 37.992337405900464,
+        "longitude_deg": 50.745529914075966,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 265.483381709079
+    },
+    {
+      "time": "2026-03-21T09:32:38Z",
+      "triangle_area_m2": 15588457.268119525,
+      "triangle_aspect_ratio": 1.000000000000175,
+      "triangle_side_lengths_m": [
+        5999.999999999402,
+        5999.999999999933,
+        6000.000000000451
+      ],
+      "centroid": {
+        "latitude_deg": 38.054555869886386,
+        "longitude_deg": 50.72771961351894,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 272.58341169415206
+    },
+    {
+      "time": "2026-03-21T09:32:39Z",
+      "triangle_area_m2": 15588457.268121766,
+      "triangle_aspect_ratio": 1.0000000000000886,
+      "triangle_side_lengths_m": [
+        6000.0000000003665,
+        6000.00000000009,
+        6000.000000000622
+      ],
+      "centroid": {
+        "latitude_deg": 38.116772756877836,
+        "longitude_deg": 50.709886117579906,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 279.6834251121222
+    },
+    {
+      "time": "2026-03-21T09:32:40Z",
+      "triangle_area_m2": 15588457.268120816,
+      "triangle_aspect_ratio": 1.0000000000001663,
+      "triangle_side_lengths_m": [
+        6000.000000000177,
+        6000.000000000676,
+        5999.999999999678
+      ],
+      "centroid": {
+        "latitude_deg": 38.178988060651356,
+        "longitude_deg": 50.692029333818255,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 286.78342196399933
+    },
+    {
+      "time": "2026-03-21T09:32:41Z",
+      "triangle_area_m2": 15588457.268120062,
+      "triangle_aspect_ratio": 1.0000000000001454,
+      "triangle_side_lengths_m": [
+        5999.999999999998,
+        6000.000000000485,
+        5999.999999999612
+      ],
+      "centroid": {
+        "latitude_deg": 38.241201774954945,
+        "longitude_deg": 50.67414917186365,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 293.8834022030482
+    },
+    {
+      "time": "2026-03-21T09:32:42Z",
+      "triangle_area_m2": 15588457.2681187,
+      "triangle_aspect_ratio": 1.0000000000000242,
+      "triangle_side_lengths_m": [
+        5999.999999999749,
+        5999.999999999853,
+        5999.999999999707
+      ],
+      "centroid": {
+        "latitude_deg": 38.303413893507866,
+        "longitude_deg": 50.656245371056826,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 300.98336907346675
+    },
+    {
+      "time": "2026-03-21T09:32:43Z",
+      "triangle_area_m2": 15588457.268119173,
+      "triangle_aspect_ratio": 1.0000000000000742,
+      "triangle_side_lengths_m": [
+        6000.000000000117,
+        5999.9999999997935,
+        5999.999999999673
+      ],
+      "centroid": {
+        "latitude_deg": 38.36562441000046,
+        "longitude_deg": 50.63831817546987,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 308.0833160340663
+    },
+    {
+      "time": "2026-03-21T09:32:44Z",
+      "triangle_area_m2": 15588457.268118195,
+      "triangle_aspect_ratio": 1.0000000000001181,
+      "triangle_side_lengths_m": [
+        6000.000000000063,
+        5999.999999999353,
+        5999.999999999603
+      ],
+      "centroid": {
+        "latitude_deg": 38.42783331809396,
+        "longitude_deg": 50.620367325094975,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 315.1832463012086
+    },
+    {
+      "time": "2026-03-21T09:32:45Z",
+      "triangle_area_m2": 15588457.26811861,
+      "triangle_aspect_ratio": 1.0000000000000653,
+      "triangle_side_lengths_m": [
+        5999.999999999517,
+        5999.999999999833,
+        5999.999999999909
+      ],
+      "centroid": {
+        "latitude_deg": 38.490040611420376,
+        "longitude_deg": 50.60239272639418,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 322.2831598581437
+    },
+    {
+      "time": "2026-03-21T09:32:46Z",
+      "triangle_area_m2": 15588457.26811716,
+      "triangle_aspect_ratio": 1.0000000000000613,
+      "triangle_side_lengths_m": [
+        5999.999999999248,
+        5999.999999999557,
+        5999.999999999616
+      ],
+      "centroid": {
+        "latitude_deg": 38.552246283582306,
+        "longitude_deg": 50.58439428490711,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 329.38305669793806
+    },
+    {
+      "time": "2026-03-21T09:32:47Z",
+      "triangle_area_m2": 15588457.268119691,
+      "triangle_aspect_ratio": 1.000000000000124,
+      "triangle_side_lengths_m": [
+        6000.000000000258,
+        6000.000000000109,
+        5999.999999999514
+      ],
+      "centroid": {
+        "latitude_deg": 38.61445032815263,
+        "longitude_deg": 50.56637190872552,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 336.48293675613917
+    },
+    {
+      "time": "2026-03-21T09:32:48Z",
+      "triangle_area_m2": 15588457.268119428,
+      "triangle_aspect_ratio": 1.0000000000001763,
+      "triangle_side_lengths_m": [
+        6000.000000000518,
+        5999.99999999975,
+        5999.999999999461
+      ],
+      "centroid": {
+        "latitude_deg": 38.6766527386745,
+        "longitude_deg": 50.54832550203328,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 343.5828000357769
+    },
+    {
+      "time": "2026-03-21T09:32:49Z",
+      "triangle_area_m2": 15588457.268123234,
+      "triangle_aspect_ratio": 1.0000000000000935,
+      "triangle_side_lengths_m": [
+        6000.0000000004275,
+        6000.000000000511,
+        6000.000000000989
+      ],
+      "centroid": {
+        "latitude_deg": 38.73885350866105,
+        "longitude_deg": 50.53025497106447,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 350.68264649194884
+    },
+    {
+      "time": "2026-03-21T09:32:50Z",
+      "triangle_area_m2": 15588457.268120093,
+      "triangle_aspect_ratio": 1.0000000000000353,
+      "triangle_side_lengths_m": [
+        5999.9999999999045,
+        6000.000000000116,
+        6000.000000000094
+      ],
+      "centroid": {
+        "latitude_deg": 38.8010526315953,
+        "longitude_deg": 50.512160051743884,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 357.7824793663336
+    },
+    {
+      "time": "2026-03-21T09:32:51Z",
+      "triangle_area_m2": 15588457.268116655,
+      "triangle_aspect_ratio": 1.0000000000000895,
+      "triangle_side_lengths_m": [
+        5999.999999999327,
+        5999.99999999967,
+        5999.999999999132
+      ],
+      "centroid": {
+        "latitude_deg": 38.863250100929875,
+        "longitude_deg": 50.49404098470708,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 364.8822921273722
+    },
+    {
+      "time": "2026-03-21T09:32:52Z",
+      "triangle_area_m2": 15588457.268121338,
+      "triangle_aspect_ratio": 1.0000000000000915,
+      "triangle_side_lengths_m": [
+        6000.000000000478,
+        5999.999999999929,
+        6000.000000000425
+      ],
+      "centroid": {
+        "latitude_deg": 38.92544591008686,
+        "longitude_deg": 50.475897506489076,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 371.9820879886725
+    },
+    {
+      "time": "2026-03-21T09:32:53Z",
+      "triangle_area_m2": 15588457.268117612,
+      "triangle_aspect_ratio": 1.0000000000000053,
+      "triangle_side_lengths_m": [
+        5999.999999999561,
+        5999.999999999544,
+        5999.999999999576
+      ],
+      "centroid": {
+        "latitude_deg": 38.987640052457685,
+        "longitude_deg": 50.45772951908049,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 379.08186695383984
+    },
+    {
+      "time": "2026-03-21T09:32:54Z",
+      "triangle_area_m2": 15588457.2681181,
+      "triangle_aspect_ratio": 1.0000000000000804,
+      "triangle_side_lengths_m": [
+        5999.999999999377,
+        5999.999999999727,
+        5999.999999999859
+      ],
+      "centroid": {
+        "latitude_deg": 39.04983252140281,
+        "longitude_deg": 50.439536927502374,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 386.1816289593218
+    },
+    {
+      "time": "2026-03-21T09:32:55Z",
+      "triangle_area_m2": 15588457.268120056,
+      "triangle_aspect_ratio": 1.0000000000001692,
+      "triangle_side_lengths_m": [
+        5999.999999999443,
+        6000.000000000458,
+        6000.000000000192
+      ],
+      "centroid": {
+        "latitude_deg": 39.11202331025163,
+        "longitude_deg": 50.42131963284936,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 393.2813740088865
+    },
+    {
+      "time": "2026-03-21T09:32:56Z",
+      "triangle_area_m2": 15588457.26811907,
+      "triangle_aspect_ratio": 1.0000000000001517,
+      "triangle_side_lengths_m": [
+        6000.000000000347,
+        5999.999999999438,
+        5999.999999999739
+      ],
+      "centroid": {
+        "latitude_deg": 39.17421241230222,
+        "longitude_deg": 50.40307753824765,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 400.3811020583541
+    },
+    {
+      "time": "2026-03-21T09:32:57Z",
+      "triangle_area_m2": 15588457.268121704,
+      "triangle_aspect_ratio": 1.0000000000001077,
+      "triangle_side_lengths_m": [
+        5999.999999999921,
+        6000.000000000567,
+        6000.000000000556
+      ],
+      "centroid": {
+        "latitude_deg": 39.23639982082122,
+        "longitude_deg": 50.38481037649536,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 407.48081634611157
+    },
+    {
+      "time": "2026-03-21T09:32:58Z",
+      "triangle_area_m2": 15588457.268119974,
+      "triangle_aspect_ratio": 1.000000000000106,
+      "triangle_side_lengths_m": [
+        6000.000000000388,
+        5999.9999999997535,
+        5999.999999999903
+      ],
+      "centroid": {
+        "latitude_deg": 39.29858552904356,
+        "longitude_deg": 50.36651838508243,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 414.5805103489388
+    },
+    {
+      "time": "2026-03-21T09:32:59Z",
+      "triangle_area_m2": 15588457.26811983,
+      "triangle_aspect_ratio": 1.0000000000000495,
+      "triangle_side_lengths_m": [
+        6000.000000000027,
+        5999.999999999819,
+        6000.0000000001155
+      ],
+      "centroid": {
+        "latitude_deg": 39.36076953017231,
+        "longitude_deg": 50.34820129737925,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 421.68018727711257
+    },
+    {
+      "time": "2026-03-21T09:33:00Z",
+      "triangle_area_m2": 15588457.268121075,
+      "triangle_aspect_ratio": 1.0000000000000218,
+      "triangle_side_lengths_m": [
+        6000.000000000153,
+        6000.000000000246,
+        6000.000000000283
+      ],
+      "centroid": {
+        "latitude_deg": 39.42295181737852,
+        "longitude_deg": 50.329859012192614,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 428.779847134672
+    },
+    {
+      "time": "2026-03-21T09:33:01Z",
+      "triangle_area_m2": 15588457.26812055,
+      "triangle_aspect_ratio": 1.000000000000051,
+      "triangle_side_lengths_m": [
+        5999.999999999956,
+        6000.000000000158,
+        6000.000000000263
+      ],
+      "centroid": {
+        "latitude_deg": 39.485132383800895,
+        "longitude_deg": 50.31149143134025,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 435.8794898585406
+    },
+    {
+      "time": "2026-03-21T09:33:02Z",
+      "triangle_area_m2": 15588457.268121395,
+      "triangle_aspect_ratio": 1.0000000000000313,
+      "triangle_side_lengths_m": [
+        6000.00000000031,
+        6000.000000000372,
+        6000.000000000184
+      ],
+      "centroid": {
+        "latitude_deg": 39.547311222545744,
+        "longitude_deg": 50.29309845269431,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 442.9791154528366
+    },
+    {
+      "time": "2026-03-21T09:33:03Z",
+      "triangle_area_m2": 15588457.268119354,
+      "triangle_aspect_ratio": 1.000000000000071,
+      "triangle_side_lengths_m": [
+        6000.000000000164,
+        5999.999999999786,
+        5999.999999999737
+      ],
+      "centroid": {
+        "latitude_deg": 39.60948832668669,
+        "longitude_deg": 50.27467997613869,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 450.078723873758
+    },
+    {
+      "time": "2026-03-21T09:33:04Z",
+      "triangle_area_m2": 15588457.268119408,
+      "triangle_aspect_ratio": 1.0000000000000768,
+      "triangle_side_lengths_m": [
+        5999.999999999863,
+        5999.999999999696,
+        6000.000000000157
+      ],
+      "centroid": {
+        "latitude_deg": 39.671663689264506,
+        "longitude_deg": 50.256235899592674,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 457.17831510630845
+    },
+    {
+      "time": "2026-03-21T09:33:05Z",
+      "triangle_area_m2": 15588457.268119425,
+      "triangle_aspect_ratio": 1.0000000000000842,
+      "triangle_side_lengths_m": [
+        6000.000000000228,
+        5999.999999999777,
+        5999.9999999997235
+      ],
+      "centroid": {
+        "latitude_deg": 39.73383730328689,
+        "longitude_deg": 50.23776595211489,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 464.27789238452146
+    },
+    {
+      "time": "2026-03-21T09:33:06Z",
+      "triangle_area_m2": 15588457.268118791,
+      "triangle_aspect_ratio": 1.0000000000000178,
+      "triangle_side_lengths_m": [
+        5999.999999999839,
+        5999.999999999733,
+        5999.99999999979
+      ],
+      "centroid": {
+        "latitude_deg": 39.79600916172826,
+        "longitude_deg": 50.219270368923276,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 471.3774491660929
+    },
+    {
+      "time": "2026-03-21T09:33:07Z",
+      "triangle_area_m2": 15588457.268119708,
+      "triangle_aspect_ratio": 1.000000000000033,
+      "triangle_side_lengths_m": [
+        5999.999999999868,
+        6000.000000000066,
+        5999.999999999958
+      ],
+      "centroid": {
+        "latitude_deg": 39.85817925752959,
+        "longitude_deg": 50.20074887711943,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 478.4769887048713
+    },
+    {
+      "time": "2026-03-21T09:33:08Z",
+      "triangle_area_m2": 15588457.26811977,
+      "triangle_aspect_ratio": 1.000000000000152,
+      "triangle_side_lengths_m": [
+        5999.999999999653,
+        5999.99999999971,
+        6000.000000000565
+      ],
+      "centroid": {
+        "latitude_deg": 39.92034758359814,
+        "longitude_deg": 50.182201375178686,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 485.5765109380565
+    },
+    {
+      "time": "2026-03-21T09:33:09Z",
+      "triangle_area_m2": 15588457.268121164,
+      "triangle_aspect_ratio": 1.0000000000000877,
+      "triangle_side_lengths_m": [
+        5999.999999999944,
+        6000.00000000032,
+        6000.000000000469
+      ],
+      "centroid": {
+        "latitude_deg": 39.98251413280727,
+        "longitude_deg": 50.16362775810712,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 492.6760158603571
+    },
+    {
+      "time": "2026-03-21T09:33:10Z",
+      "triangle_area_m2": 15588457.268120691,
+      "triangle_aspect_ratio": 1.0000000000000715,
+      "triangle_side_lengths_m": [
+        6000.000000000195,
+        5999.999999999919,
+        6000.000000000347
+      ],
+      "centroid": {
+        "latitude_deg": 40.044678897996235,
+        "longitude_deg": 50.145027920915005,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 499.7755034569174
+    },
+    {
+      "time": "2026-03-21T09:33:11Z",
+      "triangle_area_m2": 15588457.268117363,
+      "triangle_aspect_ratio": 1.0000000000000782,
+      "triangle_side_lengths_m": [
+        5999.999999999325,
+        5999.9999999997935,
+        5999.99999999942
+      ],
+      "centroid": {
+        "latitude_deg": 40.106841871970005,
+        "longitude_deg": 50.12640175960762,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 506.8749736841705
+    },
+    {
+      "time": "2026-03-21T09:33:12Z",
+      "triangle_area_m2": 15588457.268121224,
+      "triangle_aspect_ratio": 1.0000000000001315,
+      "triangle_side_lengths_m": [
+        6000.000000000398,
+        5999.99999999979,
+        6000.000000000578
+      ],
+      "centroid": {
+        "latitude_deg": 40.16900304749899,
+        "longitude_deg": 50.107748999818526,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 513.9744297720413
+    },
+    {
+      "time": "2026-03-21T09:33:13Z",
+      "triangle_area_m2": 15588457.268121982,
+      "triangle_aspect_ratio": 1.000000000000091,
+      "triangle_side_lengths_m": [
+        6000.000000000072,
+        6000.0000000006185,
+        6000.000000000514
+      ],
+      "centroid": {
+        "latitude_deg": 40.231162417318835,
+        "longitude_deg": 50.08906987182936,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 521.0738652156099
+    },
+    {
+      "time": "2026-03-21T09:33:14Z",
+      "triangle_area_m2": 15588457.268122204,
+      "triangle_aspect_ratio": 1.0000000000001172,
+      "triangle_side_lengths_m": [
+        6000.000000000679,
+        6000.000000000676,
+        5999.999999999976
+      ],
+      "centroid": {
+        "latitude_deg": 40.293319974130284,
+        "longitude_deg": 50.07036410175796,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 528.1732832167291
+    },
+    {
+      "time": "2026-03-21T09:33:15Z",
+      "triangle_area_m2": 15588457.268118795,
+      "triangle_aspect_ratio": 1.0000000000000508,
+      "triangle_side_lengths_m": [
+        5999.999999999665,
+        5999.99999999997,
+        5999.999999999728
+      ],
+      "centroid": {
+        "latitude_deg": 40.35547571059881,
+        "longitude_deg": 50.0516315811141,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 535.2726837797484
+    },
+    {
+      "time": "2026-03-21T09:33:16Z",
+      "triangle_area_m2": 15588457.268120348,
+      "triangle_aspect_ratio": 1.000000000000091,
+      "triangle_side_lengths_m": [
+        5999.999999999788,
+        6000.000000000138,
+        6000.000000000335
+      ],
+      "centroid": {
+        "latitude_deg": 40.41762961935457,
+        "longitude_deg": 50.03287220437372,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 542.372066842059
+    },
+    {
+      "time": "2026-03-21T09:33:17Z",
+      "triangle_area_m2": 15588457.268120592,
+      "triangle_aspect_ratio": 1.0000000000000733,
+      "triangle_side_lengths_m": [
+        6000.000000000285,
+        5999.9999999998445,
+        6000.000000000273
+      ],
+      "centroid": {
+        "latitude_deg": 40.47978169299202,
+        "longitude_deg": 50.01408586202199,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 549.4714324080271
+    },
+    {
+      "time": "2026-03-21T09:33:18Z",
+      "triangle_area_m2": 15588457.268120205,
+      "triangle_aspect_ratio": 1.0000000000000568,
+      "triangle_side_lengths_m": [
+        6000.0000000000155,
+        6000.000000000252,
+        5999.999999999911
+      ],
+      "centroid": {
+        "latitude_deg": 40.541931924069814,
+        "longitude_deg": 49.99527244651047,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 556.5707804342022
+    },
+    {
+      "time": "2026-03-21T09:33:19Z",
+      "triangle_area_m2": 15588457.268118357,
+      "triangle_aspect_ratio": 1.000000000000028,
+      "triangle_side_lengths_m": [
+        5999.999999999725,
+        5999.999999999778,
+        5999.99999999961
+      ],
+      "centroid": {
+        "latitude_deg": 40.60408030511052,
+        "longitude_deg": 49.97643184728683,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 563.6701109249581
+    },
+    {
+      "time": "2026-03-21T09:33:20Z",
+      "triangle_area_m2": 15588457.26812082,
+      "triangle_aspect_ratio": 1.000000000000049,
+      "triangle_side_lengths_m": [
+        6000.000000000312,
+        6000.000000000204,
+        6000.000000000017
+      ],
+      "centroid": {
+        "latitude_deg": 40.66622682860038,
+        "longitude_deg": 49.95756378886567,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 570.7694270479356
+    },
+    {
+      "time": "2026-03-21T09:33:21Z",
+      "triangle_area_m2": 15588457.268118791,
+      "triangle_aspect_ratio": 1.0000000000000857,
+      "triangle_side_lengths_m": [
+        6000.000000000093,
+        5999.999999999579,
+        5999.999999999692
+      ],
+      "centroid": {
+        "latitude_deg": 40.72837148698915,
+        "longitude_deg": 49.93866849591399,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 577.8687223369548
+    },
+    {
+      "time": "2026-03-21T09:33:22Z",
+      "triangle_area_m2": 15588457.268120468,
+      "triangle_aspect_ratio": 1.000000000000162,
+      "triangle_side_lengths_m": [
+        6000.00000000004,
+        6000.000000000632,
+        5999.999999999659
+      ],
+      "centroid": {
+        "latitude_deg": 40.790514272689805,
+        "longitude_deg": 49.91974568890929,
+        "altitude_m": 520000.00000000093
+      },
+      "max_ground_distance_km": 584.9680000176477
+    },
+    {
+      "time": "2026-03-21T09:33:23Z",
+      "triangle_area_m2": 15588457.268120835,
+      "triangle_aspect_ratio": 1.0000000000001072,
+      "triangle_side_lengths_m": [
+        6000.0000000004975,
+        5999.999999999854,
+        6000.000000000191
+      ],
+      "centroid": {
+        "latitude_deg": 40.8526551780783,
+        "longitude_deg": 49.90079525866232,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 592.0672600275179
+    },
+    {
+      "time": "2026-03-21T09:33:24Z",
+      "triangle_area_m2": 15588457.268117815,
+      "triangle_aspect_ratio": 1.0000000000000635,
+      "triangle_side_lengths_m": [
+        5999.999999999778,
+        5999.999999999397,
+        5999.999999999625
+      ],
+      "centroid": {
+        "latitude_deg": 40.914794195493414,
+        "longitude_deg": 49.88181709197036,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 599.1665023709406
+    },
+    {
+      "time": "2026-03-21T09:33:25Z",
+      "triangle_area_m2": 15588457.268119771,
+      "triangle_aspect_ratio": 1.000000000000151,
+      "triangle_side_lengths_m": [
+        6000.0000000005275,
+        5999.999999999622,
+        5999.999999999778
+      ],
+      "centroid": {
+        "latitude_deg": 40.976931317236435,
+        "longitude_deg": 49.862811077574015,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 606.265727004545
+    },
+    {
+      "time": "2026-03-21T09:33:26Z",
+      "triangle_area_m2": 15588457.268119412,
+      "triangle_aspect_ratio": 1.0000000000001046,
+      "triangle_side_lengths_m": [
+        5999.999999999541,
+        6000.000000000168,
+        6000.000000000012
+      ],
+      "centroid": {
+        "latitude_deg": 41.03906653557093,
+        "longitude_deg": 49.84377710168365,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 613.3649339231551
+    },
+    {
+      "time": "2026-03-21T09:33:27Z",
+      "triangle_area_m2": 15588457.268119602,
+      "triangle_aspect_ratio": 1.0000000000000646,
+      "triangle_side_lengths_m": [
+        6000.000000000103,
+        5999.999999999715,
+        6000.000000000011
+      ],
+      "centroid": {
+        "latitude_deg": 41.101199842722586,
+        "longitude_deg": 49.82471488356656,
+        "altitude_m": 519999.99999999907
+      },
+      "max_ground_distance_km": 620.4641263186834
+    },
+    {
+      "time": "2026-03-21T09:33:28Z",
+      "triangle_area_m2": 15588457.26812169,
+      "triangle_aspect_ratio": 1.000000000000023,
+      "triangle_side_lengths_m": [
+        6000.00000000038,
+        6000.000000000258,
+        6000.0000000003965
+      ],
+      "centroid": {
+        "latitude_deg": 41.16333123087885,
+        "longitude_deg": 49.80562464559887,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 627.5632977052264
+    },
+    {
+      "time": "2026-03-21T09:33:29Z",
+      "triangle_area_m2": 15588457.268118706,
+      "triangle_aspect_ratio": 1.0000000000001612,
+      "triangle_side_lengths_m": [
+        5999.999999999267,
+        5999.999999999812,
+        6000.000000000234
+      ],
+      "centroid": {
+        "latitude_deg": 41.22546069218882,
+        "longitude_deg": 49.78650610395716,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 634.6624513135214
+    },
+    {
+      "time": "2026-03-21T09:33:30Z",
+      "triangle_area_m2": 15588457.268117307,
+      "triangle_aspect_ratio": 1.0000000000000284,
+      "triangle_side_lengths_m": [
+        5999.999999999563,
+        5999.999999999549,
+        5999.9999999993925
+      ],
+      "centroid": {
+        "latitude_deg": 41.287588218762835,
+        "longitude_deg": 49.76735914562393,
+        "altitude_m": 520000.0
+      },
+      "max_ground_distance_km": 641.7615870811433
+    }
+  ],
+  "artefacts": {
+    "summary_path": null,
+    "stk_directory": null
+  }
+}
