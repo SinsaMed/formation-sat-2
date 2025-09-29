@@ -91,3 +91,23 @@ def test_metric_extraction_wrapper_generates_summary(
 
     rich_metrics = metrics_module.extract_metrics(bundle)
     assert rich_metrics.window_statistics["mean_duration_s"] == pytest.approx(90.0)
+
+
+def test_triangle_cli_produces_stk_outputs(tmp_path: Path) -> None:
+    """The dedicated triangle simulation should emit summary and STK artefacts."""
+
+    output_dir = tmp_path / "triangle"
+    command = [
+        sys.executable,
+        "-m",
+        "sim.scripts.run_triangle",
+        "--output-dir",
+        str(output_dir),
+    ]
+    subprocess.run(command, check=True, capture_output=True, text=True)
+
+    summary_path = output_dir / "triangle_summary.json"
+    assert summary_path.exists()
+    stk_dir = output_dir / "stk"
+    assert stk_dir.exists()
+    assert list(stk_dir.glob("*.e"))
