@@ -121,6 +121,96 @@ def propagate_kepler(elements: OrbitalElements, dt: float, mu: float = MU_EARTH)
     return classical_to_cartesian(propagated, mu=mu)
 
 
+def cartesian_to_classical(
+    position: Sequence[float], velocity: Sequence[float], mu: float = MU_EARTH
+) -> OrbitalElements:
+    """Return classical orbital elements reconstructed from Cartesian states."""
+
+    r_vec = np.asarray(position, dtype=float)
+    v_vec = np.asarray(velocity, dtype=float)
+    r_norm = float(np.linalg.norm(r_vec))
+    v_norm = float(np.linalg.norm(v_vec))
+
+    if r_norm <= 0.0:
+        raise ValueError("Position vector magnitude must be positive.")
+
+    specific_energy = 0.5 * v_norm**2 - mu / r_norm
+    if abs(specific_energy) < 1.0e-12:
+        raise ValueError("Parabolic trajectories are not supported.")
+
+    semi_major_axis = -mu / (2.0 * specific_energy)
+
+    h_vec = np.cross(r_vec, v_vec)
+    h_norm = float(np.linalg.norm(h_vec))
+    inclination = math.acos(max(-1.0, min(1.0, h_vec[2] / h_norm)))
+
+    node_vec = np.cross(np.array([0.0, 0.0, 1.0], dtype=float), h_vec)
+    node_norm = float(np.linalg.norm(node_vec))
+
+    eccentricity_vec = (
+        ((v_norm**2 - mu / r_norm) * r_vec - np.dot(r_vec, v_vec) * v_vec) / mu
+    )
+    eccentricity = float(np.linalg.norm(eccentricity_vec))
+
+    tolerance = 1.0e-10
+
+    if node_norm > tolerance:
+        raan = math.acos(max(-1.0, min(1.0, node_vec[0] / node_norm)))
+        if node_vec[1] < 0.0:
+            raan = 2.0 * math.pi - raan
+    else:
+        raan = 0.0
+
+    if eccentricity > tolerance:
+        if node_norm > tolerance:
+            arg_perigee = math.acos(
+                max(-1.0, min(1.0, np.dot(node_vec, eccentricity_vec) / (node_norm * eccentricity)))
+            )
+            if eccentricity_vec[2] < 0.0:
+                arg_perigee = 2.0 * math.pi - arg_perigee
+        else:
+            arg_perigee = math.atan2(eccentricity_vec[1], eccentricity_vec[0])
+
+        true_anomaly = math.acos(
+            max(-1.0, min(1.0, np.dot(eccentricity_vec, r_vec) / (eccentricity * r_norm)))
+        )
+        if np.dot(r_vec, v_vec) < 0.0:
+            true_anomaly = 2.0 * math.pi - true_anomaly
+    else:
+        arg_perigee = 0.0
+        if node_norm > tolerance:
+            true_anomaly = math.acos(
+                max(-1.0, min(1.0, np.dot(node_vec, r_vec) / (node_norm * r_norm)))
+            )
+            if np.dot(r_vec, v_vec) < 0.0:
+                true_anomaly = 2.0 * math.pi - true_anomaly
+        else:
+            true_anomaly = math.atan2(r_vec[1], r_vec[0])
+
+    if eccentricity < 1.0:
+        if eccentricity > tolerance:
+            denominator = 1.0 + eccentricity * math.cos(true_anomaly)
+            cos_e = (eccentricity + math.cos(true_anomaly)) / denominator
+            sin_e = (
+                math.sin(true_anomaly) * math.sqrt(1.0 - eccentricity**2)
+            ) / denominator
+            eccentric_anomaly = math.atan2(sin_e, cos_e)
+            mean_anomaly = eccentric_anomaly - eccentricity * math.sin(eccentric_anomaly)
+        else:
+            mean_anomaly = true_anomaly
+    else:
+        raise ValueError("Hyperbolic trajectories are not supported.")
+
+    return OrbitalElements(
+        semi_major_axis=float(semi_major_axis),
+        eccentricity=float(eccentricity),
+        inclination=float(inclination),
+        raan=float(_wrap_angle(raan)),
+        arg_perigee=float(_wrap_angle(arg_perigee)),
+        mean_anomaly=float(_wrap_angle(mean_anomaly)),
+    )
+
+
 def inertial_to_ecef(position: Sequence[float], epoch: datetime) -> np.ndarray:
     """Rotate an inertial *position* vector into the Earth-fixed frame."""
 
@@ -196,6 +286,7 @@ __all__ = [
     "classical_to_cartesian",
     "geodetic_coordinates",
     "greenwich_sidereal_angle",
+    "cartesian_to_classical",
     "haversine_distance",
     "inertial_to_ecef",
     "julian_date",
