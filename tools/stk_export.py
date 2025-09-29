@@ -13,7 +13,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Sequence
+import re
+import string
+from typing import Iterable, List, Optional, Sequence
 
 import numpy as np
 
@@ -201,6 +203,50 @@ def _resample_ephemeris(
     return new_times, resampled_positions, resampled_velocities
 
 
+# STK imposes constraints on object identifiers: they must begin with a letter
+# or underscore and contain only alphanumeric characters or underscores. To
+# prevent runtime errors during import we sanitise every identifier before
+# serialising artefacts.
+
+
+def sanitize_stk_identifier(name: str, default: str = "Object") -> str:
+    """Return an identifier compatible with STK naming constraints."""
+
+    stripped = name.strip()
+    if not stripped:
+        stripped = default
+    transformed = [
+        char if char.isalnum() or char == "_" else "_"
+        for char in stripped
+    ]
+    candidate = "".join(transformed)
+    candidate = re.sub("_+", "_", candidate).strip("_")
+    if not candidate:
+        candidate = default
+    if candidate[0] not in string.ascii_letters + "_":
+        candidate = f"_{candidate}"
+    return candidate
+
+
+def unique_stk_names(names: Iterable[str]) -> dict[str, str]:
+    """Map the supplied identifiers to unique, STK-safe alternatives."""
+
+    mapping: dict[str, str] = {}
+    used: set[str] = set()
+    for name in names:
+        if name in mapping:
+            continue
+        base = sanitize_stk_identifier(name)
+        candidate = base
+        index = 1
+        while candidate in used:
+            index += 1
+            candidate = f"{base}_{index}"
+        mapping[name] = candidate
+        used.add(candidate)
+    return mapping
+
+
 def export_simulation_to_stk(
     sim_results: SimulationResults,
     output_path: Path | str,
@@ -233,28 +279,121 @@ def export_simulation_to_stk(
     output_dir = Path(output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    safe_metadata = ScenarioMetadata(
+        scenario_name=sanitize_stk_identifier(
+            scenario_metadata.scenario_name, default="Scenario"
+        ),
+        start_epoch=scenario_metadata.start_epoch,
+        stop_epoch=scenario_metadata.stop_epoch,
+        central_body=scenario_metadata.central_body,
+        coordinate_frame=scenario_metadata.coordinate_frame,
+        ephemeris_step_seconds=scenario_metadata.ephemeris_step_seconds,
+    )
+
+    satellite_names: list[str] = []
+    satellite_names.extend(history.satellite_id for history in sim_results.state_histories)
+    satellite_names.extend(track.satellite_id for track in sim_results.ground_tracks)
+    satellite_names.extend(interval.satellite_id for interval in sim_results.ground_contacts)
+    satellite_map = unique_stk_names(satellite_names)
+
+    facility_names: list[str] = []
+    facility_names.extend(facility.name for facility in sim_results.facilities)
+    facility_names.extend(interval.facility_name for interval in sim_results.ground_contacts)
+    facility_map = unique_stk_names(facility_names)
+
+    event_names = [event.name for event in sim_results.events]
+    event_map = unique_stk_names(event_names)
+
+    sanitised_histories = [
+        PropagatedStateHistory(
+            satellite_id=satellite_map.get(
+                history.satellite_id,
+                sanitize_stk_identifier(history.satellite_id),
+            ),
+            samples=history.samples,
+        )
+        for history in sim_results.state_histories
+    ]
+
+    sanitised_tracks = [
+        GroundTrack(
+            satellite_id=satellite_map.get(
+                track.satellite_id, sanitize_stk_identifier(track.satellite_id)
+            ),
+            points=track.points,
+        )
+        for track in sim_results.ground_tracks
+    ]
+
+    sanitised_contacts = [
+        GroundContactInterval(
+            satellite_id=satellite_map.get(
+                interval.satellite_id,
+                sanitize_stk_identifier(interval.satellite_id),
+            ),
+            facility_name=facility_map.get(
+                interval.facility_name,
+                sanitize_stk_identifier(interval.facility_name, default="Facility"),
+            ),
+            start=interval.start,
+            end=interval.end,
+        )
+        for interval in sim_results.ground_contacts
+    ]
+
+    sanitised_facilities = [
+        FacilityDefinition(
+            name=facility_map.get(
+                facility.name,
+                sanitize_stk_identifier(facility.name, default="Facility"),
+            ),
+            latitude_deg=facility.latitude_deg,
+            longitude_deg=facility.longitude_deg,
+            altitude_km=facility.altitude_km,
+        )
+        for facility in sim_results.facilities
+    ]
+
+    sanitised_events = [
+        FormationMaintenanceEvent(
+            name=event_map.get(event.name, sanitize_stk_identifier(event.name, default="Event")),
+            epoch=event.epoch,
+            description=event.description,
+            delta_v_mps=event.delta_v_mps,
+        )
+        for event in sim_results.events
+    ]
+
+    sanitised_results = SimulationResults(
+        state_histories=sanitised_histories,
+        ground_tracks=sanitised_tracks,
+        ground_contacts=sanitised_contacts,
+        facilities=sanitised_facilities,
+        events=sanitised_events,
+    )
+
     # Derive an effective stop epoch if one is not supplied. The propagation
     # end time is the latest asset sample, ensuring the scenario bounds wrap
     # the exported ephemerides.
-    if scenario_metadata.stop_epoch is None:
+    if safe_metadata.stop_epoch is None:
         latest_state_epoch = max(
             sample.epoch
-            for history in sim_results.state_histories
+            for history in sanitised_results.state_histories
             for sample in history.samples
         )
         stop_epoch = latest_state_epoch
     else:
-        stop_epoch = scenario_metadata.stop_epoch
+        stop_epoch = safe_metadata.stop_epoch
 
-    _write_ephemerides(sim_results, output_dir, scenario_metadata)
-    _write_ground_tracks(sim_results, output_dir, scenario_metadata)
-    _write_facilities(sim_results, output_dir, scenario_metadata)
-    _write_ground_contacts(sim_results, output_dir)
-    _write_events(sim_results, output_dir)
+    _write_ephemerides(sanitised_results, output_dir, safe_metadata)
+    _write_ground_tracks(sanitised_results, output_dir, safe_metadata)
+    _write_facilities(sanitised_results, output_dir, safe_metadata)
+    _write_ground_contacts(sanitised_results, output_dir)
+    _write_events(sanitised_results, output_dir)
     _write_scenario_file(
-        sim_results,
+        sanitised_results,
         output_dir,
-        scenario_metadata,
+        safe_metadata,
         stop_epoch,
     )
 

@@ -3,17 +3,17 @@ BEGIN IntervalList
 Name Tehran_Contacts
 NumberOfIntervals 3
 BEGIN Interval
-   Asset SAT-1
+   Asset SAT_1
    StartTime 21 Mar 2026 09:31:12.000
    StopTime 21 Mar 2026 09:32:48.000
 END Interval
 BEGIN Interval
-   Asset SAT-2
+   Asset SAT_2
    StartTime 21 Mar 2026 09:31:12.000
    StopTime 21 Mar 2026 09:32:48.000
 END Interval
 BEGIN Interval
-   Asset SAT-3
+   Asset SAT_3
    StartTime 21 Mar 2026 09:31:12.000
    StopTime 21 Mar 2026 09:32:48.000
 END Interval
