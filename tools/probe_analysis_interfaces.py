@@ -13,8 +13,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import importlib
+
 from sim.scripts import baseline_generation, metric_extraction
-from sim.scripts import extract_metrics as metrics_module
+
+metrics_module = importlib.import_module("sim.scripts.extract_metrics")
 
 
 def parse_args(args: Iterable[str] | None = None) -> argparse.Namespace:

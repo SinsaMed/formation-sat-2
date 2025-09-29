@@ -9,7 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from sim.scripts import extract_metrics
+import importlib
+
+extract_metrics = importlib.import_module("sim.scripts.extract_metrics")
 
 
 def test_extract_metrics_computes_expected_statistics(synthetic_metric_inputs) -> None:
