@@ -82,7 +82,7 @@ def test_exporter_generates_stk_files(tmp_path: Path) -> None:
 
     export_simulation_to_stk(sim_results, tmp_path, metadata)
 
-    ephemeris_path = tmp_path / "SAT-1.e"
+    ephemeris_path = tmp_path / "SAT_1.e"
     assert ephemeris_path.exists()
     content = ephemeris_path.read_text(encoding="utf-8").splitlines()
     assert content[0] == "stk.v.11.0"
@@ -112,7 +112,80 @@ def test_exporter_generates_stk_files(tmp_path: Path) -> None:
     assert "BEGIN EventSet" in event_text
     assert "DeltaV 0.120" in event_text
 
-    ground_track_path = tmp_path / "SAT-1_groundtrack.gt"
+    ground_track_path = tmp_path / "SAT_1_groundtrack.gt"
     track_text = ground_track_path.read_text(encoding="utf-8")
     assert "BEGIN GroundTrack" in track_text
     assert "NumberOfPoints 3" in track_text
+
+
+def test_exporter_sanitises_object_names(tmp_path: Path) -> None:
+    start_epoch = datetime(2024, 5, 1, 8, 0, 0)
+    samples = [
+        StateSample(
+            epoch=start_epoch + timedelta(seconds=i * 30),
+            position_eci_km=np.array([6800 + i, 0.0, 0.0]),
+            velocity_eci_kms=np.array([0.0, 7.5, 0.0]),
+        )
+        for i in range(2)
+    ]
+    history = PropagatedStateHistory(satellite_id="SAT-1 A", samples=samples)
+
+    ground_track = GroundTrack(
+        satellite_id="SAT-1 A",
+        points=[
+            GroundTrackPoint(
+                epoch=start_epoch + timedelta(seconds=15 * i),
+                latitude_deg=1.2 * i,
+                longitude_deg=-0.6 * i,
+                altitude_km=410.0,
+            )
+            for i in range(2)
+        ],
+    )
+
+    contact = GroundContactInterval(
+        satellite_id="SAT-1 A",
+        facility_name="Test Facility",
+        start=start_epoch + timedelta(seconds=10),
+        end=start_epoch + timedelta(seconds=70),
+    )
+
+    facility = FacilityDefinition(
+        name="Test Facility",
+        latitude_deg=35.0,
+        longitude_deg=51.0,
+        altitude_km=1.0,
+    )
+
+    sim_results = SimulationResults(
+        state_histories=[history],
+        ground_tracks=[ground_track],
+        ground_contacts=[contact],
+        facilities=[facility],
+    )
+
+    metadata = ScenarioMetadata(
+        scenario_name="Tehran Triangle Formation",
+        start_epoch=start_epoch,
+        central_body="Earth",
+        coordinate_frame="TEME",
+    )
+
+    export_simulation_to_stk(sim_results, tmp_path, metadata)
+
+    scenario_path = tmp_path / "Tehran_Triangle_Formation.sc"
+    assert scenario_path.exists()
+    scenario_text = scenario_path.read_text(encoding="utf-8")
+    assert "Name Tehran_Triangle_Formation" in scenario_text
+    assert "Satellite SAT_1_A" in scenario_text
+
+    ephemeris_path = tmp_path / "SAT_1_A.e"
+    assert ephemeris_path.exists()
+
+    contact_path = tmp_path / "Contacts_Test_Facility.int"
+    assert contact_path.exists()
+    contact_text = contact_path.read_text(encoding="utf-8")
+    assert "Asset SAT_1_A" in contact_text
+
+    facility_path = tmp_path / "Facility_Test_Facility.fac"
+    assert facility_path.exists()

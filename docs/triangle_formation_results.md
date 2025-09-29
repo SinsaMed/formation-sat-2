@@ -37,7 +37,7 @@ Table 2 – Classical orbital elements at 2026-03-21T09:32:00Z
 | SAT-3 | Plane B | 6912.017 | 1.51\(\times 10^{-3}\) | 97.70 | 18.881 | 36.065 | 0.0 |
 
 ## STK Validation
-Running `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` generates the summary JSON and STK artefacts (`.e`, `.gt`, `.fac`, `.int`). The exporter reports successful ingestion, and the metadata block marks the configuration as validated against `tools/stk_export.py`. Analysts can import the artefacts directly into STK 11.2 to reproduce the inertial states and confirm the ninety-six-second contact window.
+Running `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` generates the summary JSON and STK artefacts (`.e`, `.gt`, `.fac`, `.int`). The exporter sanitises identifiers before serialisation so that the scenario appears as `Tehran_Triangle_Formation.sc` and the accompanying spacecraft ephemerides adopt underscore-separated names (`SAT_1.e`, `SAT_2.e`, `SAT_3.e`). This naming convention avoids the “Invalid object name” import error previously triggered by spaces and hyphens. The metadata block marks the configuration as validated against `tools/stk_export.py`, enabling analysts to import the artefacts directly into STK 11.2 and confirm the ninety-six-second contact window.
 
 ## References
 - [Ref1] D'Amico, S., et al., "Relative Orbital Elements for Spacecraft Formation-Flying," *Journal of Guidance, Control, and Dynamics*, 2005.

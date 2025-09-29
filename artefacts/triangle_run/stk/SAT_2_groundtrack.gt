@@ -1,6 +1,6 @@
 stk.v.11.0
 BEGIN GroundTrack
-SatelliteId SAT-2
+SatelliteId SAT_2
 CoordinateSystem TEME
 NumberOfPoints 181
 BEGIN Points

@@ -29,6 +29,8 @@ from tools.stk_export import (
     ScenarioMetadata,
     SimulationResults,
     StateSample,
+    sanitize_stk_identifier,
+    unique_stk_names,
     export_simulation_to_stk,
 )
 
@@ -404,7 +406,13 @@ def _export_to_stk(result: TriangleFormationResult, output_dir: Path, scenario_n
     ground_tracks = []
     contacts = []
 
-    for sat_id in sorted(result.positions_m):
+    satellite_ids = sorted(result.positions_m)
+    safe_satellite_names = unique_stk_names(satellite_ids)
+    safe_facility_name = sanitize_stk_identifier("Tehran", default="Facility")
+    safe_scenario_name = sanitize_stk_identifier(scenario_name, default="Scenario")
+
+    for sat_id in satellite_ids:
+        safe_id = safe_satellite_names[sat_id]
         samples = [
             StateSample(
                 epoch=epoch,
@@ -413,7 +421,7 @@ def _export_to_stk(result: TriangleFormationResult, output_dir: Path, scenario_n
             )
             for index, epoch in enumerate(result.times)
         ]
-        state_histories.append(PropagatedStateHistory(satellite_id=sat_id, samples=samples))
+        state_histories.append(PropagatedStateHistory(satellite_id=safe_id, samples=samples))
 
         track_points = [
             GroundTrackPoint(
@@ -424,28 +432,34 @@ def _export_to_stk(result: TriangleFormationResult, output_dir: Path, scenario_n
             )
             for index, epoch in enumerate(result.times)
         ]
-        ground_tracks.append(GroundTrack(satellite_id=sat_id, points=track_points))
+        ground_tracks.append(GroundTrack(satellite_id=safe_id, points=track_points))
 
     window = result.metrics["formation_window"]
     if window.get("start") and window.get("end"):
         start = datetime.fromisoformat(window["start"].replace("Z", "+00:00"))
         end = datetime.fromisoformat(window["end"].replace("Z", "+00:00"))
-        for sat_id in sorted(result.positions_m):
+        for sat_id in satellite_ids:
+            safe_id = safe_satellite_names[sat_id]
             contacts.append(
                 GroundContactInterval(
-                    satellite_id=sat_id,
-                    facility_name="Tehran",
+                    satellite_id=safe_id,
+                    facility_name=safe_facility_name,
                     start=start,
                     end=end,
                 )
             )
 
     facilities = [
-        FacilityDefinition(name="Tehran", latitude_deg=35.6892, longitude_deg=51.3890, altitude_km=1.5)
+        FacilityDefinition(
+            name=safe_facility_name,
+            latitude_deg=35.6892,
+            longitude_deg=51.3890,
+            altitude_km=1.5,
+        )
     ]
 
     scenario_metadata = ScenarioMetadata(
-        scenario_name=scenario_name,
+        scenario_name=safe_scenario_name,
         start_epoch=result.times[0],
         stop_epoch=result.times[-1],
         central_body="Earth",
