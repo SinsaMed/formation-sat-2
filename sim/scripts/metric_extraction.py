@@ -24,34 +24,14 @@ from __future__ import annotations
 
 from typing import Mapping, MutableMapping, Optional, Sequence
 
+from .extract_metrics import extract_metrics as _extract_metrics
+
 
 def extract_metrics(
     data_bundle: Mapping[str, object],
     metric_specification: Optional[Sequence[str]] = None,
 ) -> MutableMapping[str, object]:
-    """Extract mission metrics from provided data structures.
+    """Backwards-compatible wrapper around :mod:`sim.scripts.extract_metrics`."""
 
-    Parameters
-    ----------
-    data_bundle
-        A dictionary-like container housing scenario results, baseline
-        comparisons, and auxiliary metadata.
-    metric_specification
-        Optional sequence naming the metrics to evaluate. The concrete schema will
-        be defined in the subsequent implementation phase.
-
-    Returns
-    -------
-    MutableMapping[str, object]
-        Placeholder mapping designed to store computed metrics, validation flags,
-        and supporting context once implemented.
-
-    Notes
-    -----
-    This function currently raises :class:`NotImplementedError` while the metric
-    extraction workflow is under development.
-    """
-
-    raise NotImplementedError(
-        "Metric extraction scaffolding pending implementation."
-    )
+    metrics = _extract_metrics(data_bundle, metric_specification)
+    return metrics.to_dict()

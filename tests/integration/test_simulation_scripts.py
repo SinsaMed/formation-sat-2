@@ -8,6 +8,7 @@ from typing import Callable, Mapping, MutableMapping
 import pytest
 
 from sim.scripts import baseline_generation, metric_extraction, scenario_execution
+from sim.scripts import extract_metrics as metrics_module
 
 
 @pytest.mark.parametrize(
@@ -37,14 +38,16 @@ def test_simulation_entry_points_raise_not_implemented(
         callable_under_test(scenario_configuration, **kwargs)
 
 
-def test_metric_extraction_stub_requires_implementation(
-    reference_outputs: Mapping[str, object],
+def test_metric_extraction_wrapper_generates_summary(
+    synthetic_metric_inputs: Mapping[str, object],
 ) -> None:
-    """Metric extraction should also signal its placeholder status."""
+    """The compatibility wrapper should expose the richer metric outputs."""
 
-    data_bundle = {
-        "scenario_results": reference_outputs,
-        "baseline": {"ephemeris": reference_outputs["ephemeris_stub"]},
-    }
-    with pytest.raises(NotImplementedError, match="Metric extraction scaffolding"):
-        metric_extraction.extract_metrics(data_bundle)
+    bundle = synthetic_metric_inputs["data_bundle"].copy()
+    metrics = metric_extraction.extract_metrics(bundle)
+    assert metrics["window_statistics"]["count"] == pytest.approx(3.0)
+    assert "triangle_geometry" in metrics
+    assert metrics["delta_v"]["total_delta_v_mps"] == pytest.approx(0.5)
+
+    rich_metrics = metrics_module.extract_metrics(bundle)
+    assert rich_metrics.window_statistics["mean_duration_s"] == pytest.approx(90.0)
