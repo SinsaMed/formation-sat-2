@@ -1,4 +1,11 @@
-"""Command-line entry point for the triangular formation simulation."""
+"""Command-line entry point for the Tehran triangular-formation simulation.
+
+The script provides a thin wrapper around :func:`sim.formation.simulate_triangle_formation`
+so analysts can reproduce the ninety-second access window directly from the
+terminal. In addition to generating the JSON summary, the command optionally
+writes Systems Tool Kit (STK 11.2) artefacts that may be imported for
+visualisation and further analysis.
+"""
 
 from __future__ import annotations
 
