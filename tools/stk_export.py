@@ -386,6 +386,7 @@ def export_simulation_to_stk(
         stop_epoch = safe_metadata.stop_epoch
 
     _write_ephemerides(sanitised_results, output_dir, safe_metadata)
+    _write_satellite_objects(sanitised_results, output_dir, safe_metadata)
     _write_ground_tracks(sanitised_results, output_dir, safe_metadata)
     _write_facilities(sanitised_results, output_dir, safe_metadata)
     _write_ground_contacts(sanitised_results, output_dir)
@@ -450,6 +451,26 @@ def _write_ephemerides(
                 stream.write(line)
             stream.write("END EphemerisTimePosVel\n")
             stream.write("END Ephemeris\n")
+
+
+def _write_satellite_objects(
+    sim_results: SimulationResults,
+    output_dir: Path,
+    scenario_metadata: ScenarioMetadata,
+) -> None:
+    for history in sim_results.state_histories:
+        satellite_path = output_dir / f"{history.satellite_id}.sat"
+        ephemeris_filename = f"{history.satellite_id}.e"
+        with satellite_path.open("w", encoding="utf-8") as stream:
+            stream.write("stk.v.11.0\n")
+            stream.write("BEGIN Satellite\n")
+            stream.write(f"Name {history.satellite_id}\n")
+            stream.write(f"CentralBody {scenario_metadata.central_body}\n")
+            stream.write("BEGIN Ephemeris\n")
+            stream.write("   Type External\n")
+            stream.write(f"   File \"{ephemeris_filename}\"\n")
+            stream.write("END Ephemeris\n")
+            stream.write("END Satellite\n")
 
 
 def _write_ground_tracks(
@@ -569,7 +590,7 @@ def _write_scenario_file(
         stream.write("END TimePeriod\n")
         stream.write("BEGIN Assets\n")
         for history in sim_results.state_histories:
-            stream.write(f"   Satellite {history.satellite_id}\n")
+            stream.write(f"   Satellite {history.satellite_id}.sat\n")
         stream.write("END Assets\n")
         if sim_results.events:
             stream.write("BEGIN EventFiles\n")

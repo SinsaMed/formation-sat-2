@@ -92,10 +92,18 @@ def test_exporter_generates_stk_files(tmp_path: Path) -> None:
     time_tags = [float(line.split()[0]) for line in content[idx_start:idx_end]]
     assert time_tags == sorted(time_tags)
 
+    satellite_path = tmp_path / "SAT_1.sat"
+    assert satellite_path.exists()
+    satellite_lines = satellite_path.read_text(encoding="utf-8").splitlines()
+    assert "BEGIN Satellite" in satellite_lines
+    assert "CentralBody Earth" in satellite_lines
+    assert any('File "SAT_1.e"' in line for line in satellite_lines)
+
     scenario_path = tmp_path / "FormationExperiment.sc"
     scenario_text = scenario_path.read_text(encoding="utf-8")
     assert "BEGIN Scenario" in scenario_text
     assert "FormationExperiment" in scenario_text
+    assert "Satellite SAT_1.sat" in scenario_text
 
     facility_path = tmp_path / "Facility_HARPA.fac"
     facility_text = facility_path.read_text(encoding="utf-8")
@@ -181,6 +189,12 @@ def test_exporter_sanitises_object_names(tmp_path: Path) -> None:
 
     ephemeris_path = tmp_path / "SAT_1_A.e"
     assert ephemeris_path.exists()
+
+    satellite_path = tmp_path / "SAT_1_A.sat"
+    assert satellite_path.exists()
+    satellite_text = satellite_path.read_text(encoding="utf-8")
+    assert "Name SAT_1_A" in satellite_text
+    assert 'File "SAT_1_A.e"' in satellite_text
 
     contact_path = tmp_path / "Contacts_Test_Facility.int"
     assert contact_path.exists()
