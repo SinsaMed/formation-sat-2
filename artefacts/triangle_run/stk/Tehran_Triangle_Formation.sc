@@ -7,8 +7,8 @@ BEGIN TimePeriod
    StopTime 21 Mar 2026 09:33:30.000
 END TimePeriod
 BEGIN Assets
-   Satellite SAT_1
-   Satellite SAT_2
-   Satellite SAT_3
+   Satellite SAT_1.sat
+   Satellite SAT_2.sat
+   Satellite SAT_3.sat
 END Assets
 END Scenario
