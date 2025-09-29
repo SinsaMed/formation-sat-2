@@ -1,18 +1,19 @@
-# Core runtime libraries underpinning numerical analysis (aligned with the Makefile-driven CI environment)
-numpy
-scipy
+# Core runtime library underpinning deterministic numerical handling
+numpy>=1.24
 
-# Simulation utilities supporting astrodynamics propagation and ephemeris modelling
-astropy
-poliastro
-numba
-jplephem
+# Scientific analysis stack retained for continuity with STK validation workflows
+scipy>=1.11
+astropy>=5
+poliastro>=0.17; python_version < "3.11"
+numba>=0.58
+jplephem>=2.20
 
-# Plotting and reporting stacks for mission geometry briefings
-matplotlib
-plotly
+# Plotting and briefing artefact generation
+matplotlib>=3.7
+plotly>=5.15
 
-# Development and test-only toolchain for continuous integration
-pytest
-pytest-cov
-setuptools
+# Development and continuous-integration tooling
+pytest>=8
+pytest-cov>=6
+setuptools>=70
+wheel
