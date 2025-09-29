@@ -12,6 +12,7 @@ This repository scaffolds the analytical workflow for designing a three-satellit
 
 Further elaboration on the mission statement, objectives, and derived requirements is available in [`docs/project_overview.md`](docs/project_overview.md).
 The numerical verification of the triangular formation above Tehran is documented in [`docs/triangle_formation_results.md`](docs/triangle_formation_results.md).
+A step-by-step walkthrough for regenerating the artefacts and validating them inside Systems Tool Kit (STK 11.2) is available in [`docs/tehran_triangle_walkthrough.md`](docs/tehran_triangle_walkthrough.md).
 The consolidated delivery package, including reproduction instructions and artefact register, is summarised in [`docs/final_delivery_manifest.md`](docs/final_delivery_manifest.md).
 
 ## Repository Layout
