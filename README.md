@@ -12,6 +12,7 @@ This repository scaffolds the analytical workflow for designing a three-satellit
 
 Further elaboration on the mission statement, objectives, and derived requirements is available in [`docs/project_overview.md`](docs/project_overview.md).
 The numerical verification of the triangular formation above Tehran is documented in [`docs/triangle_formation_results.md`](docs/triangle_formation_results.md).
+The consolidated delivery package, including reproduction instructions and artefact register, is summarised in [`docs/final_delivery_manifest.md`](docs/final_delivery_manifest.md).
 
 ## Repository Layout
 - `AGENTS.md` – house style and collaboration guidelines for this codebase.

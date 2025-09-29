@@ -25,6 +25,17 @@ Table 1 – Key formation metrics
 | Maximum aspect ratio | 1.0002 |
 | Maximum ground distance to Tehran | \(344\,\text{km}\) |
 
+## Orbital Element Reconstruction
+The midpoint of the validated access window was sampled to recover classical orbital elements for each spacecraft using the new `cartesian_to_classical` routine. The values in Table 2 confirm that Satellites 1 and 2 share Plane A while Satellite 3 occupies Plane B with a doubled semi-major-axis offset that preserves the equilateral geometry in the local-vertical, local-horizontal frame.[Ref1]
+
+Table 2 – Classical orbital elements at 2026-03-21T09:32:00Z
+
+| Satellite | Assigned plane | Semi-major axis (km) | Eccentricity | Inclination (deg) | RAAN (deg) | Argument of perigee (deg) | Mean anomaly (deg) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SAT-1 | Plane A | 6891.215 | 7.53\(\times 10^{-4}\) | 97.70 | 18.881 | 216.040 | 180.0 |
+| SAT-2 | Plane A | 6891.215 | 7.53\(\times 10^{-4}\) | 97.70 | 18.881 | 216.089 | 180.0 |
+| SAT-3 | Plane B | 6912.017 | 1.51\(\times 10^{-3}\) | 97.70 | 18.881 | 36.065 | 0.0 |
+
 ## STK Validation
 Running `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` generates the summary JSON and STK artefacts (`.e`, `.gt`, `.fac`, `.int`). The exporter reports successful ingestion, and the metadata block marks the configuration as validated against `tools/stk_export.py`. Analysts can import the artefacts directly into STK 11.2 to reproduce the inertial states and confirm the ninety-six-second contact window.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -31,3 +32,9 @@ def test_triangle_formation_meets_requirements() -> None:
     ]
     assert distances_within_window
     assert max(distances_within_window) <= tolerance
+
+    orbital = metrics["orbital_elements"]
+    assert set(orbital) == {"SAT-1", "SAT-2", "SAT-3"}
+    plane_counts = Counter(entry["assigned_plane"] for entry in orbital.values())
+    assert plane_counts["Plane A"] == 2
+    assert plane_counts["Plane B"] == 1

@@ -23,6 +23,11 @@
     "target": {
       "latitude_deg": 35.6892,
       "longitude_deg": 51.3890
+    },
+    "plane_allocations": {
+      "SAT-1": "Plane A",
+      "SAT-2": "Plane A",
+      "SAT-3": "Plane B"
     }
   }
 }

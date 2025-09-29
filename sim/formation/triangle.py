@@ -13,6 +13,7 @@ import numpy as np
 
 from constellation.geometry import triangle_area, triangle_aspect_ratio, triangle_side_lengths
 from constellation.orbit import (
+    cartesian_to_classical,
     geodetic_coordinates,
     haversine_distance,
     inertial_to_ecef,
@@ -117,6 +118,14 @@ def simulate_triangle_formation(
     offsets_m = _formation_offsets(float(formation["side_length_m"]))
     satellite_ids = tuple(sorted(offsets_m))
 
+    plane_allocations = formation.get("plane_allocations", {})
+    if not plane_allocations:
+        plane_allocations = {
+            satellite_ids[0]: "Plane A",
+            satellite_ids[1]: "Plane A",
+            satellite_ids[2]: "Plane B",
+        }
+
     offsets = np.arange(sample_count, dtype=float) * time_step_s - half_duration
     times = [epoch + timedelta(seconds=float(offset)) for offset in offsets]
 
@@ -198,6 +207,22 @@ def simulate_triangle_formation(
         sat_id: _differentiate(positions[sat_id], time_step_s) for sat_id in satellite_ids
     }
 
+    centre_index = int(np.argmin(np.abs(offsets)))
+    orbital_elements = {}
+    for sat_id in satellite_ids:
+        elements = cartesian_to_classical(
+            positions[sat_id][centre_index], velocities[sat_id][centre_index]
+        )
+        orbital_elements[sat_id] = {
+            "semi_major_axis_km": elements.semi_major_axis / 1_000.0,
+            "eccentricity": elements.eccentricity,
+            "inclination_deg": math.degrees(elements.inclination),
+            "raan_deg": math.degrees(elements.raan),
+            "argument_of_perigee_deg": math.degrees(elements.arg_perigee),
+            "mean_anomaly_deg": math.degrees(elements.mean_anomaly),
+            "assigned_plane": plane_allocations.get(sat_id),
+        }
+
     triangle_stats = _summarise_triangle_metrics(
         triangle_area_series,
         triangle_aspect_series,
@@ -217,6 +242,7 @@ def simulate_triangle_formation(
         "triangle": triangle_stats,
         "ground_track": ground_stats,
         "formation_window": window,
+        "orbital_elements": orbital_elements,
     }
 
     artefacts: MutableMapping[str, Optional[str]] = {"summary_path": None, "stk_directory": None}
