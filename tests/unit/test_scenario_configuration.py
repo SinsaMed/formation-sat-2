@@ -35,11 +35,13 @@ def test_tehran_scenario_payload_constraints_are_loaded() -> None:
 
 
 def test_loaded_scenario_is_accepted_by_simulation_entry_point(tmp_path: Path) -> None:
-    """The simulation stub should accept the loaded configuration and raise its sentinel error."""
+    """The scenario runner should emit artefacts for the canonical configuration."""
 
     scenario = configuration.load_scenario("tehran_daily_pass")
-    with pytest.raises(
-        NotImplementedError,
-        match="Scenario execution scaffolding pending implementation.",
-    ):
-        scenario_execution.run_scenario(scenario, output_directory=tmp_path / "products")
+    results = scenario_execution.run_scenario(
+        scenario,
+        output_directory=tmp_path / "products",
+    )
+
+    assert results["configuration_summary"]["identifier"] == "tehran_daily_pass"
+    assert results["metrics"]["node_count"] == pytest.approx(2.0)

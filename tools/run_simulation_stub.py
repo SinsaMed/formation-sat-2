@@ -63,11 +63,9 @@ def render_plot(output_dir: Path) -> Path:
 def probe_scenario_interface() -> str:
     """Invoke the scenario interface to document its implementation status."""
 
-    try:
-        scenario_execution.run_scenario("config/pending.yml")
-    except NotImplementedError as exc:  # pragma: no cover - explicit placeholder reporting.
-        return f"Scenario execution pending implementation: {exc}"
-    return "Scenario execution completed without raising NotImplementedError."
+    results = scenario_execution.run_scenario("config/scenarios/tehran_daily_pass.json")
+    stage_sequence = ", ".join(results.get("stage_sequence", []))
+    return f"Scenario execution available: {stage_sequence}"
 
 
 def write_metadata(output_dir: Path, artefacts: Iterable[Path], status: str) -> Path:
