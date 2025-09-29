@@ -148,6 +148,7 @@ class ScenarioMetadata:
     central_body: str = "Earth"
     coordinate_frame: str = "TEME"
     ephemeris_step_seconds: Optional[float] = None
+    animation_step_seconds: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -588,9 +589,25 @@ def _write_scenario_file(
         stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
         stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
         stream.write("END TimePeriod\n")
+        stream.write("BEGIN AnalysisTimePeriod\n")
+        stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
+        stream.write("END AnalysisTimePeriod\n")
+        animation_step = (
+            scenario_metadata.animation_step_seconds
+            if scenario_metadata.animation_step_seconds is not None
+            else 1.0
+        )
+        stream.write("BEGIN Animation\n")
+        stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
+        stream.write(f"   AnimationStep {animation_step:.3f}\n")
+        stream.write("END Animation\n")
         stream.write("BEGIN Assets\n")
         for history in sim_results.state_histories:
             stream.write(f"   Satellite {history.satellite_id}.sat\n")
+        for facility in sim_results.facilities:
+            stream.write(f"   Facility Facility_{facility.name}.fac\n")
         stream.write("END Assets\n")
         if sim_results.events:
             stream.write("BEGIN EventFiles\n")

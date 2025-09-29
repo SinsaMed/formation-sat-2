@@ -104,6 +104,9 @@ def test_exporter_generates_stk_files(tmp_path: Path) -> None:
     assert "BEGIN Scenario" in scenario_text
     assert "FormationExperiment" in scenario_text
     assert "Satellite SAT_1.sat" in scenario_text
+    assert "BEGIN Animation" in scenario_text
+    assert "AnimationStep 1.000" in scenario_text
+    assert "Facility Facility_HARPA.fac" in scenario_text
 
     facility_path = tmp_path / "Facility_HARPA.fac"
     facility_text = facility_path.read_text(encoding="utf-8")
@@ -186,6 +189,7 @@ def test_exporter_sanitises_object_names(tmp_path: Path) -> None:
     scenario_text = scenario_path.read_text(encoding="utf-8")
     assert "Name Tehran_Triangle_Formation" in scenario_text
     assert "Satellite SAT_1_A" in scenario_text
+    assert "Facility Facility_Test_Facility.fac" in scenario_text
 
     ephemeris_path = tmp_path / "SAT_1_A.e"
     assert ephemeris_path.exists()
