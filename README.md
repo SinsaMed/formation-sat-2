@@ -11,6 +11,7 @@ This repository scaffolds the analytical workflow for designing a three-satellit
 - Quantify maintenance strategies that mitigate dominant low-Earth perturbations (\(J_2\), drag, and solar radiation pressure) to preserve the repeatability of the formation.
 
 Further elaboration on the mission statement, objectives, and derived requirements is available in [`docs/project_overview.md`](docs/project_overview.md).
+The numerical verification of the triangular formation above Tehran is documented in [`docs/triangle_formation_results.md`](docs/triangle_formation_results.md).
 
 ## Repository Layout
 - `AGENTS.md` – house style and collaboration guidelines for this codebase.
@@ -32,6 +33,7 @@ The root `Makefile` offers a concise command vocabulary for recurring workflows.
 - `make test` executes the PyTest suite with strict failure halting so regression suites can evolve alongside the mission design.
 - `make simulate` generates illustrative formation plots under `artefacts/plots/` and confirms that the scenario execution entry point remains importable while the numerical core is under development.
 - `make scenario` executes the sequential scenario pipeline, storing a JSON summary beneath `artefacts/scenario/` for downstream validation against Systems Tool Kit (STK) 11.2 workflows.
+- `make triangle` runs the triangular formation simulation above Tehran, produces the mission summary JSON, and exports STK-compatible ephemerides beneath `artefacts/triangle/`.
 - `make baselines` exercises the baseline-generation and metric-extraction scaffolding, ensuring interface compatibility is monitored even before the algorithms are implemented.
 - `make docs` refreshes a timestamped documentation digest in `artefacts/docs/`, demonstrating the path that future Sphinx builds will adopt.
 - `make clean` removes transient artefacts and the virtual environment when a reset is required.
