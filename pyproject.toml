@@ -42,4 +42,10 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["tools", "tools.*"]
+where = ["src", "tools"]
+include = [
+    "constellation",
+    "constellation.*",
+    "tools",
+    "tools.*",
+]
