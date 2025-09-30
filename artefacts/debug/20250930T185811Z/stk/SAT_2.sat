@@ -1,0 +1,9 @@
+stk.v.11.0
+BEGIN Satellite
+Name SAT_2
+CentralBody Earth
+BEGIN Ephemeris
+   Type External
+   File "SAT_2.e"
+END Ephemeris
+END Satellite

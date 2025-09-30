@@ -1,0 +1,111 @@
+{
+  "artefacts": {
+    "summary_path": "/workspace/formation-sat-2/artefacts/debug/20250930T185815Z/scenario_summary.json"
+  },
+  "configuration_summary": {
+    "author": "Orbit Dynamics Team",
+    "description": "Daily dawn-dusk imaging opportunity over Tehran for infrastructure resilience monitoring.",
+    "identifier": "tehran_daily_pass",
+    "name": "Tehran Daily Pass",
+    "planning_horizon": {
+      "start_utc": "2026-03-21T00:00:00Z",
+      "stop_utc": "2026-03-28T00:00:00Z"
+    },
+    "validated_against_stk_export": false
+  },
+  "metrics": {
+    "average_revolutions_per_phase": 0.13205456615756583,
+    "node_count": 2.0,
+    "orbital_period_delta_s": -4.31222788643845,
+    "orbital_period_nominal_s": 5679.470402447951,
+    "orbital_period_perturbed_s": 5675.158174561512,
+    "phase_count": 2.0,
+    "total_contact_duration_s": 1500.0
+  },
+  "nodes": [
+    {
+      "attributes": {
+        "min_elevation_deg": 20.0,
+        "target": "Tehran Urban Core"
+      },
+      "duration_s": 720.0,
+      "end": "2026-03-21T09:36:00Z",
+      "id": 1,
+      "label": "Morning Imaging",
+      "start": "2026-03-21T09:24:00Z",
+      "type": "access_window"
+    },
+    {
+      "attributes": {
+        "ground_station": "Svalbard",
+        "min_elevation_deg": 12.0,
+        "notes": "Allocated for priority data return following daily imaging."
+      },
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "label": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z",
+      "type": "access_window"
+    }
+  ],
+  "phases": [
+    {
+      "duration_s": 720.0,
+      "end": "2026-03-21T09:36:00Z",
+      "id": 1,
+      "node_id": 1,
+      "objective": "Morning Imaging",
+      "start": "2026-03-21T09:24:00Z"
+    },
+    {
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "node_id": 2,
+      "objective": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z"
+    }
+  ],
+  "propagation": {
+    "j2_drag": {
+      "average_drag_decay_m": 5.020136999999996,
+      "model": "J2+drag",
+      "orbital_period_s": 5675.158174561512,
+      "period_delta_s": -4.31222788643845,
+      "phase_decay": [
+        {
+          "expected_decay_m": 0.6364147330430818,
+          "phase_id": 1.0
+        },
+        {
+          "expected_decay_m": 0.6894492941300053,
+          "phase_id": 2.0
+        }
+      ]
+    },
+    "two_body": {
+      "mean_motion_rev_per_day": 15.212686021351585,
+      "model": "two_body",
+      "orbital_period_s": 5679.470402447951,
+      "phase_revolutions": [
+        {
+          "phase_id": 1.0,
+          "revolutions": 0.12677238351126321
+        },
+        {
+          "phase_id": 2.0,
+          "revolutions": 0.13733674880386848
+        }
+      ],
+      "semi_major_axis_km": 6880.15
+    }
+  },
+  "stage_sequence": [
+    "access_nodes",
+    "mission_phases",
+    "two_body_propagation",
+    "j2_drag_propagation",
+    "metric_extraction"
+  ]
+}

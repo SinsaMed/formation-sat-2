@@ -10,6 +10,7 @@ jplephem>=2.20
 
 # Plotting and briefing artefact generation
 matplotlib>=3.7
+pandas>=2.2
 plotly>=5.15
 
 # Development and continuous-integration tooling
