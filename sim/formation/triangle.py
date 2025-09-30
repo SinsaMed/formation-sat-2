@@ -59,6 +59,23 @@ class TriangleFormationResult:
         """Convert the simulation result into a JSON-serialisable mapping."""
 
         samples: list[MutableMapping[str, object]] = []
+        satellite_ids = sorted(self.positions_m)
+        geometry: MutableMapping[str, object] = {
+            "times": [epoch.isoformat().replace("+00:00", "Z") for epoch in self.times],
+            "satellite_ids": satellite_ids,
+            "positions_m": {
+                sat_id: self.positions_m[sat_id].tolist() for sat_id in satellite_ids
+            },
+            "latitudes_rad": {
+                sat_id: self.latitudes_rad[sat_id].tolist() for sat_id in satellite_ids
+            },
+            "longitudes_rad": {
+                sat_id: self.longitudes_rad[sat_id].tolist() for sat_id in satellite_ids
+            },
+            "altitudes_m": {
+                sat_id: self.altitudes_m[sat_id].tolist() for sat_id in satellite_ids
+            },
+        }
         for index, epoch in enumerate(self.times):
             samples.append(
                 {
@@ -81,6 +98,7 @@ class TriangleFormationResult:
             "metrics": self.metrics,
             "samples": samples,
             "artefacts": dict(self.artefacts),
+            "geometry": geometry,
         }
 
 
