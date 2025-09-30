@@ -23,9 +23,10 @@ LOG_PATH = PROJECT_ROOT / "debug.txt"
 logging.basicConfig(
     level=logging.DEBUG,
     filename=LOG_PATH,
-    filemode="w",
+    filemode="a",
     encoding="utf-8",
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    force=True,
 )
 _STREAM_HANDLER = logging.StreamHandler()
 _STREAM_HANDLER.setLevel(logging.INFO)
