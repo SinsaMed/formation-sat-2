@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence
+from typing import Any, AsyncIterator, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, root_validator
 
@@ -18,6 +20,7 @@ from sim.scripts.configuration import resolve_scenario_path
 from sim.scripts.run_scenario import run_scenario
 from sim.scripts import extract_metrics as metrics_module
 from src.constellation.orbit import EARTH_EQUATORIAL_RADIUS_M
+from src.constellation.web.jobs import JobManager, SubprocessJob
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCENARIO_DIR = PROJECT_ROOT / "config" / "scenarios"
@@ -31,6 +34,7 @@ DEFAULT_PIPELINE_SCENARIO = "tehran_daily_pass"
 app = FastAPI(title="Formation SAT Run Service")
 router = APIRouter(prefix="/runs")
 app.mount("/web_runs", StaticFiles(directory=WEB_ARTEFACT_DIR, html=False), name="web_runs")
+JOB_MANAGER = JobManager()
 
 
 class TriangleRunRequest(BaseModel):
@@ -92,6 +96,37 @@ class ScenarioRunRequest(BaseModel):
         configuration = values.get("configuration")
         if not scenario and not configuration:
             values["scenario_id"] = DEFAULT_PIPELINE_SCENARIO
+        return values
+
+
+class DebugRunRequest(BaseModel):
+    """Request payload for orchestrating ``run_debug.py`` executions."""
+
+    mode: str = Field(
+        ...,
+        regex="^(triangle|scenario)$",
+        description="Select between the triangle simulation or the generic scenario pipeline.",
+    )
+    scenario_id: Optional[str] = Field(
+        default=None,
+        description="Identifier used when mode='scenario'. Defaults to tehran_daily_pass.",
+    )
+    triangle_config: Optional[str] = Field(
+        default=None,
+        description="Optional override path for the triangle configuration when mode='triangle'.",
+    )
+    output_root: Optional[str] = Field(
+        default=None,
+        description="Optional directory root for storing debug artefacts.",
+    )
+
+    @root_validator
+    def _validate_mode_arguments(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
+        mode = values.get("mode")
+        if mode == "triangle":
+            values["scenario_id"] = None
+        elif mode == "scenario":
+            values.setdefault("scenario_id", "tehran_daily_pass")
         return values
 
 
@@ -260,6 +295,69 @@ def run_scenario_pipeline(request: ScenarioRunRequest) -> Mapping[str, Any]:
         "artefacts": artefacts,
     }
     return response
+
+
+@router.post("/debug/jobs")
+async def launch_debug_job(request: DebugRunRequest) -> Mapping[str, Any]:
+    """Start an asynchronous ``run_debug.py`` subprocess and track its lifecycle."""
+
+    command = _build_debug_command(request)
+    job = await JOB_MANAGER.create_job(command, cwd=PROJECT_ROOT)
+
+    _schedule_job_cleanup(job)
+
+    response = {"job": job.snapshot()}
+    return response
+
+
+@router.get("/debug/jobs")
+async def list_debug_jobs() -> Mapping[str, Any]:
+    """Enumerate known debug subprocesses ordered by recency."""
+
+    jobs = await JOB_MANAGER.list_jobs()
+    return {"jobs": jobs}
+
+
+@router.get("/debug/jobs/{job_id}")
+async def describe_debug_job(job_id: str) -> Mapping[str, Any]:
+    """Return metadata for a specific debug subprocess."""
+
+    job = await JOB_MANAGER.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Debug job '{job_id}' not found.")
+    return {"job": job.snapshot()}
+
+
+@router.delete("/debug/jobs/{job_id}")
+async def cancel_debug_job(job_id: str) -> Mapping[str, Any]:
+    """Request cancellation of a running debug subprocess."""
+
+    job = await JOB_MANAGER.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Debug job '{job_id}' not found.")
+    await job.cancel()
+    return {"job": job.snapshot()}
+
+
+@router.get("/debug/jobs/{job_id}/stream")
+async def stream_debug_job(job_id: str, request: Request) -> StreamingResponse:
+    """Stream structured log updates from a debug subprocess via SSE."""
+
+    job = await JOB_MANAGER.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Debug job '{job_id}' not found.")
+
+    async def event_generator() -> AsyncIterator[str]:
+        async for line in job.iter_lines():
+            if await request.is_disconnected():
+                break
+            payload = json.dumps({"message": line})
+            yield f"data: {payload}\n\n"
+        if not await request.is_disconnected():
+            summary = json.dumps(job.snapshot())
+            yield f"event: summary\ndata: {summary}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get("/{run_id}/metrics-report")
@@ -432,6 +530,33 @@ def _collect_scenario_artefacts(
     return artefact_map
 
 
+def _build_debug_command(request: DebugRunRequest) -> List[str]:
+    """Compose the ``run_debug.py`` invocation based on the request payload."""
+
+    command: List[str] = [sys.executable, str(PROJECT_ROOT / "run_debug.py")]
+    if request.mode == "triangle":
+        command.append("--triangle")
+        if request.triangle_config:
+            command.extend(["--triangle-config", request.triangle_config])
+    else:
+        command.append("--scenario")
+        if request.scenario_id:
+            command.append(request.scenario_id)
+    if request.output_root:
+        command.extend(["--output-root", request.output_root])
+    return command
+
+
+def _schedule_job_cleanup(job: SubprocessJob) -> None:
+    """Schedule automatic pruning once the debug subprocess completes."""
+
+    async def _cleanup_task() -> None:
+        await job.wait_completed()
+        await JOB_MANAGER.prune_completed()
+
+    asyncio.create_task(_cleanup_task())
+
+
 def _record_run(
     run_id: str,
     timestamp: str,
@@ -571,7 +696,7 @@ def _render_interface() -> str:
   <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />
   <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin />
   <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap\" rel=\"stylesheet\" />
-  <script src=\"https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.27.0/plotly.min.js\" defer></script>
+  <script src=\"https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js\" defer></script>
   <style>
     * {{ box-sizing: border-box; }}
     body {{
@@ -724,6 +849,40 @@ def _render_interface() -> str:
       width: 100%;
       background: rgba(3, 17, 33, 0.6);
     }}
+    #three-d-view {{
+      position: relative;
+      border-radius: 16px;
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      background: radial-gradient(circle at 30% 30%, rgba(15, 46, 78, 0.72), rgba(4, 15, 29, 0.9));
+      overflow: hidden;
+    }}
+    #three-d-view canvas {{
+      border-radius: 16px;
+      display: block;
+    }}
+    .three-placeholder {{
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      color: #bcdcff;
+      background: linear-gradient(135deg, rgba(4, 16, 32, 0.75), rgba(2, 10, 22, 0.65));
+    }}
+    .three-proximity {{
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(12, 38, 64, 0.75);
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      color: #e8f2ff;
+      font-size: 0.75rem;
+      white-space: pre-line;
+      direction: rtl;
+    }}
     .artefact-list {{
       display: flex;
       flex-direction: column;
@@ -763,6 +922,131 @@ def _render_interface() -> str:
       margin-top: 0.5rem;
       font-size: 0.85rem;
       color: #9ed3ff;
+    }}
+    .mode-toggle {{
+      display: flex;
+      gap: 0.75rem;
+      margin: 0.75rem 0;
+      font-size: 0.85rem;
+    }}
+    .mode-toggle label {{
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(9, 27, 48, 0.55);
+      border: 1px solid rgba(126, 185, 255, 0.2);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+    }}
+    .mode-toggle input {{
+      accent-color: #29a3ff;
+    }}
+    .job-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+    }}
+    .job-table th, .job-table td {{
+      border: 1px solid rgba(126, 185, 255, 0.12);
+      padding: 0.45rem 0.55rem;
+      text-align: center;
+    }}
+    .job-table tbody tr:hover {{
+      background: rgba(12, 38, 64, 0.55);
+    }}
+    .job-table tbody tr.active {{
+      border-right: 3px solid rgba(130, 200, 255, 0.8);
+      background: rgba(15, 46, 78, 0.65);
+    }}
+    .job-actions {{
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }}
+    .job-actions button {{
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      border: none;
+      background: rgba(47, 148, 255, 0.18);
+      color: #d5eaff;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }}
+    .job-actions button:disabled {{
+      opacity: 0.5;
+      cursor: not-allowed;
+    }}
+    .job-status {{
+      background: rgba(126, 185, 255, 0.18);
+      color: #bcdcff;
+    }}
+    .job-status-running {{
+      background: rgba(47, 201, 111, 0.22);
+      color: #9af5c7;
+    }}
+    .job-status-completed {{
+      background: rgba(47, 201, 111, 0.22);
+      color: #9af5c7;
+    }}
+    .job-status-failed {{
+      background: rgba(255, 102, 102, 0.2);
+      color: #ffc7c7;
+    }}
+    .job-status-cancelled {{
+      background: rgba(255, 194, 102, 0.2);
+      color: #ffe0a6;
+    }}
+    .log-tabs {{
+      display: inline-flex;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }}
+    .log-tabs button {{
+      background: rgba(9, 27, 48, 0.6);
+      border: 1px solid rgba(126, 185, 255, 0.2);
+      border-radius: 999px;
+      color: #d0e6ff;
+      padding: 0.35rem 0.9rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }}
+    .log-tabs button.active {{
+      background: linear-gradient(135deg, #29a3ff, #8247ff);
+      color: #ffffff;
+      border-color: transparent;
+    }}
+    .log-actions {{
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.75rem 0;
+      flex-wrap: wrap;
+    }}
+    .stream-status {{
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(126, 185, 255, 0.18);
+      font-size: 0.75rem;
+      color: #bcdcff;
+    }}
+    .log-view {{
+      display: none;
+      background: rgba(5, 18, 33, 0.8);
+      border-radius: 12px;
+      padding: 0.75rem;
+      border: 1px solid rgba(126, 185, 255, 0.2);
+      max-height: 300px;
+      overflow-y: auto;
+      direction: ltr;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }}
+    .log-view.active {{
+      display: block;
     }}
     @media (max-width: 1200px) {{
       .layout {{
@@ -806,12 +1090,51 @@ def _render_interface() -> str:
         <input id=\"scenario-seed\" type=\"number\" min=\"0\" step=\"1\" />
         <button type=\"submit\">اجرای سناریو</button>
       </form>
+      <form id=\"debug-form\" style=\"margin-top:1.5rem;\">
+        <h2>اجرای حالت دیباگ</h2>
+        <div class=\"mode-toggle\">
+          <label>
+            <input type=\"radio\" name=\"debug-mode\" value=\"triangle\" checked />
+            مثلث تهران
+          </label>
+            <label>
+            <input type=\"radio\" name=\"debug-mode\" value=\"scenario\" />
+            سناریو عمومی
+          </label>
+        </div>
+        <div id=\"debug-triangle-options\">
+          <label for=\"debug-triangle-config\">مسیر پیکربندی مثلث (اختیاری)</label>
+          <input id=\"debug-triangle-config\" placeholder=\"config/scenarios/tehran_triangle.json\" />
+        </div>
+        <div id=\"debug-scenario-options\" style=\"display:none;\">
+          <label for=\"debug-scenario-id\">شناسه سناریو</label>
+          <select id=\"debug-scenario-id\"></select>
+        </div>
+        <label for=\"debug-output-root\">شاخه ذخیره‌سازی خروجی (اختیاری)</label>
+        <input id=\"debug-output-root\" placeholder=\"artefacts/debug\" />
+        <button type=\"submit\">آغاز اجرای دیباگ</button>
+      </form>
       <div class=\"status-message\" id=\"status-message\"></div>
       <button id=\"refresh-history\" style=\"margin-top:1rem;\">به‌روزرسانی تاریخچه</button>
     </section>
     <section id=\"history-panel\" class=\"panel\">
       <h1>تاریخچه اجراها</h1>
       <ul class=\"history\" id=\"run-history\"></ul>
+      <section style=\"margin-top:1.5rem;\">
+        <h2>فرآیندهای دیباگ</h2>
+        <table class=\"job-table\" id=\"debug-job-table\">
+          <thead>
+            <tr>
+              <th>شناسه</th>
+              <th>وضعیت</th>
+              <th>آغاز</th>
+              <th>پایان</th>
+              <th>کنترل</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
     </section>
     <section id=\"output-panel\" class=\"panel\">
       <h1>نمایش خروجی و نمودارها</h1>
@@ -836,12 +1159,17 @@ def _render_interface() -> str:
       <h2 style=\"margin-top:1.5rem;\">نمای سه‌بعدى مدار</h2>
       <div id=\"three-d-view\" style=\"width:100%; height:420px;\"></div>
       <section style=\"margin-top:1.5rem;\">
-        <h2>گزارش لحظه‌ای debug.txt</h2>
-        <div style=\"display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;\">
-          <button id=\"debug-refresh\" type=\"button\">به‌روزرسانی لاگ</button>
-          <a href=\"/debug/log/download\" target=\"_blank\" class=\"badge\">دانلود فایل debug.txt</a>
+        <h2>نظارت بر لاگ‌ها</h2>
+        <div class=\"log-tabs\">
+          <button id=\"tab-debug-log\" type=\"button\" class=\"active\">debug.txt</button>
+          <button id=\"tab-job-log\" type=\"button\">خروجی اجرا</button>
         </div>
-        <pre id=\"debug-log\">(در انتظار به‌روزرسانی)</pre>
+        <div class=\"log-actions\">
+          <span id=\"debug-stream-status\" class=\"stream-status\">در حال اتصال...</span>
+          <a href=\"/debug/log/download\" target=\"_blank\" class=\"badge\">دانلود debug.txt</a>
+        </div>
+        <pre id=\"debug-log\" class=\"log-view active\">(در انتظار اتصال به جریان لاگ)</pre>
+        <pre id=\"job-log\" class=\"log-view\">(لاگ دیباگ انتخاب نشده است.)</pre>
       </section>
     </section>
   </main>
@@ -850,8 +1178,12 @@ def _render_interface() -> str:
     const state = {{
       runs: [],
       selectedRunId: null,
-      debugOffset: 0,
-      debugTimer: null,
+      debugSource: null,
+      jobStream: null,
+      debugJobs: [],
+      activeJobId: null,
+      jobRefreshTimer: null,
+      debugReconnectTimer: null,
     }};
 
     const historyList = document.getElementById('run-history');
@@ -859,15 +1191,45 @@ def _render_interface() -> str:
     const windowInfo = document.getElementById('window-info');
     const artefactContainer = document.getElementById('artefact-links');
     const metricsTables = document.getElementById('metrics-tables');
+    const debugJobTableBody = document.querySelector('#debug-job-table tbody');
+    const debugLogView = document.getElementById('debug-log');
+    const jobLogView = document.getElementById('job-log');
+    const debugStatusChip = document.getElementById('debug-stream-status');
+    const debugTabButton = document.getElementById('tab-debug-log');
+    const jobTabButton = document.getElementById('tab-job-log');
+    const debugTriangleOptions = document.getElementById('debug-triangle-options');
+    const debugScenarioOptions = document.getElementById('debug-scenario-options');
+    const threeState = {{
+      renderer: null,
+      scene: null,
+      camera: null,
+      earthGroup: null,
+      orbitGroup: null,
+      tehranGroup: null,
+      container: null,
+      placeholder: null,
+      proximityLabel: null,
+      animationId: null,
+      resizeHandlerBound: false,
+    }};
+    const TEHRAN_LAT = 35.6892 * (Math.PI / 180);
+    const TEHRAN_LON = 51.3890 * (Math.PI / 180);
+    const PROXIMITY_THRESHOLD_M = 550000;
 
     async function initialise() {{
       await fetchConfigs();
       await refreshHistory();
-      await updateDebugLog();
-      if (state.debugTimer) {{
-        clearInterval(state.debugTimer);
+      await refreshDebugJobs();
+      subscribeDebugLog();
+      if (state.jobRefreshTimer) {{
+        clearInterval(state.jobRefreshTimer);
       }}
-      state.debugTimer = setInterval(updateDebugLog, 7000);
+      state.jobRefreshTimer = setInterval(refreshDebugJobs, 8000);
+      const initialMode = document.querySelector('input[name="debug-mode"]:checked');
+      toggleDebugMode(initialMode ? initialMode.value : 'triangle');
+      if (!state.selectedRunId) {{
+        renderThreeD(null);
+      }}
     }}
 
     async function fetchConfigs() {{
@@ -884,19 +1246,24 @@ def _render_interface() -> str:
     function populateScenarioSelects(scenarios) {{
       const triangleSelect = document.getElementById('triangle-scenario');
       const scenarioSelect = document.getElementById('scenario-id');
+      const debugScenarioSelect = document.getElementById('debug-scenario-id');
       triangleSelect.innerHTML = '';
       scenarioSelect.innerHTML = '';
+      debugScenarioSelect.innerHTML = '';
       const fragmentA = document.createDocumentFragment();
       const fragmentB = document.createDocumentFragment();
+      const fragmentC = document.createDocumentFragment();
       scenarios.forEach((entry) => {{
         const option = document.createElement('option');
         option.value = entry.id;
         option.textContent = `${{entry.id}} — ${{entry.scenario_name || 'بدون عنوان'}}`;
         fragmentA.appendChild(option.cloneNode(true));
-        fragmentB.appendChild(option);
+        fragmentB.appendChild(option.cloneNode(true));
+        fragmentC.appendChild(option);
       }});
       triangleSelect.appendChild(fragmentA);
       scenarioSelect.appendChild(fragmentB);
+      debugScenarioSelect.appendChild(fragmentC);
     }}
 
     async function refreshHistory() {{
@@ -913,6 +1280,225 @@ def _render_interface() -> str:
         }}
       }} catch (error) {{
         statusMessage.textContent = error.message;
+      }}
+    }}
+
+    async function refreshDebugJobs() {{
+      try {{
+        const response = await fetch('/runs/debug/jobs');
+        if (!response.ok) throw new Error('بازیابی وضعیت فرآیندهای دیباگ ممکن نشد.');
+        const payload = await response.json();
+        state.debugJobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+        renderDebugJobs();
+      }} catch (error) {{
+        statusMessage.textContent = error.message;
+      }}
+    }}
+
+    function renderDebugJobs() {{
+      if (!debugJobTableBody) return;
+      debugJobTableBody.innerHTML = '';
+      if (!state.debugJobs.length) {{
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.textContent = 'هیچ فرآیند دیباگی در حال اجرا نیست.';
+        row.appendChild(cell);
+        debugJobTableBody.appendChild(row);
+        return;
+      }}
+      state.debugJobs.forEach((job) => {{
+        const row = document.createElement('tr');
+        if (job.job_id === state.activeJobId) {{
+          row.classList.add('active');
+        }}
+        const idCell = document.createElement('td');
+        idCell.textContent = job.job_id;
+        const statusCell = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = `badge job-status job-status-${{job.status || 'unknown'}}`;
+        badge.textContent = translateJobStatus(job.status);
+        statusCell.appendChild(badge);
+        const startCell = document.createElement('td');
+        startCell.textContent = job.started_at ? formatTimestamp(job.started_at) : '—';
+        const endCell = document.createElement('td');
+        endCell.textContent = job.completed_at ? formatTimestamp(job.completed_at) : '—';
+        const actionCell = document.createElement('td');
+        const actions = document.createElement('div');
+        actions.className = 'job-actions';
+        const watchButton = document.createElement('button');
+        watchButton.type = 'button';
+        watchButton.textContent = 'نمایش';
+        watchButton.addEventListener('click', () => watchDebugJob(job.job_id));
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.textContent = 'لغو';
+        const cancellable = ['pending', 'running', 'cancelling'].includes(job.status);
+        if (!cancellable) {{
+          cancelButton.disabled = true;
+        }} else {{
+          cancelButton.addEventListener('click', () => cancelDebugJob(job.job_id));
+        }}
+        actions.appendChild(watchButton);
+        actions.appendChild(cancelButton);
+        actionCell.appendChild(actions);
+        row.appendChild(idCell);
+        row.appendChild(statusCell);
+        row.appendChild(startCell);
+        row.appendChild(endCell);
+        row.appendChild(actionCell);
+        debugJobTableBody.appendChild(row);
+      }});
+    }}
+
+    function formatTimestamp(value) {{
+      try {{
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString('fa-IR', {{ hour12: false }});
+      }} catch (error) {{
+        return value;
+      }}
+    }}
+
+    function translateJobStatus(status) {{
+      const labels = {{
+        pending: 'در انتظار',
+        running: 'در حال اجرا',
+        completed: 'کامل شد',
+        failed: 'ناموفق',
+        cancelled: 'لغو شد',
+        cancelling: 'در حال لغو',
+        failed_to_start: 'خطا در آغاز',
+        unknown: 'نامشخص',
+      }};
+      return labels[status] || status || 'نامشخص';
+    }}
+
+    async function cancelDebugJob(jobId) {{
+      try {{
+        const response = await fetch(`/runs/debug/jobs/${{jobId}}`, {{ method: 'DELETE' }});
+        if (!response.ok) throw new Error('لغو فرآیند امکان‌پذیر نبود.');
+        await refreshDebugJobs();
+      }} catch (error) {{
+        statusMessage.textContent = error.message;
+      }}
+    }}
+
+    function watchDebugJob(jobId) {{
+      state.activeJobId = jobId;
+      renderDebugJobs();
+      showJobLogTab();
+      if (state.jobStream) {{
+        state.jobStream.close();
+        state.jobStream = null;
+      }}
+      jobLogView.textContent = '(در انتظار داده‌های جدید...)';
+      const source = new EventSource(`/runs/debug/jobs/${{jobId}}/stream`);
+      state.jobStream = source;
+      source.onmessage = (event) => {{
+        if (!event.data) return;
+        try {{
+          const payload = JSON.parse(event.data);
+          if (payload && payload.message) {{
+            appendLog(jobLogView, payload.message);
+          }}
+        }} catch (error) {{
+          appendLog(jobLogView, event.data);
+        }}
+      }};
+      source.addEventListener('summary', (event) => {{
+        try {{
+          const payload = JSON.parse(event.data);
+          appendLog(
+            jobLogView,
+            `[وضعیت نهایی] ${{translateJobStatus(payload.status)}} — کد بازگشت: ${{payload.returncode ?? '—'}}`,
+          );
+        }} catch (error) {{
+          appendLog(jobLogView, '[وضعیت نهایی] اجرای دیباگ پایان یافت.');
+        }}
+        source.close();
+        state.jobStream = null;
+        refreshDebugJobs();
+      }});
+      source.onerror = () => {{
+        appendLog(jobLogView, '[هشدار] ارتباط با جریان خروجی قطع شد.');
+        source.close();
+        state.jobStream = null;
+      }};
+    }}
+
+    function subscribeDebugLog() {{
+      if (state.debugSource) {{
+        state.debugSource.close();
+        state.debugSource = null;
+      }}
+      if (state.debugReconnectTimer) {{
+        clearTimeout(state.debugReconnectTimer);
+        state.debugReconnectTimer = null;
+      }}
+      debugStatusChip.textContent = 'در حال اتصال...';
+      debugLogView.textContent = '(در انتظار اتصال به جریان لاگ)';
+      const source = new EventSource('/debug/log/stream');
+      state.debugSource = source;
+      source.onopen = () => {{
+        debugStatusChip.textContent = 'فعال';
+      }};
+      source.onmessage = (event) => {{
+        if (!event.data) return;
+        try {{
+          const payload = JSON.parse(event.data);
+          if (payload && payload.message) {{
+            appendLog(debugLogView, payload.message);
+          }}
+        }} catch (error) {{
+          appendLog(debugLogView, event.data);
+        }}
+      }};
+      source.onerror = () => {{
+        debugStatusChip.textContent = 'قطع اتصال';
+        source.close();
+        state.debugSource = null;
+        if (state.debugReconnectTimer) {{
+          clearTimeout(state.debugReconnectTimer);
+        }}
+        state.debugReconnectTimer = setTimeout(() => {{
+          debugStatusChip.textContent = 'تلاش براى اتصال مجدد...';
+          subscribeDebugLog();
+        }}, 5000);
+      }};
+    }}
+
+    function appendLog(view, message) {{
+      if (!view || !message) return;
+      if (view.textContent.startsWith('(')) {{
+        view.textContent = '';
+      }}
+      view.textContent += (view.textContent ? '\n' : '') + message;
+      view.scrollTop = view.scrollHeight;
+    }}
+
+    function showDebugLogTab() {{
+      debugTabButton.classList.add('active');
+      jobTabButton.classList.remove('active');
+      debugLogView.classList.add('active');
+      jobLogView.classList.remove('active');
+    }}
+
+    function showJobLogTab() {{
+      jobTabButton.classList.add('active');
+      debugTabButton.classList.remove('active');
+      jobLogView.classList.add('active');
+      debugLogView.classList.remove('active');
+    }}
+
+    function toggleDebugMode(mode) {{
+      if (mode === 'scenario') {{
+        debugScenarioOptions.style.display = 'block';
+        debugTriangleOptions.style.display = 'none';
+      }} else {{
+        debugScenarioOptions.style.display = 'none';
+        debugTriangleOptions.style.display = 'block';
       }}
     }}
 
@@ -1144,6 +1730,303 @@ def _render_interface() -> str:
       }});
     }}
 
+    function initialiseThreeScene(container) {{
+      if (!window.THREE) {{
+        container.innerHTML = '<div class="three-placeholder">کتابخانه Three.js بارگذارى نشد.</div>';
+        return false;
+      }}
+      ensureThreeOverlay(container);
+      if (threeState.renderer) {{
+        if (threeState.container !== container) {{
+          container.innerHTML = '';
+          container.appendChild(threeState.renderer.domElement);
+          ensureThreeOverlay(container);
+        }}
+        threeState.container = container;
+        handleThreeResize();
+        startThreeAnimation();
+        return true;
+      }}
+
+      const width = container.clientWidth || container.offsetWidth || 640;
+      const height = container.clientHeight || container.offsetHeight || 420;
+      const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setSize(width, height);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#020b1a');
+
+      const camera = new THREE.PerspectiveCamera(45, width / height, 1000, EARTH_RADIUS_M * 40);
+      camera.position.set(EARTH_RADIUS_M * 4.2, EARTH_RADIUS_M * 2.2, EARTH_RADIUS_M * 2.7);
+      camera.up.set(0, 0, 1);
+      camera.lookAt(0, 0, 0);
+
+      container.innerHTML = '';
+      container.appendChild(renderer.domElement);
+
+      const ambient = new THREE.AmbientLight(0xbcdcff, 0.75);
+      scene.add(ambient);
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.55);
+      keyLight.position.set(EARTH_RADIUS_M * 3, EARTH_RADIUS_M * 2, EARTH_RADIUS_M * 4);
+      scene.add(keyLight);
+      const rimLight = new THREE.DirectionalLight(0x4ca8ff, 0.35);
+      rimLight.position.set(-EARTH_RADIUS_M * 2.5, -EARTH_RADIUS_M * 1.5, EARTH_RADIUS_M * 2);
+      scene.add(rimLight);
+
+      const earthGroup = new THREE.Group();
+      const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS_M, 96, 96);
+      const earthMaterial = new THREE.MeshPhongMaterial({{
+        color: 0x0c3b70,
+        emissive: 0x071b33,
+        specular: 0x1a3352,
+        shininess: 18,
+        transparent: true,
+        opacity: 0.96,
+      }});
+      const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+      earthGroup.add(earthMesh);
+      const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS_M * 1.02, 64, 64);
+      const atmosphereMaterial = new THREE.MeshBasicMaterial({{ color: 0x4ca8ff, transparent: true, opacity: 0.08 }});
+      const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+      earthGroup.add(atmosphere);
+
+      const tehranGroup = new THREE.Group();
+      const tehranVector = latLonToVector3(TEHRAN_LAT, TEHRAN_LON, EARTH_RADIUS_M);
+      const tehranMarker = new THREE.Mesh(
+        new THREE.SphereGeometry(EARTH_RADIUS_M * 0.015, 28, 28),
+        new THREE.MeshBasicMaterial({{ color: 0xffd166, transparent: true, opacity: 0.9 }})
+      );
+      tehranMarker.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.01));
+      tehranGroup.add(tehranMarker);
+      const halo = new THREE.Mesh(
+        new THREE.CircleGeometry(EARTH_RADIUS_M * 0.16, 64),
+        new THREE.MeshBasicMaterial({{ color: 0xffd166, transparent: true, opacity: 0.25, side: THREE.DoubleSide }})
+      );
+      halo.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.001));
+      halo.lookAt(tehranVector.clone().multiplyScalar(2));
+      tehranGroup.add(halo);
+
+      const labelCanvas = document.createElement('canvas');
+      labelCanvas.width = 256;
+      labelCanvas.height = 128;
+      const labelCtx = labelCanvas.getContext('2d');
+      labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+      labelCtx.font = '48px "Inter", sans-serif';
+      labelCtx.fillStyle = '#ffd166';
+      labelCtx.textAlign = 'center';
+      labelCtx.textBaseline = 'middle';
+      labelCtx.fillText('تهران', labelCanvas.width / 2, labelCanvas.height / 2);
+      const labelTexture = new THREE.CanvasTexture(labelCanvas);
+      const labelMaterial = new THREE.SpriteMaterial({{ map: labelTexture, transparent: true }});
+      const labelSprite = new THREE.Sprite(labelMaterial);
+      labelSprite.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.13));
+      labelSprite.scale.set(EARTH_RADIUS_M * 0.22, EARTH_RADIUS_M * 0.11, 1);
+      tehranGroup.add(labelSprite);
+
+      earthGroup.add(tehranGroup);
+      scene.add(earthGroup);
+
+      const orbitGroup = new THREE.Group();
+      scene.add(orbitGroup);
+
+      threeState.renderer = renderer;
+      threeState.scene = scene;
+      threeState.camera = camera;
+      threeState.earthGroup = earthGroup;
+      threeState.tehranGroup = tehranGroup;
+      threeState.orbitGroup = orbitGroup;
+      threeState.container = container;
+
+      ensureThreeOverlay(container);
+      if (!threeState.resizeHandlerBound) {{
+        window.addEventListener('resize', handleThreeResize);
+        threeState.resizeHandlerBound = true;
+      }}
+      handleThreeResize();
+      startThreeAnimation();
+      return true;
+    }}
+
+    function ensureThreeOverlay(container) {{
+      if (!threeState.placeholder) {{
+        const placeholder = document.createElement('div');
+        placeholder.className = 'three-placeholder';
+        placeholder.textContent = 'برای نمایش مدار، اجرایى را انتخاب کنید.';
+        container.appendChild(placeholder);
+        threeState.placeholder = placeholder;
+      }} else if (!container.contains(threeState.placeholder)) {{
+        container.appendChild(threeState.placeholder);
+      }}
+      if (!threeState.proximityLabel) {{
+        const label = document.createElement('div');
+        label.className = 'three-proximity';
+        label.textContent = 'کمترین فاصله‌ها پس از دریافت داده نمایش داده مى‌شوند.';
+        container.appendChild(label);
+        threeState.proximityLabel = label;
+      }} else if (!container.contains(threeState.proximityLabel)) {{
+        container.appendChild(threeState.proximityLabel);
+      }}
+    }}
+
+    function showThreePlaceholder(message) {{
+      if (!threeState.container) return;
+      ensureThreeOverlay(threeState.container);
+      if (threeState.placeholder) {{
+        threeState.placeholder.textContent = message;
+        threeState.placeholder.style.display = 'flex';
+      }}
+    }}
+
+    function hideThreePlaceholder() {{
+      if (threeState.placeholder) {{
+        threeState.placeholder.style.display = 'none';
+      }}
+    }}
+
+    function updateProximityLabel(text) {{
+      if (!threeState.container) return;
+      ensureThreeOverlay(threeState.container);
+      if (threeState.proximityLabel) {{
+        threeState.proximityLabel.textContent = text;
+        threeState.proximityLabel.style.display = text ? 'block' : 'none';
+      }}
+    }}
+
+    function handleThreeResize() {{
+      if (!threeState.renderer || !threeState.camera || !threeState.container) return;
+      const width = threeState.container.clientWidth || threeState.container.offsetWidth || 640;
+      const height = threeState.container.clientHeight || threeState.container.offsetHeight || 420;
+      threeState.renderer.setSize(width, height);
+      threeState.camera.aspect = width / height;
+      threeState.camera.updateProjectionMatrix();
+    }}
+
+    function startThreeAnimation() {{
+      if (threeState.animationId) return;
+      const animate = () => {{
+        threeState.animationId = requestAnimationFrame(animate);
+        if (threeState.earthGroup) {{
+          threeState.earthGroup.rotation.y += 0.00035;
+        }}
+        if (threeState.renderer && threeState.scene && threeState.camera) {{
+          threeState.renderer.render(threeState.scene, threeState.camera);
+        }}
+      }};
+      animate();
+    }}
+
+    function latLonToVector3(lat, lon, radius) {{
+      const cosLat = Math.cos(lat);
+      return new THREE.Vector3(
+        radius * cosLat * Math.cos(lon),
+        radius * cosLat * Math.sin(lon),
+        radius * Math.sin(lat)
+      );
+    }}
+
+    function greatCircleDistance(lat1, lon1, lat2, lon2) {{
+      const deltaLat = lat2 - lat1;
+      const deltaLon = lon2 - lon1;
+      const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return EARTH_RADIUS_M * c;
+    }}
+
+    function updateThreeScene(summary) {{
+      if (!threeState.orbitGroup) return;
+      threeState.orbitGroup.children.forEach((child) => {{
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {{
+          if (Array.isArray(child.material)) {{
+            child.material.forEach((mat) => mat.dispose());
+          }} else {{
+            child.material.dispose();
+          }}
+        }}
+      }});
+      threeState.orbitGroup.clear();
+
+      if (!summary || !summary.geometry) {{
+        updateProximityLabel('کمترین فاصله‌ها پس از دریافت داده نمایش داده مى‌شوند.');
+        showThreePlaceholder('داده‌اى براى نمایش مدار در دسترس نیست.');
+        return;
+      }}
+
+      const geometry = summary.geometry;
+      const satelliteIds = Array.isArray(geometry.satellite_ids) ? geometry.satellite_ids : [];
+      const positions = geometry.positions_m || {{}};
+      if (!satelliteIds.length) {{
+        updateProximityLabel('داده‌اى براى مسیر ماهواره‌ها یافت نشد.');
+        showThreePlaceholder('داده‌اى براى مسیر ماهواره‌ها یافت نشد.');
+        return;
+      }}
+
+      hideThreePlaceholder();
+      const proximityLines = [];
+      satelliteIds.forEach((id, index) => {{
+        const samples = Array.isArray(positions[id]) ? positions[id] : [];
+        if (!samples.length) return;
+
+        const flattened = new Float32Array(samples.length * 3);
+        const nearAccumulator = [];
+        let minDistance = Number.POSITIVE_INFINITY;
+        samples.forEach((row, sampleIndex) => {{
+          const x = row[0];
+          const y = row[1];
+          const z = row[2];
+          flattened[sampleIndex * 3] = x;
+          flattened[sampleIndex * 3 + 1] = y;
+          flattened[sampleIndex * 3 + 2] = z;
+
+          const radius = Math.sqrt(x * x + y * y + z * z) || EARTH_RADIUS_M;
+          const lat = Math.asin(Math.min(Math.max(z / radius, -1), 1));
+          const lon = Math.atan2(y, x);
+          const distance = greatCircleDistance(lat, lon, TEHRAN_LAT, TEHRAN_LON);
+          if (distance < minDistance) minDistance = distance;
+          if (distance <= PROXIMITY_THRESHOLD_M) {{
+            nearAccumulator.push(x, y, z);
+          }}
+        }});
+
+        const lineGeometry = new THREE.BufferGeometry();
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flattened, 3));
+        const lineColour = new THREE.Color();
+        lineColour.setHSL((index % Math.max(satelliteIds.length, 1)) / Math.max(satelliteIds.length, 1), 0.7, 0.6);
+        const lineMaterial = new THREE.LineBasicMaterial({{ color: lineColour }});
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        threeState.orbitGroup.add(line);
+
+        if (nearAccumulator.length) {{
+          const glowGeometry = new THREE.BufferGeometry();
+          glowGeometry.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute(new Float32Array(nearAccumulator), 3)
+          );
+          const glowMaterial = new THREE.PointsMaterial({{
+            color: 0xffd166,
+            size: 12,
+            transparent: true,
+            opacity: 0.95,
+            depthTest: false,
+          }});
+          const glowPoints = new THREE.Points(glowGeometry, glowMaterial);
+          threeState.orbitGroup.add(glowPoints);
+        }}
+
+        if (Number.isFinite(minDistance)) {{
+          const formatted = Math.round(minDistance / 1000).toLocaleString('fa-IR');
+          proximityLines.push(`${{id}}: ${{formatted}} کیلومتر`);
+        }}
+      }});
+
+      if (proximityLines.length) {{
+        updateProximityLabel(`کمترین فاصله تا تهران\n${{proximityLines.join('\n')}}`);
+      }} else {{
+        updateProximityLabel('داده‌اى براى محاسبه فاصله تا تهران وجود ندارد.');
+      }}
+    }}
+
     function renderGroundTrack(summary) {{
       const canvas = document.getElementById('ground-track');
       const ctx = canvas.getContext('2d');
@@ -1177,6 +2060,25 @@ def _render_interface() -> str:
         ctx.stroke();
       }}
 
+      const tehranLat = 35.6892 * (Math.PI / 180);
+      const tehranLon = 51.3890 * (Math.PI / 180);
+      const tehranX = ((tehranLon + Math.PI) / (2 * Math.PI)) * w;
+      const tehranY = h - ((tehranLat + Math.PI / 2) / Math.PI) * h;
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(tehranX, tehranY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 209, 102, 0.65)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(tehranX, tehranY, 9, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd166';
+      ctx.font = '12px "Inter", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('تهران', tehranX + 8, tehranY - 6);
+
       satelliteIds.forEach((id, index) => {{
         const latSeries = latitudes[id];
         const lonSeries = longitudes[id];
@@ -1198,83 +2100,10 @@ def _render_interface() -> str:
 
     function renderThreeD(summary) {{
       const container = document.getElementById('three-d-view');
-      if (!summary || !summary.geometry) {{
-        container.innerHTML = '';
-        return;
-      }}
-      const geometry = summary.geometry;
-      const satelliteIds = geometry.satellite_ids || [];
-      const positions = geometry.positions_m || {{}};
-      if (!satelliteIds.length) return;
-
-      const traces = satelliteIds.map((id, index) => {{
-        const samples = positions[id] || [];
-        const xs = samples.map((row) => row[0]);
-        const ys = samples.map((row) => row[1]);
-        const zs = samples.map((row) => row[2]);
-        return {{
-          type: 'scatter3d',
-          mode: 'lines',
-          name: id,
-          x: xs,
-          y: ys,
-          z: zs,
-          line: {{ width: 4, color: `hsl(${{(index / satelliteIds.length) * 360}}, 70%, 60%)` }},
-        }};
-      }});
-
-      const sphereResolution = 32;
-      const theta = [];
-      const phi = [];
-      for (let i = 0; i <= sphereResolution; i += 1) {{
-        theta.push((i / sphereResolution) * Math.PI);
-        phi.push((i / sphereResolution) * 2 * Math.PI);
-      }}
-      const sphereX = theta.map((t) => phi.map((p) => EARTH_RADIUS_M * Math.sin(t) * Math.cos(p)));
-      const sphereY = theta.map((t) => phi.map((p) => EARTH_RADIUS_M * Math.sin(t) * Math.sin(p)));
-      const sphereZ = theta.map((t) => phi.map((p) => EARTH_RADIUS_M * Math.cos(t)));
-      traces.push({{
-        type: 'surface',
-        x: sphereX,
-        y: sphereY,
-        z: sphereZ,
-        showscale: false,
-        opacity: 0.35,
-        colorscale: [[0, '#0c3b70'], [1, '#0c3b70']],
-        hoverinfo: 'skip',
-      }});
-
-      const layout = {{
-        margin: {{ l: 0, r: 0, b: 0, t: 0 }},
-        scene: {{
-          xaxis: {{ title: 'X (m)', backgroundcolor: '#0d1f38', gridcolor: '#1a3352', zerolinecolor: '#2a4671' }},
-          yaxis: {{ title: 'Y (m)', backgroundcolor: '#0d1f38', gridcolor: '#1a3352', zerolinecolor: '#2a4671' }},
-          zaxis: {{ title: 'Z (m)', backgroundcolor: '#0d1f38', gridcolor: '#1a3352', zerolinecolor: '#2a4671' }},
-          aspectmode: 'data',
-        }},
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        showlegend: true,
-        legend: {{ orientation: 'h', x: 0, y: 1.1 }},
-      }};
-      Plotly.react('three-d-view', traces, layout, {{ responsive: true }});
-    }}
-
-    async function updateDebugLog() {{
-      try {{
-        const response = await fetch(`/debug/log/tail?offset=${{state.debugOffset}}`);
-        if (!response.ok) throw new Error();
-        const payload = await response.json();
-        if (!payload.available) return;
-        state.debugOffset = payload.offset || 0;
-        if (payload.content) {{
-          const view = document.getElementById('debug-log');
-          view.textContent = (view.textContent === '(در انتظار به‌روزرسانی)' ? '' : view.textContent) + payload.content;
-          view.scrollTop = view.scrollHeight;
-        }}
-      }} catch (error) {{
-        // Silent failure keeps the UI responsive.
-      }}
+      if (!container) return;
+      const ready = initialiseThreeScene(container);
+      if (!ready) return;
+      updateThreeScene(summary);
     }}
 
     function parseJsonField(text) {{
@@ -1351,13 +2180,84 @@ def _render_interface() -> str:
       }}
     }});
 
+    document.getElementById('debug-form').addEventListener('submit', async (event) => {{
+      event.preventDefault();
+      const modeInput = document.querySelector('input[name="debug-mode"]:checked');
+      const mode = modeInput ? modeInput.value : 'triangle';
+      const payload = {{ mode }};
+      if (mode === 'scenario') {{
+        const scenarioId = document.getElementById('debug-scenario-id').value;
+        if (scenarioId) payload.scenario_id = scenarioId;
+      }} else {{
+        const configPath = document.getElementById('debug-triangle-config').value.trim();
+        if (configPath) payload.triangle_config = configPath;
+      }}
+      const outputRoot = document.getElementById('debug-output-root').value.trim();
+      if (outputRoot) payload.output_root = outputRoot;
+      statusMessage.textContent = 'در حال آغاز اجرای دیباگ...';
+      try {{
+        const response = await fetch('/runs/debug/jobs', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(payload),
+        }});
+        if (!response.ok) throw new Error('راه‌اندازی اجرای دیباگ با خطا مواجه شد.');
+        const data = await response.json();
+        await refreshDebugJobs();
+        statusMessage.textContent = 'اجرای دیباگ آغاز شد.';
+        if (data && data.job && data.job.job_id) {{
+          watchDebugJob(data.job.job_id);
+        }}
+      }} catch (error) {{
+        statusMessage.textContent = error.message;
+      }}
+    }});
+
     document.getElementById('refresh-history').addEventListener('click', refreshHistory);
-    document.getElementById('debug-refresh').addEventListener('click', updateDebugLog);
+    debugTabButton.addEventListener('click', showDebugLogTab);
+    jobTabButton.addEventListener('click', showJobLogTab);
+    document.querySelectorAll('input[name="debug-mode"]').forEach((input) => {{
+      input.addEventListener('change', () => toggleDebugMode(input.value));
+    }});
+    window.addEventListener('beforeunload', () => {{
+      if (state.debugSource) state.debugSource.close();
+      if (state.jobStream) state.jobStream.close();
+    }});
 
     initialise();
   </script>
 </body>
 </html>"""
+
+
+@app.get("/debug/log/stream")
+async def stream_debug_log(request: Request) -> StreamingResponse:
+    """Continuously stream appended ``debug.txt`` content via server-sent events."""
+
+    async def event_generator() -> AsyncIterator[str]:
+        last_offset = 0
+        while True:
+            if await request.is_disconnected():
+                break
+            if DEBUG_LOG_PATH.exists():
+                size = DEBUG_LOG_PATH.stat().st_size
+                if size < last_offset:
+                    last_offset = 0
+                if size > last_offset:
+                    with DEBUG_LOG_PATH.open("r", encoding="utf-8", errors="ignore") as handle:
+                        handle.seek(last_offset)
+                        content = handle.read()
+                        last_offset = handle.tell()
+                    if content:
+                        for line in content.splitlines():
+                            payload = json.dumps({"message": line})
+                            yield f"data: {payload}\n\n"
+            else:
+                last_offset = 0
+            yield ": heartbeat\n\n"
+            await asyncio.sleep(1.0)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/debug/log/tail")
