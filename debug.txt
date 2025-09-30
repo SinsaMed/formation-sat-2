@@ -1,0 +1,24 @@
+2025-09-30 17:18:18,878 INFO [run_debug] Artefacts will be stored in /workspace/formation-sat-2/artefacts/debug/20250930T171818Z
+2025-09-30 17:18:19,256 DEBUG [matplotlib] matplotlib data path: /root/.pyenv/versions/3.12.10/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-09-30 17:18:19,282 DEBUG [matplotlib] CONFIGDIR=/root/.config/matplotlib
+2025-09-30 17:18:19,284 DEBUG [matplotlib] interactive is False
+2025-09-30 17:18:19,284 DEBUG [matplotlib] platform is linux
+2025-09-30 17:18:19,416 DEBUG [matplotlib] CACHEDIR=/root/.cache/matplotlib
+2025-09-30 17:18:19,416 DEBUG [matplotlib.font_manager] font search path [PosixPath('/root/.pyenv/versions/3.12.10/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf'), PosixPath('/root/.pyenv/versions/3.12.10/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/afm'), PosixPath('/root/.pyenv/versions/3.12.10/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/pdfcorefonts')]
+2025-09-30 17:18:19,746 INFO [matplotlib.font_manager] generated new fontManager
+2025-09-30 17:18:20,120 INFO [run_debug] Running scenario pipeline for 'tehran_daily_pass'
+2025-09-30 17:18:20,121 DEBUG [sim.scripts.run_scenario] Loaded scenario configuration with keys: ['metadata', 'orbital_elements', 'timing', 'payload_constraints', 'operational_constraints']
+2025-09-30 17:18:20,121 INFO [sim.scripts.run_scenario] Identified 2 mission nodes.
+2025-09-30 17:18:20,121 INFO [sim.scripts.run_scenario] Synthesised 2 mission phases.
+2025-09-30 17:18:20,121 INFO [sim.scripts.run_scenario] Two-body propagation yielded an orbital period of 5679.47 s.
+2025-09-30 17:18:20,122 INFO [sim.scripts.run_scenario] Perturbed propagation adjusts the orbital period by -4.312 s.
+2025-09-30 17:18:20,122 INFO [sim.scripts.run_scenario] Metric extraction complete: {'node_count': 2.0, 'phase_count': 2.0, 'total_contact_duration_s': 1500.0}.
+2025-09-30 17:18:20,123 INFO [sim.scripts.run_scenario] Scenario summary written to /workspace/formation-sat-2/artefacts/debug/20250930T171818Z/scenario_summary.json
+2025-09-30 17:18:20,123 DEBUG [run_debug] Scenario stage sequence:
+1. access_nodes
+2. mission_phases
+3. two_body_propagation
+4. j2_drag_propagation
+5. metric_extraction
+2025-09-30 17:18:20,123 INFO [run_debug] Scenario summary written to /workspace/formation-sat-2/artefacts/debug/20250930T171818Z/scenario_debug_summary.json
+2025-09-30 17:18:20,123 INFO [run_debug] Scenario produced 2 nodes, 2 phases, 1500.0 s contact window.
