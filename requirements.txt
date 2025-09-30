@@ -17,3 +17,7 @@ pytest>=8
 pytest-cov>=6
 setuptools>=70
 wheel
+
+# Web service interfaces for orchestration endpoints
+fastapi>=0.111
+uvicorn>=0.29
