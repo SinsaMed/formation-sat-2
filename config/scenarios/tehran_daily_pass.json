@@ -21,9 +21,9 @@
       "semi_major_axis_km": 6880.150,
       "eccentricity": 0.00012,
       "inclination_deg": 97.70,
-      "raan_deg": 18.880656018950965,
+      "raan_deg": 43.20,
       "argument_of_perigee_deg": 87.00,
-      "mean_anomaly_deg": 309.453125
+      "mean_anomaly_deg": 14.50
     },
     "repeat_ground_track": {
       "repeat_cycle_days": 1,

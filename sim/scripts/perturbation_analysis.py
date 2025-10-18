@@ -69,7 +69,7 @@ PLANE_ASSIGNMENTS = {
 
 DEFAULT_MONTE_CARLO = {
     "enabled": True,
-    "runs": 10,
+    "runs": 200,
     "seed": 42,
     "dispersions": {
         "semi_major_axis_sigma_m": 5.0,
@@ -77,8 +77,6 @@ DEFAULT_MONTE_CARLO = {
         "drag_coefficient_sigma": 0.05,
     },
 }
-
-MONTE_CARLO_MIN_TIME_STEP_S = 6.0
 
 
 @dataclass
@@ -234,7 +232,7 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
         start_time=analysis_start,
         epoch_time=epoch_time,
         stop_time=stop_time,
-        time_step_s=3.0,
+        time_step_s=60.0,
         drag_coefficient=2.2,
         ballistic_coefficient_m2_per_kg=0.025,
         solar_flux_index=SOLAR_FLUX_BASE,
@@ -905,7 +903,7 @@ def _run_monte_carlo(
         plane_distance = float(plane_metrics.get("target_distance_km", math.inf))
 
         epoch = settings.start_time
-        dt = max(settings.time_step_s, MONTE_CARLO_MIN_TIME_STEP_S)
+        dt = settings.time_step_s
         vehicle_metrics = _initial_metric_structure(states, target_lat, target_lon)
         previous_signs = {state.identifier: 0.0 for state in states}
         relative_run_stats = {"max": 0.0, "min": math.inf}
@@ -974,6 +972,7 @@ def _run_monte_carlo(
 
         if math.isfinite(plane_distance):
             intersection_distances.append(plane_distance)
+            absolute_run_compliant = absolute_run_compliant and plane_distance <= 10.0
 
         if math.isfinite(relative_run_stats["max"]):
             relative_max_list.append(relative_run_stats["max"])
