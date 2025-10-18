@@ -1,0 +1,30 @@
+UnloadAll /
+New / Scenario Tehran Triangle Formation
+SetTimePeriod * "21 Mar 2026 09:32:00.000" "21 Mar 2026 09:35:00.000"
+Animate * Reset
+Animate * SetValues TimeStep 60.0
+New / */Satellite SAT-1
+SetState */Satellite/SAT-1 External File "/workspace/formation-sat-2/artefacts/stk_run_20251018_1935Z/stk_export/SAT-1.e"
+Graphics */Satellite/SAT-1 TrackType GroundTrack On
+Graphics */Satellite/SAT-1 GroundTrack Show On
+Graphics */Satellite/SAT-1 GroundTrack LineColor red
+VO */Satellite/SAT-1 Inherit Off
+VO */Satellite/SAT-1 ModelAttributes ShowLabel On
+New / */Satellite SAT-2
+SetState */Satellite/SAT-2 External File "/workspace/formation-sat-2/artefacts/stk_run_20251018_1935Z/stk_export/SAT-2.e"
+Graphics */Satellite/SAT-2 TrackType GroundTrack On
+Graphics */Satellite/SAT-2 GroundTrack Show On
+Graphics */Satellite/SAT-2 GroundTrack LineColor green
+VO */Satellite/SAT-2 Inherit Off
+VO */Satellite/SAT-2 ModelAttributes ShowLabel On
+New / */Satellite SAT-3
+SetState */Satellite/SAT-3 External File "/workspace/formation-sat-2/artefacts/stk_run_20251018_1935Z/stk_export/SAT-3.e"
+Graphics */Satellite/SAT-3 TrackType GroundTrack On
+Graphics */Satellite/SAT-3 GroundTrack Show On
+Graphics */Satellite/SAT-3 GroundTrack LineColor blue
+VO */Satellite/SAT-3 Inherit Off
+VO */Satellite/SAT-3 ModelAttributes ShowLabel On
+VO * View FromTo FromObject */Satellite/SAT-1 ToObject */Earth
+VO * View Attach Center */Earth Fixed 18.0
+VO * Lighting Sun On
+Animate * Start
