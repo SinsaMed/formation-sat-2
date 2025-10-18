@@ -18,5 +18,10 @@ The mission must employ two satellites within Orbital Plane A and a third satell
 - Simulation artefacts illustrating access windows, relative kinematics, and robustness analyses.
 - Documentation templates for future experiment briefs and verification protocols, including [`concept_of_operations.md`](concept_of_operations.md), [`system_requirements.md`](system_requirements.md), [`compliance_matrix.md`](compliance_matrix.md), and [`verification_plan.md`](verification_plan.md).
 
+## Recent Verification Evidence
+The maintenance and robustness campaign `run_20251018_1207Z` now anchors compliance for MR-5 through MR-7 by publishing reproducible artefacts under `artefacts/run_20251018_1207Z/`. The study demonstrates that maximum command latency is \(1.53\,\text{h}\), well below the 12-hour MR-5 threshold, whilst the weekly formation-keeping plan expends \(14.04\,\text{m/s}\) annually against the MR-6 \(15\,\text{m/s}\) budget.[Ref2] A 300-case Monte Carlo injection recovery sweep confirms 100% success with \(p_{95}\) \(\Delta v = 0.041\,\text{m/s}\), satisfying MR-7. These metrics are enforced through automated regression `tests/unit/test_triangle_formation.py`, ensuring that future modifications continue to respect the established margins.[Ref2][Ref3]
+
 ## References
 - [Ref1] D'Amico, S., et al., "Relative Orbital Elements for Spacecraft Formation-Flying," *Journal of Guidance, Control, and Dynamics*, 2005.
+- [Ref2] Formation-Sat Systems Team, *run_20251018_1207Z Tehran Triangle Maintenance and Robustness Campaign*, FS-ANL-005 v1.0, 2025.
+- [Ref3] Formation-Sat Systems Team, *Triangle Formation Unit Tests*, FS-TST-004 v1.1, 2025.

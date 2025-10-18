@@ -111,3 +111,20 @@ def test_triangle_cli_produces_stk_outputs(tmp_path: Path) -> None:
     stk_dir = output_dir / "stk"
     assert stk_dir.exists()
     assert list(stk_dir.glob("*.e"))
+
+    maintenance_csv = output_dir / "maintenance_summary.csv"
+    command_csv = output_dir / "command_windows.csv"
+    injection_csv = output_dir / "injection_recovery.csv"
+    plot_path = output_dir / "injection_recovery_cdf.svg"
+
+    assert maintenance_csv.exists()
+    assert command_csv.exists()
+    assert injection_csv.exists()
+    assert plot_path.exists()
+
+    maintenance_header = maintenance_csv.read_text(encoding="utf-8").splitlines()[0]
+    assert "annual_delta_v_mps" in maintenance_header
+    command_header = command_csv.read_text(encoding="utf-8").splitlines()[0]
+    assert "window_index" in command_header
+    injection_header = injection_csv.read_text(encoding="utf-8").splitlines()[0]
+    assert "delta_v_mps" in injection_header

@@ -28,6 +28,26 @@
       "SAT-1": "Plane A",
       "SAT-2": "Plane A",
       "SAT-3": "Plane B"
+    },
+    "maintenance": {
+      "burn_duration_s": 32.0,
+      "interval_days": 7.0,
+      "delta_v_budget_mps": 15.0
+    },
+    "command": {
+      "contact_range_km": 2200.0,
+      "station": {
+        "latitude_deg": 30.283,
+        "longitude_deg": 57.083
+      }
+    },
+    "monte_carlo": {
+      "samples": 300,
+      "position_sigma_m": 250.0,
+      "velocity_sigma_mmps": 5.0,
+      "recovery_time_s": 43200.0,
+      "delta_v_budget_mps": 15.0,
+      "seed": 314159
     }
   }
 }
