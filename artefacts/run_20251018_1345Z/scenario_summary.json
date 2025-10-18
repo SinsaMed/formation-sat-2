@@ -1,0 +1,294 @@
+{
+  "artefacts": {
+    "deterministic_cross_track_csv": "artefacts/run_20251018_1345Z/deterministic_cross_track.csv",
+    "deterministic_summary_json": "artefacts/run_20251018_1345Z/deterministic_summary.json",
+    "monte_carlo_cross_track_csv": "artefacts/run_20251018_1345Z/monte_carlo_cross_track.csv",
+    "monte_carlo_summary_json": "artefacts/run_20251018_1345Z/monte_carlo_summary.json",
+    "relative_cross_track_csv": "artefacts/run_20251018_1345Z/relative_cross_track.csv",
+    "solver_settings_json": "artefacts/run_20251018_1345Z/solver_settings.json",
+    "stk_export_directory": "artefacts/run_20251018_1345Z/stk_export",
+    "stk_export_files": [
+      "Contacts_Svalbard.int",
+      "Contacts_Tehran_Urban_Core.int",
+      "Facility_Svalbard.fac",
+      "Facility_Tehran_Iran.fac",
+      "Facility_Tehran_Urban_Core.fac",
+      "Tehran_Daily_Pass.sc",
+      "tehran_daily_pass.e",
+      "tehran_daily_pass.sat",
+      "tehran_daily_pass_groundtrack.gt"
+    ],
+    "stk_scenario_start_epoch": "2026-03-21T09:32:00Z",
+    "summary_path": "artefacts/run_20251018_1345Z/scenario_summary.json"
+  },
+  "configuration_summary": {
+    "author": "Orbit Dynamics Team",
+    "description": "Daily dawn-dusk imaging opportunity over Tehran for infrastructure resilience monitoring.",
+    "identifier": "tehran_daily_pass",
+    "name": "Tehran Daily Pass",
+    "planning_horizon": {
+      "start_utc": "2026-03-21T00:00:00Z",
+      "stop_utc": "2026-03-28T00:00:00Z"
+    },
+    "validated_against_stk_export": true
+  },
+  "metrics": {
+    "average_revolutions_per_phase": 0.13205456615756583,
+    "deterministic_compliance_fraction": 0.0,
+    "monte_carlo_fleet_compliance_probability": 1.0,
+    "monte_carlo_run_count": 200.0,
+    "node_count": 2.0,
+    "orbital_period_delta_s": 9.094947017729282e-13,
+    "orbital_period_nominal_s": 5679.470402447951,
+    "orbital_period_perturbed_s": 5679.4704024479515,
+    "overall_max_cross_track_km": 19413.747846916358,
+    "overall_min_cross_track_km": 444.9935836093271,
+    "phase_count": 2.0,
+    "plane_intersection_compliant": 0.0,
+    "plane_intersection_distance_km": 1813.7637172300224,
+    "total_contact_duration_s": 1500.0,
+    "worst_vehicle_cross_track_km": 19413.747846916358,
+    "worst_vehicle_min_cross_track_km": 444.9935836093271
+  },
+  "nodes": [
+    {
+      "attributes": {
+        "min_elevation_deg": 20.0,
+        "target": "Tehran Urban Core"
+      },
+      "duration_s": 720.0,
+      "end": "2026-03-21T09:36:00Z",
+      "id": 1,
+      "label": "Morning Imaging",
+      "start": "2026-03-21T09:24:00Z",
+      "type": "access_window"
+    },
+    {
+      "attributes": {
+        "ground_station": "Svalbard",
+        "min_elevation_deg": 12.0,
+        "notes": "Allocated for priority data return following daily imaging."
+      },
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "label": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z",
+      "type": "access_window"
+    }
+  ],
+  "phases": [
+    {
+      "duration_s": 720.0,
+      "end": "2026-03-21T09:36:00Z",
+      "id": 1,
+      "node_id": 1,
+      "objective": "Morning Imaging",
+      "start": "2026-03-21T09:24:00Z"
+    },
+    {
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "node_id": 2,
+      "objective": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z"
+    }
+  ],
+  "propagation": {
+    "j2_drag": {
+      "altitude_range_m": {
+        "max": 530568.4506794363,
+        "min": 481982.5456476463
+      },
+      "cross_track": {
+        "overall_max_abs_cross_track_km": 19413.747846916358,
+        "overall_min_abs_cross_track_km": 444.9935836093271,
+        "vehicles": [
+          {
+            "compliant": false,
+            "identifier": "FSAT-LDR",
+            "max_abs_cross_track_km": 19410.525850583785,
+            "max_cross_track_km": 11670.730102595788,
+            "min_abs_cross_track_km": 442.24889118103937,
+            "min_cross_track_km": -19410.525850583785,
+            "pass_count": 8,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+            "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z"
+          },
+          {
+            "compliant": false,
+            "identifier": "FSAT-DP1",
+            "max_abs_cross_track_km": 19413.747846916358,
+            "max_cross_track_km": 12004.01623255265,
+            "min_abs_cross_track_km": 439.5547665133395,
+            "min_cross_track_km": -19413.747846916358,
+            "pass_count": 8,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+            "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z"
+          },
+          {
+            "compliant": false,
+            "identifier": "FSAT-DP2",
+            "max_abs_cross_track_km": 19406.804631071645,
+            "max_cross_track_km": 11718.106017816071,
+            "min_abs_cross_track_km": 444.9935836093271,
+            "min_cross_track_km": -19406.804631071645,
+            "pass_count": 8,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+            "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z"
+          }
+        ]
+      },
+      "model": "high_fidelity_j2_drag",
+      "monte_carlo": {
+        "absolute_cross_track_compliance_probability": 0.0,
+        "fleet_compliance_probability": 1.0,
+        "max_abs_cross_track_km": {
+          "FSAT-DP1": {
+            "max": 19415.300946666855,
+            "mean": 19413.795937297313,
+            "min": 19411.89470844711,
+            "p95": 19414.839184984714,
+            "std": 0.6207488957522772
+          },
+          "FSAT-DP2": {
+            "max": 19408.368499555927,
+            "mean": 19406.852716196066,
+            "min": 19404.95508065996,
+            "p95": 19407.906360985133,
+            "std": 0.6216000916665361
+          },
+          "FSAT-LDR": {
+            "max": 19412.084877506342,
+            "mean": 19410.57397080171,
+            "min": 19408.673700431504,
+            "p95": 19411.62248773964,
+            "std": 0.6215274881923373
+          }
+        },
+        "min_abs_cross_track_km": {
+          "FSAT-DP1": {
+            "max": 441.1208586680059,
+            "mean": 439.60411013138656,
+            "min": 437.6358638966717,
+            "p95": 440.65070586687784,
+            "std": 0.6350661796126487
+          },
+          "FSAT-DP2": {
+            "max": 446.5418432354207,
+            "mean": 445.04254995378227,
+            "min": 443.08816949911864,
+            "p95": 446.0755031036183,
+            "std": 0.6298078835273867
+          },
+          "FSAT-LDR": {
+            "max": 443.8066457226626,
+            "mean": 442.2980514531522,
+            "min": 440.3362910999994,
+            "p95": 443.3384268467555,
+            "std": 0.6325296749664241
+          }
+        },
+        "plane_intersection_distance_km": {
+          "fleet": {
+            "max": 1815.419303123997,
+            "mean": 1813.7216023105168,
+            "min": 1812.4208659795893,
+            "p95": 1814.6603872182218,
+            "std": 0.5435149049978318
+          }
+        },
+        "relative_cross_track_km": {
+          "fleet_relative_max": {
+            "max": 0.20952104654377737,
+            "mean": 0.20945281374659058,
+            "min": 0.20939700869697328,
+            "p95": 0.20949072844434105,
+            "std": 2.1218663726743287e-05
+          },
+          "fleet_relative_min": {
+            "max": 0.00010152164733450457,
+            "mean": 8.001385312412536e-05,
+            "min": 5.026213621202621e-05,
+            "p95": 9.465591844392166e-05,
+            "std": 8.69533470594818e-06
+          }
+        },
+        "runs": 200,
+        "seed": 42
+      },
+      "orbital_period_s": 5679.4704024479515,
+      "period_delta_s": 0.0,
+      "plane_intersection": {
+        "compliant": false,
+        "intersection_candidates": [
+          {
+            "distance_to_target_km": 1813.7637172300224,
+            "latitude_deg": 46.4235324171549,
+            "longitude_deg": 35.03082743164959
+          },
+          {
+            "distance_to_target_km": 18223.744625559222,
+            "latitude_deg": -46.4235324171549,
+            "longitude_deg": -144.96917256835042
+          }
+        ],
+        "planes": {
+          "Plane A": [
+            0.6783678457950588,
+            -0.7224039045016959,
+            -0.13397635818336057
+          ],
+          "Plane B": [
+            0.6783883519548677,
+            -0.7223791794510183,
+            -0.13400583952810563
+          ]
+        },
+        "target_distance_km": 1813.7637172300224
+      },
+      "settings": {
+        "ballistic_coefficient_m2_per_kg": 0.025,
+        "drag_coefficient": 2.2,
+        "epoch_time_utc": "2026-03-21T09:32:00Z",
+        "monte_carlo_runs": 200,
+        "solar_flux_index": 150.0,
+        "start_time_utc": "2026-03-21T08:54:00Z",
+        "stop_time_utc": "2026-03-21T14:54:00Z",
+        "time_step_s": 60.0
+      },
+      "two_body_period_s": 5679.470402447951
+    },
+    "two_body": {
+      "mean_motion_rev_per_day": 15.212686021351585,
+      "model": "two_body",
+      "orbital_period_s": 5679.470402447951,
+      "phase_revolutions": [
+        {
+          "phase_id": 1.0,
+          "revolutions": 0.12677238351126321
+        },
+        {
+          "phase_id": 2.0,
+          "revolutions": 0.13733674880386848
+        }
+      ],
+      "semi_major_axis_km": 6880.15
+    }
+  },
+  "stage_sequence": [
+    "access_nodes",
+    "mission_phases",
+    "two_body_propagation",
+    "high_fidelity_j2_drag_propagation",
+    "metric_extraction",
+    "stk_export"
+  ]
+}

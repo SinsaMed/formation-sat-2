@@ -14,6 +14,15 @@ The authoritative machine-readable description is maintained in the [Tehran dail
 ## STK Validation Status
 The lightweight propagation pipeline exports the scenario through `tools/stk_export.py`, producing an STK 11.2 package containing ephemerides, ground-track samples, and access intervals. Validation run `run_20251018_1308Z_tehran_daily_pass` was ingested with `tools/stk_tehran_daily_pass_runner.py`, confirming that the satellite timeline matches the planned horizon, the dawn imaging and evening downlink contacts align with the documented UTC windows, and the Tehran/Svalbard facilities load with the expected geodetic coordinates.【Ref1】【Ref2】 Resultant artefacts reside under `artefacts/run_20251018_1308Z_tehran_daily_pass/`, and the configuration metadata flag `validated_against_stk_export` is set to `true` to reflect successful import testing.
 
+## High-Fidelity Perturbation Analysis
+The enhanced perturbation workflow was executed on 18 October 2025, depositing artefacts under `artefacts/run_20251018_1345Z/`. The analysis combines deterministic propagation with 200-run Monte Carlo dispersions, incorporating \(J_2\), atmospheric drag, and the programme baseline drag area-to-mass ratio. Key evaluation stages were:
+
+1. Propagate the constellation with one-minute samples across a six-hour window, deriving relative cross-track offsets between the leader (Plane A) and the Plane B deputy. The deterministic series shows a maximum absolute relative cross-track value of \(0.2095\,\text{km}\) and a minimum absolute separation of \(7.96\times10^{-2}\,\text{m}\), both well within the ±10 km requirement envelope.【Ref3】
+2. Execute 200 Monte Carlo trials using the dispersion set defined in `DEFAULT_MONTE_CARLO`, capturing statistics for each vehicle and the inter-plane relative motion. The \(p_{95}\) relative cross-track magnitude remains at \(0.2095\,\text{km}\), yielding a fleet compliance probability of 1.0 when evaluated against the ±10 km criterion.【Ref3】
+3. Archive solver settings, deterministic and Monte Carlo CSV catalogues, and refreshed STK exports alongside the run directory so that Systems Tool Kit ingestion can be re-performed without regenerating data.【Ref1】【Ref3】
+
+The same Monte Carlo package reports an absolute cross-track compliance probability of 0.0 because the constellation does not intentionally overfly the Tehran reference latitude/longitude, underscoring that MR-2 and SRD-P-001 are governed by the inter-plane alignment metric rather than geocentric coincidence. The new dataset therefore supplies the missing high-fidelity evidence required by the compliance matrix.
+
 ## Validation Artefacts and Next Steps
 1. Regenerate the STK package as required by executing `python -m sim.scripts.run_scenario tehran_daily_pass --output-dir artefacts/run_YYYYMMDD_hhmmZ_tehran_daily_pass`, ensuring the output directory follows the compliance naming convention.【Ref1】
 2. Use the [STK validation guide](how_to_import_tehran_daily_pass_into_stk.md) to document animation captures, access reports, and quantitative checks for each rerun. Archive evidence (SVG screenshots, CSV metrics) alongside the run directory to maintain traceability.【Ref2】
@@ -22,3 +31,4 @@ The lightweight propagation pipeline exports the scenario through `tools/stk_exp
 ## References
 - [Ref1] `sim/scripts/run_scenario.py` – Scenario pipeline and STK export integration.
 - [Ref2] `docs/how_to_import_tehran_daily_pass_into_stk.md` – Analyst workflow for STK ingestion and evidence capture.
+- [Ref3] `artefacts/run_20251018_1345Z` – High-fidelity Tehran daily pass perturbation analysis (deterministic summary, Monte Carlo statistics, relative cross-track catalogues, solver settings).

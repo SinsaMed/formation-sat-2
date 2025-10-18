@@ -1,0 +1,97 @@
+{
+  "metrics": {
+    "orbital_period_s": 5679.4704024479515,
+    "two_body_period_s": 5679.4704024479515,
+    "cross_track": {
+      "vehicles": [
+        {
+          "identifier": "FSAT-LDR",
+          "target_latitude_deg": 35.6892,
+          "target_longitude_deg": 51.389,
+          "max_cross_track_km": 11670.730102595788,
+          "min_cross_track_km": -19410.525850583785,
+          "max_abs_cross_track_km": 19410.525850583785,
+          "min_abs_cross_track_km": 442.24889118103937,
+          "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+          "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z",
+          "pass_count": 8,
+          "compliant": false
+        },
+        {
+          "identifier": "FSAT-DP1",
+          "target_latitude_deg": 35.6892,
+          "target_longitude_deg": 51.389,
+          "max_cross_track_km": 12004.01623255265,
+          "min_cross_track_km": -19413.747846916358,
+          "max_abs_cross_track_km": 19413.747846916358,
+          "min_abs_cross_track_km": 439.5547665133395,
+          "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+          "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z",
+          "pass_count": 8,
+          "compliant": false
+        },
+        {
+          "identifier": "FSAT-DP2",
+          "target_latitude_deg": 35.6892,
+          "target_longitude_deg": 51.389,
+          "max_cross_track_km": 11718.106017816071,
+          "min_cross_track_km": -19406.804631071645,
+          "max_abs_cross_track_km": 19406.804631071645,
+          "min_abs_cross_track_km": 444.9935836093271,
+          "time_of_max_abs_cross_track": "2026-03-21T11:37:00Z",
+          "time_of_min_abs_cross_track": "2026-03-21T10:50:00Z",
+          "pass_count": 8,
+          "compliant": false
+        }
+      ],
+      "overall_max_abs_cross_track_km": 19413.747846916358,
+      "overall_min_abs_cross_track_km": 444.9935836093271
+    },
+    "altitude_range_m": {
+      "min": 481982.5456476463,
+      "max": 530568.4506794363
+    },
+    "plane_intersection": {
+      "planes": {
+        "Plane A": [
+          0.6783678457950588,
+          -0.7224039045016959,
+          -0.13397635818336057
+        ],
+        "Plane B": [
+          0.6783883519548677,
+          -0.7223791794510183,
+          -0.13400583952810563
+        ]
+      },
+      "intersection_candidates": [
+        {
+          "latitude_deg": 46.4235324171549,
+          "longitude_deg": 35.03082743164959,
+          "distance_to_target_km": 1813.7637172300224
+        },
+        {
+          "latitude_deg": -46.4235324171549,
+          "longitude_deg": -144.96917256835042,
+          "distance_to_target_km": 18223.744625559222
+        }
+      ],
+      "target_distance_km": 1813.7637172300224,
+      "compliant": false
+    },
+    "relative_cross_track": {
+      "max_abs_km": 0.20945347960773134,
+      "min_abs_km": 7.956075837222265e-05,
+      "time_of_min": "2026-03-21T09:18:00Z"
+    }
+  },
+  "settings": {
+    "start_time_utc": "2026-03-21T08:54:00Z",
+    "epoch_time_utc": "2026-03-21T09:32:00Z",
+    "stop_time_utc": "2026-03-21T14:54:00Z",
+    "time_step_s": 60.0,
+    "drag_coefficient": 2.2,
+    "ballistic_coefficient_m2_per_kg": 0.025,
+    "solar_flux_index": 150.0
+  }
+}
