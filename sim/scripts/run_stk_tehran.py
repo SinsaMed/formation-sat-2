@@ -17,12 +17,20 @@ import argparse
 import json
 import logging
 import math
-from dataclasses import dataclass
+import sys
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
-from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
+from typing import Optional
 
 import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+for candidate in (PROJECT_ROOT / "src", PROJECT_ROOT):
+    if str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
 
 try:  # pragma: no cover - pywin32 is optional for non-Windows environments
     import win32com.client  # type: ignore
@@ -39,8 +47,8 @@ from tools.stk_export import (
     export_simulation_to_stk,
 )
 
-from . import configuration
-from . import run_scenario
+configuration = import_module("sim.scripts.configuration")
+run_scenario = import_module("sim.scripts.run_scenario")
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,7 +114,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_arguments(argv)
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(levelname)s: %(message)s")
 
-    scenario_mapping = configuration.load_scenario(args.scenario)
+    scenario_mapping = _load_tehran_scenario(args.scenario)
     scenario_data = _normalise_scenario(scenario_mapping)
 
     LOGGER.info("Loaded scenario '%s'.", scenario_data["metadata"]["scenario_name"])
@@ -115,6 +123,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     phases = run_scenario._generate_phases(scenario_data, nodes)
     two_body = run_scenario._propagate_two_body(scenario_data, phases)
     metadata = run_scenario._build_scenario_metadata(scenario_data, two_body)
+    metadata = _ensure_ephemeris_sampling(metadata)
 
     LOGGER.debug("Scenario start: %s, stop: %s.", metadata.start_epoch, metadata.stop_epoch)
 
@@ -179,6 +188,28 @@ class FormationSpecification:
     side_length_km: float
 
 
+def _load_tehran_scenario(
+    identifier: str | Path | Mapping[str, object]
+) -> MutableMapping[str, object]:
+    """Load a Tehran scenario, tolerating legacy formation configurations."""
+
+    if isinstance(identifier, Mapping):
+        return dict(identifier)
+
+    try:
+        return configuration.load_scenario(identifier)
+    except ValueError:
+        scenario_path = configuration.resolve_scenario_path(identifier)
+        payload = json.loads(scenario_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, MutableMapping):
+            raise TypeError("Scenario configuration must decode to a mutable mapping.")
+        LOGGER.info(
+            "Scenario '%s' is missing modern schema keys; applying legacy normalisation.",
+            scenario_path.name,
+        )
+        return dict(payload)
+
+
 def _normalise_scenario(source: Mapping[str, object]) -> MutableMapping[str, object]:
     """Translate legacy Tehran formation configs into the pipeline schema."""
 
@@ -230,6 +261,39 @@ def _normalise_scenario(source: Mapping[str, object]) -> MutableMapping[str, obj
     scenario.setdefault("payload_constraints", {})
     scenario.setdefault("operational_constraints", {})
     return scenario
+
+
+def _ensure_ephemeris_sampling(metadata: ScenarioMetadata) -> ScenarioMetadata:
+    """Guarantee sufficient samples for cubic interpolation during STK export."""
+
+    if metadata.stop_epoch is None:
+        return metadata
+
+    duration = (metadata.stop_epoch - metadata.start_epoch).total_seconds()
+    if duration <= 0.0:
+        return metadata
+
+    step = metadata.ephemeris_step_seconds or 600.0
+    sample_count = math.ceil(duration / step) + 1
+    if sample_count >= 4:
+        return metadata
+
+    adjusted_step = max(min(step, duration / 3.0), 1.0)
+    animation_step = metadata.animation_step_seconds
+    if animation_step is None or animation_step > adjusted_step:
+        animation_step = adjusted_step
+
+    LOGGER.debug(
+        "Increasing ephemeris sampling density: duration=%.2f s, original step=%.2f s, adjusted step=%.2f s.",
+        duration,
+        step,
+        adjusted_step,
+    )
+    return replace(
+        metadata,
+        ephemeris_step_seconds=adjusted_step,
+        animation_step_seconds=animation_step,
+    )
 
 
 def _parse_time(value: object) -> Optional[datetime]:
