@@ -268,7 +268,10 @@ def _scenario_orbital_elements(scenario: Mapping[str, object]) -> OrbitalElement
 
     orbital = scenario.get("orbital_elements")
     if not isinstance(orbital, Mapping):
-        raise ValueError("Scenario is missing the 'orbital_elements' section.")
+        fallback = _fallback_orbital_elements(scenario)
+        if fallback is None:
+            raise ValueError("Scenario is missing the 'orbital_elements' section.")
+        return fallback
 
     classical = orbital.get("classical")
     if not isinstance(classical, Mapping):
@@ -283,6 +286,38 @@ def _scenario_orbital_elements(scenario: Mapping[str, object]) -> OrbitalElement
 
     return OrbitalElements(
         semi_major_axis=semi_major_axis_m,
+        eccentricity=eccentricity,
+        inclination=inclination,
+        raan=raan,
+        arg_perigee=arg_perigee,
+        mean_anomaly=mean_anomaly,
+    )
+
+
+def _fallback_orbital_elements(
+    scenario: Mapping[str, object]
+) -> OrbitalElements | None:
+    spacecraft = scenario.get("spacecraft")
+    if not isinstance(spacecraft, Sequence) or not spacecraft:
+        return None
+    leader = spacecraft[0]
+    if not isinstance(leader, Mapping):
+        return None
+    initial_state = leader.get("initial_state")
+    if not isinstance(initial_state, Mapping):
+        return None
+
+    semi_major_axis = float(initial_state.get("semi_major_axis_m", 0.0))
+    if semi_major_axis <= 0.0:
+        return None
+    eccentricity = float(initial_state.get("eccentricity", 0.0))
+    inclination = float(initial_state.get("inclination_rad", 0.0))
+    raan = math.radians(float(initial_state.get("raan_deg", 0.0)))
+    arg_perigee = math.radians(float(initial_state.get("argument_of_perigee_deg", 0.0)))
+    mean_anomaly = math.radians(float(initial_state.get("mean_anomaly_deg", 0.0)))
+
+    return OrbitalElements(
+        semi_major_axis=semi_major_axis,
         eccentricity=eccentricity,
         inclination=inclination,
         raan=raan,

@@ -56,3 +56,9 @@ def test_triangle_formation_meets_requirements() -> None:
     for entry in injection["per_spacecraft"].values():
         assert entry["success_rate"] >= 0.95
         assert entry["max_delta_v_mps"] <= injection["assumptions"]["delta_v_budget_mps"]
+
+    drag_dispersion = metrics["drag_dispersion"]
+    assert drag_dispersion["sample_count"] >= 50
+    assert 0.0 <= drag_dispersion["success_rate"] <= 1.0
+    aggregate = drag_dispersion["aggregate"]
+    assert aggregate["max_ground_distance_delta_km"] >= 0.0
