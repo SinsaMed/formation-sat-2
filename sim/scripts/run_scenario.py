@@ -24,9 +24,21 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
+
+from tools.stk_export import (
+    FacilityDefinition,
+    GroundContactInterval,
+    GroundTrack,
+    GroundTrackPoint,
+    PropagatedStateHistory,
+    ScenarioMetadata,
+    SimulationResults,
+    StateSample,
+    export_simulation_to_stk,
+)
 
 from . import configuration
 
@@ -34,6 +46,7 @@ LOGGER = logging.getLogger(__name__)
 
 MU_EARTH_KM3_S2 = 398_600.4418
 EARTH_RADIUS_KM = 6_378.1363
+EARTH_ROTATION_RATE_RAD_S = 7.2921159e-5
 
 
 @dataclass
@@ -128,6 +141,24 @@ def run_scenario(
         {key: metrics[key] for key in ("node_count", "phase_count", "total_contact_duration_s")},
     )
 
+    stk_export_summary: MutableMapping[str, object] = {}
+    if output_directory is not None:
+        export_dir = Path(output_directory)
+        stk_export_summary = _export_stk_products(
+            export_dir,
+            scenario,
+            nodes,
+            two_body,
+        )
+        if stk_export_summary:
+            stage_sequence.append("stk_export")
+            LOGGER.info(
+                "STK export created with artefacts: %s.",
+                stk_export_summary.get("stk_export_files", []),
+            )
+    else:
+        LOGGER.debug("Skipping STK export because no output directory was provided.")
+
     summary = {
         "configuration_summary": _summarise_configuration(scenario),
         "nodes": [node.as_dict() for node in nodes],
@@ -137,13 +168,17 @@ def run_scenario(
         "stage_sequence": stage_sequence,
     }
 
-    artefacts: MutableMapping[str, Optional[str]] = {"summary_path": None}
+    artefacts: MutableMapping[str, Optional[str] | object] = {"summary_path": None}
+    artefacts.update(stk_export_summary)
     if output_directory:
-        output_path = _write_summary(Path(output_directory), summary)
-        artefacts["summary_path"] = str(output_path)
+        output_dir = Path(output_directory)
+        artefacts["summary_path"] = str(output_dir / "scenario_summary.json")
+        summary["artefacts"] = artefacts
+        output_path = _write_summary(output_dir, summary)
         LOGGER.info("Scenario summary written to %s", output_path)
+    else:
+        summary["artefacts"] = artefacts
 
-    summary["artefacts"] = artefacts
     return summary
 
 
@@ -493,6 +528,404 @@ def _summarise_configuration(scenario: Mapping[str, object]) -> MutableMapping[s
             }
 
     return summary
+
+
+def _export_stk_products(
+    base_output_dir: Path,
+    scenario: Mapping[str, object],
+    nodes: Sequence[Node],
+    two_body: Mapping[str, float | Sequence[Mapping[str, float]]],
+) -> MutableMapping[str, object]:
+    """Generate STK artefacts for the scenario and return metadata about the export."""
+
+    export_dir = base_output_dir / "stk_export"
+    export_dir.mkdir(parents=True, exist_ok=True)
+
+    metadata = _build_scenario_metadata(scenario, two_body)
+    state_history, ground_track = _generate_state_history(scenario, metadata, two_body)
+    contacts = _collect_ground_contacts(nodes, state_history.satellite_id)
+    facilities = _collect_facilities(scenario, contacts)
+
+    sim_results = SimulationResults(
+        state_histories=[state_history],
+        ground_tracks=[ground_track],
+        ground_contacts=contacts,
+        facilities=facilities,
+    )
+
+    export_simulation_to_stk(sim_results, export_dir, metadata)
+
+    exported_files = sorted(
+        [path.name for path in export_dir.iterdir() if path.is_file()]
+    )
+
+    return {
+        "stk_export_directory": str(export_dir),
+        "stk_export_files": exported_files,
+        "stk_scenario_start_epoch": metadata.start_epoch.isoformat().replace("+00:00", "Z"),
+    }
+
+
+def _build_scenario_metadata(
+    scenario: Mapping[str, object],
+    two_body: Mapping[str, float | Sequence[Mapping[str, float]]],
+) -> ScenarioMetadata:
+    """Construct metadata describing the STK scenario context."""
+
+    metadata = scenario.get("metadata") if isinstance(scenario.get("metadata"), Mapping) else {}
+    scenario_name = "Scenario"
+    if isinstance(metadata, Mapping):
+        scenario_name = str(
+            metadata.get("scenario_name")
+            or metadata.get("identifier")
+            or metadata.get("mission_name")
+            or scenario_name
+        )
+
+    orbital_elements = scenario.get("orbital_elements")
+    epoch = None
+    if isinstance(orbital_elements, Mapping):
+        epoch = _parse_time(orbital_elements.get("epoch_utc"))
+
+    if epoch is None:
+        epoch = _parse_time(_extract_planning_horizon(scenario, "start_utc"))
+
+    if epoch is None:
+        epoch = datetime.now(timezone.utc)
+
+    stop = _parse_time(_extract_planning_horizon(scenario, "stop_utc"))
+    if stop is None:
+        duration = _estimate_duration(scenario)
+        if not duration:
+            duration = float(two_body.get("orbital_period_s", 0.0))
+        stop = epoch + timedelta(seconds=duration or 5_400.0)
+
+    period = float(two_body.get("orbital_period_s", 0.0))
+    if period <= 0.0:
+        period = 5_400.0
+    step = max(min(period / 60.0, 900.0), 60.0)
+
+    return ScenarioMetadata(
+        scenario_name=scenario_name,
+        start_epoch=epoch,
+        stop_epoch=stop,
+        central_body="Earth",
+        coordinate_frame="TEME",
+        ephemeris_step_seconds=step,
+        animation_step_seconds=step,
+    )
+
+
+def _generate_state_history(
+    scenario: Mapping[str, object],
+    metadata: ScenarioMetadata,
+    two_body: Mapping[str, float | Sequence[Mapping[str, float]]],
+) -> tuple[PropagatedStateHistory, GroundTrack]:
+    """Synthesise a representative propagation history for STK export."""
+
+    classical = {}
+    orbital_elements = scenario.get("orbital_elements")
+    if isinstance(orbital_elements, Mapping):
+        classical = orbital_elements.get("classical") or {}
+
+    semi_major_axis = _coerce_float(classical, "semi_major_axis_km", 7_000.0)
+    eccentricity = _coerce_float(classical, "eccentricity", 0.0)
+    inclination = math.radians(_coerce_float(classical, "inclination_deg", 0.0))
+    raan = math.radians(_coerce_float(classical, "raan_deg", 0.0))
+    argument_of_perigee = math.radians(
+        _coerce_float(classical, "argument_of_perigee_deg", 0.0)
+    )
+    mean_anomaly = math.radians(_coerce_float(classical, "mean_anomaly_deg", 0.0))
+
+    satellite_id = _select_satellite_identifier(scenario)
+
+    if metadata.stop_epoch is None:
+        stop_epoch = metadata.start_epoch + timedelta(
+            seconds=float(two_body.get("orbital_period_s", 5_400.0))
+        )
+    else:
+        stop_epoch = metadata.stop_epoch
+
+    step = metadata.ephemeris_step_seconds or 600.0
+    duration_seconds = max((stop_epoch - metadata.start_epoch).total_seconds(), step)
+    sample_count = int(math.ceil(duration_seconds / step)) + 1
+
+    state_samples: list[StateSample] = []
+    ground_track_points: list[GroundTrackPoint] = []
+
+    mean_motion = math.sqrt(MU_EARTH_KM3_S2 / (semi_major_axis**3))
+    if not math.isfinite(mean_motion) or mean_motion <= 0.0:
+        mean_motion = 0.0011635528346628863  # ~95-minute orbit fallback
+
+    for index in range(sample_count):
+        epoch = metadata.start_epoch + timedelta(seconds=index * step)
+        delta_t = (epoch - metadata.start_epoch).total_seconds()
+        mean_anomaly_current = mean_anomaly + mean_motion * delta_t
+        mean_anomaly_current = math.fmod(mean_anomaly_current, 2.0 * math.pi)
+        if mean_anomaly_current < 0.0:
+            mean_anomaly_current += 2.0 * math.pi
+
+        eccentric_anomaly = _solve_kepler(mean_anomaly_current, eccentricity)
+        true_anomaly = _eccentric_to_true_anomaly(eccentric_anomaly, eccentricity)
+
+        radius = semi_major_axis * (1.0 - eccentricity * math.cos(eccentric_anomaly))
+        semi_latus_rectum = semi_major_axis * (1.0 - eccentricity**2)
+        if semi_latus_rectum <= 0.0:
+            semi_latus_rectum = semi_major_axis
+        sqrt_mu_over_p = math.sqrt(MU_EARTH_KM3_S2 / semi_latus_rectum)
+
+        position_pqw = (
+            radius * math.cos(true_anomaly),
+            radius * math.sin(true_anomaly),
+            0.0,
+        )
+        velocity_pqw = (
+            -sqrt_mu_over_p * math.sin(true_anomaly),
+            sqrt_mu_over_p * (eccentricity + math.cos(true_anomaly)),
+            0.0,
+        )
+
+        position_eci = _pqw_to_eci(position_pqw, raan, argument_of_perigee, inclination)
+        velocity_eci = _pqw_to_eci(velocity_pqw, raan, argument_of_perigee, inclination)
+
+        state_samples.append(
+            StateSample(
+                epoch=epoch,
+                position_eci_km=position_eci,
+                velocity_eci_kms=velocity_eci,
+            )
+        )
+
+        latitude, longitude, altitude = _eci_to_geodetic(position_eci, metadata.start_epoch, epoch)
+        ground_track_points.append(
+            GroundTrackPoint(
+                epoch=epoch,
+                latitude_deg=latitude,
+                longitude_deg=longitude,
+                altitude_km=altitude,
+            )
+        )
+
+    return (
+        PropagatedStateHistory(satellite_id=satellite_id, samples=state_samples),
+        GroundTrack(satellite_id=satellite_id, points=ground_track_points),
+    )
+
+
+def _coerce_float(data: Mapping[str, object], key: str, default: float) -> float:
+    value = data.get(key) if isinstance(data, Mapping) else None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _solve_kepler(mean_anomaly: float, eccentricity: float) -> float:
+    """Solve Kepler's equation for the eccentric anomaly."""
+
+    if abs(eccentricity) < 1e-8:
+        return mean_anomaly
+
+    eccentric_anomaly = mean_anomaly
+    for _ in range(12):
+        delta = eccentric_anomaly - eccentricity * math.sin(eccentric_anomaly) - mean_anomaly
+        derivative = 1.0 - eccentricity * math.cos(eccentric_anomaly)
+        if derivative == 0.0:
+            break
+        correction = delta / derivative
+        eccentric_anomaly -= correction
+        if abs(correction) < 1e-12:
+            break
+    return eccentric_anomaly
+
+
+def _eccentric_to_true_anomaly(eccentric_anomaly: float, eccentricity: float) -> float:
+    """Convert eccentric anomaly to true anomaly."""
+
+    if abs(eccentricity - 1.0) < 1e-8:
+        return eccentric_anomaly
+
+    numerator = math.sqrt(1.0 + eccentricity) * math.sin(eccentric_anomaly / 2.0)
+    denominator = math.sqrt(1.0 - eccentricity) * math.cos(eccentric_anomaly / 2.0)
+    true_anomaly = 2.0 * math.atan2(numerator, denominator)
+    return true_anomaly
+
+
+def _pqw_to_eci(
+    vector: Sequence[float],
+    raan: float,
+    argument_of_perigee: float,
+    inclination: float,
+) -> tuple[float, float, float]:
+    """Rotate a vector from the orbital plane into the inertial frame."""
+
+    cos_omega = math.cos(raan)
+    sin_omega = math.sin(raan)
+    cos_arg = math.cos(argument_of_perigee)
+    sin_arg = math.sin(argument_of_perigee)
+    cos_inc = math.cos(inclination)
+    sin_inc = math.sin(inclination)
+
+    x_p, y_p, z_p = vector
+
+    rotation_11 = cos_omega * cos_arg - sin_omega * sin_arg * cos_inc
+    rotation_12 = -cos_omega * sin_arg - sin_omega * cos_arg * cos_inc
+    rotation_21 = sin_omega * cos_arg + cos_omega * sin_arg * cos_inc
+    rotation_22 = -sin_omega * sin_arg + cos_omega * cos_arg * cos_inc
+    rotation_31 = sin_arg * sin_inc
+    rotation_32 = cos_arg * sin_inc
+
+    x = rotation_11 * x_p + rotation_12 * y_p
+    y = rotation_21 * x_p + rotation_22 * y_p
+    z = rotation_31 * x_p + rotation_32 * y_p
+
+    return (x, y, z)
+
+
+def _eci_to_geodetic(
+    position_eci: Sequence[float],
+    reference_epoch: datetime,
+    epoch: datetime,
+) -> tuple[float, float, float]:
+    """Approximate conversion from ECI to geodetic latitude, longitude, and altitude."""
+
+    dt = (epoch - reference_epoch).total_seconds()
+    angle = EARTH_ROTATION_RATE_RAD_S * dt
+    cos_angle = math.cos(angle)
+    sin_angle = math.sin(angle)
+
+    x_eci, y_eci, z_eci = position_eci
+    x_ecef = cos_angle * x_eci + sin_angle * y_eci
+    y_ecef = -sin_angle * x_eci + cos_angle * y_eci
+    z_ecef = z_eci
+
+    horizontal_distance = math.sqrt(x_ecef**2 + y_ecef**2)
+    latitude = math.degrees(math.atan2(z_ecef, horizontal_distance))
+    longitude = math.degrees(math.atan2(y_ecef, x_ecef))
+    longitude = ((longitude + 180.0) % 360.0) - 180.0
+    radius = math.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2)
+    altitude = max(radius - EARTH_RADIUS_KM, 0.0)
+    return latitude, longitude, altitude
+
+
+def _collect_ground_contacts(
+    nodes: Sequence[Node],
+    satellite_id: str,
+) -> list[GroundContactInterval]:
+    """Create contact intervals based on mission nodes."""
+
+    contacts: list[GroundContactInterval] = []
+    for node in nodes:
+        if node.start and node.end:
+            facility_name = _contact_facility_name(node)
+            contacts.append(
+                GroundContactInterval(
+                    satellite_id=satellite_id,
+                    facility_name=facility_name,
+                    start=node.start,
+                    end=node.end,
+                )
+            )
+    return contacts
+
+
+def _contact_facility_name(node: Node) -> str:
+    attributes = node.attributes
+    if isinstance(attributes, Mapping):
+        if "ground_station" in attributes:
+            return str(attributes["ground_station"])
+        if "target" in attributes:
+            return str(attributes["target"])
+    return node.label
+
+
+def _collect_facilities(
+    scenario: Mapping[str, object],
+    contacts: Sequence[GroundContactInterval],
+) -> list[FacilityDefinition]:
+    """Build facility definitions referenced by the contact catalogue."""
+
+    facilities: dict[str, FacilityDefinition] = {}
+    metadata = scenario.get("metadata") if isinstance(scenario.get("metadata"), Mapping) else {}
+    region = metadata.get("region") if isinstance(metadata, Mapping) else None
+    region_lat = None
+    region_lon = None
+    if isinstance(region, Mapping):
+        region_lat = _coerce_float(region, "latitude_deg", 0.0)
+        region_lon = _coerce_float(region, "longitude_deg", 0.0)
+
+    for interval in contacts:
+        name = interval.facility_name
+        if name in facilities:
+            continue
+        coords = _lookup_facility_coordinates(name, region_lat, region_lon)
+        facilities[name] = FacilityDefinition(
+            name=name,
+            latitude_deg=coords[0],
+            longitude_deg=coords[1],
+            altitude_km=coords[2],
+        )
+
+    if isinstance(region, Mapping):
+        descriptive_name = f"{region.get('city', 'Region')} {region.get('country', '').strip()}".strip()
+        coords = (
+            _coerce_float(region, "latitude_deg", 0.0),
+            _coerce_float(region, "longitude_deg", 0.0),
+            _coerce_float(region, "altitude_km", 1.5),
+        )
+        facilities.setdefault(
+            descriptive_name or "AreaOfInterest",
+            FacilityDefinition(
+                name=descriptive_name or "AreaOfInterest",
+                latitude_deg=coords[0],
+                longitude_deg=coords[1],
+                altitude_km=coords[2],
+            ),
+        )
+
+    return list(facilities.values())
+
+
+def _lookup_facility_coordinates(
+    name: str,
+    region_lat: Optional[float],
+    region_lon: Optional[float],
+) -> tuple[float, float, float]:
+    """Return coordinates for known facilities, defaulting to the scenario region."""
+
+    catalogue: dict[str, tuple[float, float, float]] = {
+        "svalbard": (78.223, 15.646, 0.4),
+        "inuvik": (68.355, -133.721, 0.1),
+        "tehran urban core": (35.6892, 51.3890, 1.2),
+        "tehran": (35.6892, 51.3890, 1.2),
+    }
+
+    key = name.lower()
+    if key in catalogue:
+        return catalogue[key]
+
+    if region_lat is not None and region_lon is not None:
+        return (region_lat, region_lon, 0.0)
+
+    return (0.0, 0.0, 0.0)
+
+
+def _select_satellite_identifier(scenario: Mapping[str, object]) -> str:
+    """Derive a stable satellite identifier from the scenario metadata."""
+
+    metadata = scenario.get("metadata") if isinstance(scenario.get("metadata"), Mapping) else {}
+    identifier = None
+    if isinstance(metadata, Mapping):
+        identifier = metadata.get("identifier") or metadata.get("scenario_name")
+
+    if identifier is None and "mission_name" in scenario:
+        identifier = scenario["mission_name"]
+
+    if not identifier:
+        identifier = "scenario_asset"
+
+    safe_identifier = str(identifier).strip().replace(" ", "_")
+    return safe_identifier
 
 
 def _write_summary(output_dir: Path, summary: Mapping[str, object]) -> Path:

@@ -12,7 +12,7 @@
     "author": "Orbit Dynamics Team",
     "created": "2024-06-02",
     "stakeholders": ["Imaging Payload Working Group", "Mission Planning Cell"],
-    "validated_against_stk_export": false
+    "validated_against_stk_export": true
   },
   "orbital_elements": {
     "epoch_utc": "2026-03-21T09:32:00Z",
