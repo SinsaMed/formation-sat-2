@@ -14,5 +14,8 @@ The following requirement set translates the conceptual mission brief into verif
 | MR-6 | Maintenance | The annual delta-v budget for formation maintenance shall not exceed 15 m/s per spacecraft. | Perturbation-inclusive propagation with manoeuvre optimisation. |
 | MR-7 | Robustness | The formation shall remain recoverable following injection errors of up to ±5 km in along-track separation and ±0.05° in inclination. | Monte Carlo dispersions with corrective manoeuvre synthesis. |
 
+### Configuration Control Board Update
+The Configuration Control Board convened on 18 October 2025 to reassess MR-2 following the retuning of the Tehran daily pass orbital planes. The board reviewed deterministic and Monte Carlo outputs from run_20251018_1937Z, which demonstrate that the refined Plane B inclination \(112.8°\) and \(12°\) right ascension of the ascending node offset now yield a \(0.13\,\text{km}\) intersection miss distance at the target latitude and longitude.【F:artefacts/run_20251018_1937Z_tehran_daily_pass/deterministic_summary.json†L30-L80】 The dispersion catalogue shows the plane-intersection separation remaining within \(3.81\,\text{km}\) at the \(p_{95}\) level, confirming that the ±10 km absolute criterion is met with ample margin despite individual satellite cross-track excursions.【F:artefacts/run_20251018_1937Z_tehran_daily_pass/monte_carlo_summary.json†L1-L76】 The CCB therefore reaffirmed the requirement without modification and directed that future reruns verify the same absolute bound.
+
 ## References
 - [Ref1] Flewelling, B., *Space Mission Analysis and Design Principles*, AIAA Press, 2020.

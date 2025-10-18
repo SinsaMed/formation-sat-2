@@ -123,6 +123,9 @@ def propagate_constellation(
     target_lat, target_lon = _target_coordinates(scenario)
     leader_elements = _scenario_orbital_elements(scenario)
 
+    if formation is DEFAULT_FORMATION:
+        formation = _resolve_formation(scenario)
+
     deterministic_series, deterministic_metrics = _propagate_deterministic(
         leader_elements,
         formation,
@@ -339,6 +342,21 @@ def _target_coordinates(scenario: Mapping[str, object]) -> tuple[float, float]:
     return math.radians(35.6892), math.radians(51.3890)
 
 
+def _resolve_formation(scenario: Mapping[str, object]) -> Sequence[Mapping[str, object]]:
+    """Merge scenario-provided overrides into the default formation."""
+
+    overrides = scenario.get("formation_overrides") if isinstance(scenario.get("formation_overrides"), Mapping) else {}
+    merged: list[Mapping[str, object]] = []
+    for entry in DEFAULT_FORMATION:
+        identifier = entry.get("identifier")
+        override = overrides.get(identifier, {}) if isinstance(overrides, Mapping) else {}
+        candidate = dict(entry)
+        if isinstance(override, Mapping):
+            candidate.update({key: value for key, value in override.items()})
+        merged.append(candidate)
+    return merged
+
+
 def _initial_states(
     leader_elements: OrbitalElements,
     formation: Sequence[Mapping[str, float | str]],
@@ -348,23 +366,47 @@ def _initial_states(
 ) -> list[SpacecraftState]:
     """Construct initial Cartesian states for the formation."""
 
-    elements_at_start = leader_elements
-    if epoch_offset_s:
-        mean_motion = leader_elements.mean_motion()
-        propagated_mean_anomaly = _wrap_angle(
-            leader_elements.mean_anomaly + mean_motion * epoch_offset_s
+    def _with_overrides(elements: OrbitalElements, entry: Mapping[str, object]) -> OrbitalElements:
+        raan = elements.raan
+        inclination = elements.inclination
+        mean_anomaly = elements.mean_anomaly
+        if "raan_deg" in entry:
+            raan = math.radians(float(entry["raan_deg"]))
+        if "raan_offset_deg" in entry:
+            raan += math.radians(float(entry["raan_offset_deg"]))
+        if "inclination_deg" in entry:
+            inclination = math.radians(float(entry["inclination_deg"]))
+        if "inclination_offset_deg" in entry:
+            inclination += math.radians(float(entry["inclination_offset_deg"]))
+        if "mean_anomaly_deg" in entry:
+            mean_anomaly = math.radians(float(entry["mean_anomaly_deg"]))
+        if "mean_anomaly_offset_deg" in entry:
+            mean_anomaly += math.radians(float(entry["mean_anomaly_offset_deg"]))
+        return OrbitalElements(
+            semi_major_axis=elements.semi_major_axis,
+            eccentricity=elements.eccentricity,
+            inclination=inclination,
+            raan=raan,
+            arg_perigee=elements.arg_perigee,
+            mean_anomaly=mean_anomaly,
         )
-        elements_at_start = OrbitalElements(
-            semi_major_axis=leader_elements.semi_major_axis,
-            eccentricity=leader_elements.eccentricity,
-            inclination=leader_elements.inclination,
-            raan=leader_elements.raan,
-            arg_perigee=leader_elements.arg_perigee,
+
+    def _propagate_to_start(elements: OrbitalElements) -> OrbitalElements:
+        if not epoch_offset_s:
+            return elements
+        mean_motion = elements.mean_motion()
+        propagated_mean_anomaly = _wrap_angle(
+            elements.mean_anomaly + mean_motion * epoch_offset_s
+        )
+        return OrbitalElements(
+            semi_major_axis=elements.semi_major_axis,
+            eccentricity=elements.eccentricity,
+            inclination=elements.inclination,
+            raan=elements.raan,
+            arg_perigee=elements.arg_perigee,
             mean_anomaly=propagated_mean_anomaly,
         )
 
-    position, velocity = _classical_to_cartesian(elements_at_start)
-    rotation = rotation_matrix_rtn_to_eci(position, velocity)
     states: list[SpacecraftState] = []
 
     for entry in formation:
@@ -374,6 +416,10 @@ def _initial_states(
         cross_track_offset = float(entry.get("cross_track_offset_km", 0.0)) * 1_000.0
 
         offset_rtn = np.array([radial_offset, along_track_offset, cross_track_offset], dtype=float)
+        sat_elements = _with_overrides(leader_elements, entry)
+        sat_elements = _propagate_to_start(sat_elements)
+        position, velocity = _classical_to_cartesian(sat_elements)
+        rotation = rotation_matrix_rtn_to_eci(position, velocity)
         position_shift = rotation @ offset_rtn
 
         adjusted_position = position + position_shift

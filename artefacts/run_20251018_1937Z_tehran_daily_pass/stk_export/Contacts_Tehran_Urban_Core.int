@@ -1,0 +1,10 @@
+stk.v.11.0
+BEGIN IntervalList
+Name Tehran_Urban_Core_Contacts
+NumberOfIntervals 1
+BEGIN Interval
+   Asset tehran_daily_pass
+   StartTime 21 Mar 2026 09:24:00.000
+   StopTime 21 Mar 2026 09:36:00.000
+END Interval
+END IntervalList
