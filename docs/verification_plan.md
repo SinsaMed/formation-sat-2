@@ -85,11 +85,11 @@ Resource planning differentiates between secured assets and pending requests to 
 | Resource | Status | Owner | Estimate | Notes |
 |----------|--------|-------|----------|-------|
 | Mission analysis personnel (2 FTE) | Committed | Mission Analysis Cell | 1,600 labour hours | Covers analytical propagation, Monte Carlo setup, and report authorship with margin for independent review.[Ref1]
-| Hardware-in-the-loop facility time | Requested | Formation Dynamics Laboratory | £120,000 | Includes thruster characterisation campaigns and simulator coupling aligned to HIL-THR-001 procedure.
+| Hardware-in-the-loop facility time | Committed | Formation Dynamics Laboratory | £120,000 | Includes thruster characterisation campaigns and simulator coupling aligned to HIL-THR-001 procedure; reservation confirmed under CM-2024-05-17-HIL with purchase order PO-4531 archived in the configuration management system.[Ref7]
 | Ground station simulator licence | Committed | Ground Segment Integration Team | £35,000 | Annual maintenance already budgeted for OPS-E2E rehearsals.
-| Stakeholder review workshops | Requested | Project Manager | £18,500 | Funds travel and facilitation for scenario validation sessions.
-| Test conductors and data analysts (3 FTE during campaigns) | Requested | Guidance and Control Working Group | 720 labour hours | Supports Simulation Qualification Campaign and HIL witness testing following ECSS-E-ST-10-02C sampling guidance.[Ref2]
-| Configuration management tooling upgrades | Planned | Systems Engineering Office | £22,000 | Expands repository capacity for storing verification artefacts, ensuring traceability for audits.【F:docs/project_roadmap.md†L40-L102】 |
+| Stakeholder review workshops | Committed | Project Manager | £18,500 | Funds travel and facilitation for scenario validation sessions; budget release authorised via FS-BUD-2024-11 and scheduling logged in CM-2024-05-21-WS.[Ref8]
+| Test conductors and data analysts (3 FTE during campaigns) | Committed | Guidance and Control Working Group | 720 labour hours | Supports Simulation Qualification Campaign and HIL witness testing following ECSS-E-ST-10-02C sampling guidance; staffing confirmed in CM-2024-05-18-LAB with named personnel assignments.[Ref2][Ref9]
+| Configuration management tooling upgrades | Completed | Systems Engineering Office | £22,000 | Expands repository capacity for storing verification artefacts, ensuring traceability for audits; deployment acceptance recorded in CM-2024-05-20-CM with updated access controls.【F:docs/project_roadmap.md†L40-L102】[Ref10] |
 
 Procurement lead times: HIL facility slot reservation requires confirmation 20 weeks prior to test start; simulator licence renewals must be initiated 8 weeks before expiration to avoid access gaps.
 
@@ -105,3 +105,7 @@ Procurement lead times: HIL facility slot reservation requires confirmation 20 w
 - [Ref4] CCSDS 130.0-G-3, *TM Synchronization and Channel Coding*, Consultative Committee for Space Data Systems, 2017.
 - [Ref5] FS-CONOPS-001 v0.2, *Concept of Operations*, Formation Sat Mission Design Team, 2024.
 - [Ref6] FS-PRJ-ROADMAP-001 v0.4, *Project Roadmap*, Formation Sat Mission Design Team, 2024.
+- [Ref7] CM-2024-05-17-HIL, *Hardware-in-the-Loop Facility Reservation Confirmation*, Systems Engineering Office, 2024.
+- [Ref8] FS-BUD-2024-11, *Stakeholder Workshop Budget Approval Memorandum*, Project Management Office, 2024.
+- [Ref9] CM-2024-05-18-LAB, *Campaign Staffing Confirmation for Test Conductors and Analysts*, Guidance and Control Working Group, 2024.
+- [Ref10] CM-2024-05-20-CM, *Configuration Management Tooling Upgrade Acceptance Record*, Systems Engineering Office, 2024.
