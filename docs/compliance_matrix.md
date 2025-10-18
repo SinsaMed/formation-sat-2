@@ -32,6 +32,7 @@ Table 1 – Mission and System Requirement Compliance Summary
 | SRD-O-001 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Single-station command uplink achieved within \(1.53\,\text{h}\); latency ledger enforced via automated tests. |
 | SRD-P-004 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Annual \(\Delta v\) of \(14.04\,\text{m/s}\) meets propulsion budgeting requirement with documented weekly duty cycle. |
 | SRD-R-001 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Monte Carlo recovery catalogue evidences full success within \(15\,\text{m/s}\) per-spacecraft allocation. |
+| SRD-O-002 | System Requirements | C | run_20251018_1308Z_tehran_daily_pass STK validation[EV-4] | STK 11.2 import confirmed imaging and downlink geometry; repeat after major configuration changes. |
 
 ### Acceptance Criteria Checklist
 - [x] Every requirement appearing in the Mission Requirements and SRD is represented or justified.
@@ -56,6 +57,7 @@ Table 2 – Evidence Catalogue
 | [EV-1] | run_20260321_0931Z triangular formation simulation package capturing ninety-six second Tehran access window | `artefacts/triangle_run` and `docs/triangle_formation_results.md` | JSON time-series under Git control; associated STK exports regenerated via `tools/stk_export.py` before acceptance.[Ref4][Ref6] |
 | [EV-2] | Concept of Operations baseline review describing single-station command architecture | `docs/concept_of_operations.md` | Updates require CCB approval with revision identifiers tracked in Git history.[Ref5] |
 | [EV-3] | run_20251018_1207Z maintenance and responsiveness study covering MR-5 to MR-7 | `artefacts/run_20251018_1207Z` and `docs/triangle_formation_results.md` | Includes maintenance, command, and Monte Carlo CSV catalogues plus SVG CDF plot; validated through automated tests before acceptance.[Ref7][Ref8] |
+| [EV-4] | run_20251018_1308Z_tehran_daily_pass STK validation package (ephemeris, ground-track, contact intervals) | `artefacts/run_20251018_1308Z_tehran_daily_pass` and `docs/how_to_import_tehran_daily_pass_into_stk.md` | Exported via `sim/scripts/run_scenario.py`; ingestion and evidence capture follow the dedicated STK validation guide.【Ref4】【Ref2】 |
 
 Outstanding evidence actions: Maintain quarterly reruns of the `run_20251018_1207Z` workflow to monitor drift in command access geometry, extend the Monte Carlo campaign with atmospheric drag dispersion models, and refresh compliance statements if ground segment assumptions change. Each rerun will be logged under a new `run_` directory and linked to automated tests where applicable.
 

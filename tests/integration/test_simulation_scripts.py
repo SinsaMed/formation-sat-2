@@ -27,13 +27,16 @@ def test_scenario_runner_produces_summary(
         output_directory=tmp_path / "products",
     )
 
-    assert results["stage_sequence"] == [
+    expected_stages = [
         "access_nodes",
         "mission_phases",
         "two_body_propagation",
         "j2_drag_propagation",
         "metric_extraction",
     ]
+    if results.get("artefacts", {}).get("stk_export_directory"):
+        expected_stages.append("stk_export")
+    assert results["stage_sequence"] == expected_stages
 
     artefact = results["artefacts"]["summary_path"]
     assert artefact is not None

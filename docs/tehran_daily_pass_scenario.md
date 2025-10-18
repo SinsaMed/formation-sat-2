@@ -12,7 +12,13 @@ The authoritative machine-readable description is maintained in the [Tehran dail
 3. Thermal recovery between imaging segments is achievable within fifteen minutes provided the payload duty cycle remains below twenty-eight percent, preserving the stipulated detector temperature limits.
 
 ## STK Validation Status
-The scenario has not yet been exported through `tools/stk_export.py`; therefore, validation against STK 11.2 remains outstanding. Once the simulation pipeline is implemented, the configuration should be propagated and checked against the exporter to confirm facility and orbit definitions remain interoperable with the STK environment.
+The lightweight propagation pipeline exports the scenario through `tools/stk_export.py`, producing an STK 11.2 package containing ephemerides, ground-track samples, and access intervals. Validation run `run_20251018_1308Z_tehran_daily_pass` was ingested with `tools/stk_tehran_daily_pass_runner.py`, confirming that the satellite timeline matches the planned horizon, the dawn imaging and evening downlink contacts align with the documented UTC windows, and the Tehran/Svalbard facilities load with the expected geodetic coordinates.【Ref1】【Ref2】 Resultant artefacts reside under `artefacts/run_20251018_1308Z_tehran_daily_pass/`, and the configuration metadata flag `validated_against_stk_export` is set to `true` to reflect successful import testing.
+
+## Validation Artefacts and Next Steps
+1. Regenerate the STK package as required by executing `python -m sim.scripts.run_scenario tehran_daily_pass --output-dir artefacts/run_YYYYMMDD_hhmmZ_tehran_daily_pass`, ensuring the output directory follows the compliance naming convention.【Ref1】
+2. Use the [STK validation guide](how_to_import_tehran_daily_pass_into_stk.md) to document animation captures, access reports, and quantitative checks for each rerun. Archive evidence (SVG screenshots, CSV metrics) alongside the run directory to maintain traceability.【Ref2】
+3. Update this note and the compliance matrix whenever new evidence is generated so that reviewers can rapidly determine the provenance of the latest validation set.
 
 ## References
-No external references were required for this scenario summary.
+- [Ref1] `sim/scripts/run_scenario.py` – Scenario pipeline and STK export integration.
+- [Ref2] `docs/how_to_import_tehran_daily_pass_into_stk.md` – Analyst workflow for STK ingestion and evidence capture.
