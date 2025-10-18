@@ -21,7 +21,7 @@
       "semi_major_axis_km": 6880.150,
       "eccentricity": 0.00012,
       "inclination_deg": 97.70,
-      "raan_deg": 43.20,
+      "raan_deg": 56.9621340409899,
       "argument_of_perigee_deg": 87.00,
       "mean_anomaly_deg": 14.50
     },
@@ -81,6 +81,12 @@
     "attitude": {
       "slew_rate_deg_s": 0.5,
       "stability_requirement_arcsec": 45
+    }
+  },
+  "formation_overrides": {
+    "FSAT-DP2": {
+      "raan_offset_deg": 12.0,
+      "inclination_deg": 112.8
     }
   }
 }
