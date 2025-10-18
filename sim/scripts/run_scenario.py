@@ -1,4 +1,4 @@
-"""Command-line entry point for the lightweight scenario pipeline.
+r"""Command-line entry point for the lightweight scenario pipeline.
 
 The runner orchestrates the placeholder formation-flying workflow used by the
 continuous integration (CI) smoke tests.  Although the numerical models remain
@@ -8,7 +8,8 @@ future high-fidelity pipeline:
 1. Discover access nodes describing imaging and downlink opportunities.
 2. Translate nodes into mission phases with basic timing metadata.
 3. Propagate the constellation with a two-body approximation.
-4. Apply simple corrections representing J2 and atmospheric drag effects.
+4. Propagate with a high-fidelity \(J_2\)+drag force model capturing cross-track
+   behaviour for each vehicle.
 5. Derive headline metrics that downstream reporting utilities can consume.
 
 Each stage records a summary that is serialisable to JavaScript Object Notation
@@ -41,6 +42,7 @@ from tools.stk_export import (
 )
 
 from . import configuration
+from . import perturbation_analysis
 
 LOGGER = logging.getLogger(__name__)
 
@@ -127,8 +129,13 @@ def run_scenario(
         two_body["orbital_period_s"],
     )
 
-    perturbed = _apply_j2_drag(two_body, phases, scenario)
-    stage_sequence.append("j2_drag_propagation")
+    perturbed, propagation_artefacts = _apply_j2_drag(
+        two_body,
+        phases,
+        scenario,
+        output_directory=output_directory,
+    )
+    stage_sequence.append("high_fidelity_j2_drag_propagation")
     LOGGER.info(
         "Perturbed propagation adjusts the orbital period by %.3f s.",
         perturbed["orbital_period_s"] - two_body["orbital_period_s"],
@@ -169,6 +176,7 @@ def run_scenario(
     }
 
     artefacts: MutableMapping[str, Optional[str] | object] = {"summary_path": None}
+    artefacts.update(propagation_artefacts)
     artefacts.update(stk_export_summary)
     if output_directory:
         output_dir = Path(output_directory)
@@ -403,49 +411,31 @@ def _apply_j2_drag(
     two_body: Mapping[str, float | Sequence[Mapping[str, float]]],
     phases: Sequence[Phase],
     scenario: Mapping[str, object],
-) -> MutableMapping[str, float | Sequence[MutableMapping[str, float]]]:
-    """Apply simplified J2 and drag corrections to the propagation."""
+    *,
+    output_directory: Optional[Path | str] = None,
+) -> tuple[
+    MutableMapping[str, object],
+    MutableMapping[str, str],
+]:
+    r"""Propagate the constellation with \(J_2\) and drag perturbations."""
 
-    period = float(two_body.get("orbital_period_s", 0.0))
-    semi_major_axis = float(two_body.get("semi_major_axis_km", 0.0))
-    altitude = max(semi_major_axis - EARTH_RADIUS_KM, 0.0)
+    del phases  # Phases are retained for compatibility with earlier signatures.
 
-    j2_factor = 1.0 - 1.5e-6 * altitude
-    average_phase_duration = sum(phase.duration_s for phase in phases) / max(len(phases), 1)
-    drag_factor = 1.0 - 5.0e-6 * (average_phase_duration / 600.0)
-    correction = max(j2_factor * drag_factor, 0.0)
+    propagation_summary, artefacts = perturbation_analysis.propagate_constellation(
+        scenario,
+        output_directory=Path(output_directory) if output_directory else None,
+    )
 
-    perturbed_period = period * correction if period else 0.0
-    period_delta = perturbed_period - period
+    orbital_period = float(propagation_summary.get("orbital_period_s", 0.0))
+    nominal_period = float(two_body.get("orbital_period_s", orbital_period))
+    propagation_summary.setdefault("two_body_period_s", nominal_period)
+    propagation_summary.setdefault("orbital_period_s", orbital_period or nominal_period)
+    propagation_summary.setdefault(
+        "period_delta_s",
+        float(propagation_summary.get("orbital_period_s", nominal_period)) - nominal_period,
+    )
 
-    decay_per_orbit_m = altitude * 1_000.0 * 1.0e-5
-
-    phase_decay: list[MutableMapping[str, float]] = []
-    for phase in phases:
-        revolutions = phase.duration_s / period if period else 0.0
-        phase_decay.append(
-            {
-                "phase_id": float(phase.identifier),
-                "expected_decay_m": float(revolutions * decay_per_orbit_m),
-            }
-        )
-
-    simulation = scenario.get("simulation")
-    force_notes = "J2+drag"
-    if isinstance(simulation, Mapping):
-        force_models = simulation.get("force_models")
-        if isinstance(force_models, Mapping):
-            enabled = [model for model, flag in force_models.items() if flag]
-            if enabled:
-                force_notes = "+".join(enabled)
-
-    return {
-        "model": force_notes,
-        "orbital_period_s": float(perturbed_period),
-        "period_delta_s": float(period_delta),
-        "average_drag_decay_m": float(decay_per_orbit_m),
-        "phase_decay": phase_decay,
-    }
+    return propagation_summary, artefacts
 
 
 def _summarise_metrics(
@@ -482,6 +472,56 @@ def _summarise_metrics(
         "orbital_period_delta_s": float(orbital_delta),
         "average_revolutions_per_phase": average_revolutions,
     }
+
+    cross_track = perturbed.get("cross_track") if isinstance(perturbed, Mapping) else None
+    if isinstance(cross_track, Mapping):
+        overall = float(cross_track.get("overall_max_abs_cross_track_km", 0.0))
+        metrics["overall_max_cross_track_km"] = overall
+        metrics["overall_min_cross_track_km"] = float(
+            cross_track.get("overall_min_abs_cross_track_km", 0.0)
+        )
+        vehicles = cross_track.get("vehicles")
+        if isinstance(vehicles, Sequence) and vehicles:
+            worst_vehicle = max(
+                (
+                    float(vehicle.get("max_abs_cross_track_km", 0.0))
+                    for vehicle in vehicles
+                    if isinstance(vehicle, Mapping)
+                ),
+                default=0.0,
+            )
+            metrics["worst_vehicle_cross_track_km"] = worst_vehicle
+            worst_min = max(
+                (
+                    float(vehicle.get("min_abs_cross_track_km", 0.0))
+                    for vehicle in vehicles
+                    if isinstance(vehicle, Mapping)
+                ),
+                default=0.0,
+            )
+            compliant_count = sum(
+                1
+                for vehicle in vehicles
+                if isinstance(vehicle, Mapping) and vehicle.get("compliant")
+            )
+            metrics["worst_vehicle_min_cross_track_km"] = worst_min
+            metrics["deterministic_compliance_fraction"] = (
+                compliant_count / len(vehicles)
+            )
+
+    monte_carlo = perturbed.get("monte_carlo") if isinstance(perturbed, Mapping) else None
+    if isinstance(monte_carlo, Mapping):
+        metrics["monte_carlo_fleet_compliance_probability"] = float(
+            monte_carlo.get("fleet_compliance_probability", 0.0)
+        )
+        metrics["monte_carlo_run_count"] = float(monte_carlo.get("runs", 0))
+
+    plane_intersection = perturbed.get("plane_intersection") if isinstance(perturbed, Mapping) else None
+    if isinstance(plane_intersection, Mapping):
+        metrics["plane_intersection_distance_km"] = float(
+            plane_intersection.get("target_distance_km", 0.0)
+        )
+        metrics["plane_intersection_compliant"] = 1.0 if plane_intersection.get("compliant") else 0.0
 
     if metrics_specification:
         # Retain ordering requested by the caller while keeping the full set in the map.
