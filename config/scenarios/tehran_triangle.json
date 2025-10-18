@@ -48,6 +48,18 @@
       "recovery_time_s": 43200.0,
       "delta_v_budget_mps": 15.0,
       "seed": 314159
+    },
+    "drag_dispersion": {
+      "samples": 200,
+      "density_sigma": 0.25,
+      "drag_coefficient_sigma": 0.05,
+      "reference_density_kg_m3": 3.2e-12,
+      "drag_coefficient": 2.2,
+      "reference_area_m2": 1.1,
+      "spacecraft_mass_kg": 165.0,
+      "time_horizon_orbits": 12.0,
+      "integration_step_s": 120.0,
+      "seed": 20260321
     }
   }
 }

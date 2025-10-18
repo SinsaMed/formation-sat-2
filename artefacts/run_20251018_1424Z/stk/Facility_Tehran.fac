@@ -1,0 +1,10 @@
+stk.v.11.0
+BEGIN Facility
+Name Tehran
+CentralBody Earth
+BEGIN Location
+Latitude 35.689200
+Longitude 51.389000
+Altitude 1.500
+END Location
+END Facility

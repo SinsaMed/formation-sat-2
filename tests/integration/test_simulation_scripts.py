@@ -31,7 +31,7 @@ def test_scenario_runner_produces_summary(
         "access_nodes",
         "mission_phases",
         "two_body_propagation",
-        "j2_drag_propagation",
+        "high_fidelity_j2_drag_propagation",
         "metric_extraction",
     ]
     if results.get("artefacts", {}).get("stk_export_directory"):
@@ -118,11 +118,13 @@ def test_triangle_cli_produces_stk_outputs(tmp_path: Path) -> None:
     maintenance_csv = output_dir / "maintenance_summary.csv"
     command_csv = output_dir / "command_windows.csv"
     injection_csv = output_dir / "injection_recovery.csv"
+    drag_csv = output_dir / "drag_dispersion.csv"
     plot_path = output_dir / "injection_recovery_cdf.svg"
 
     assert maintenance_csv.exists()
     assert command_csv.exists()
     assert injection_csv.exists()
+    assert drag_csv.exists()
     assert plot_path.exists()
 
     maintenance_header = maintenance_csv.read_text(encoding="utf-8").splitlines()[0]
@@ -131,3 +133,5 @@ def test_triangle_cli_produces_stk_outputs(tmp_path: Path) -> None:
     assert "window_index" in command_header
     injection_header = injection_csv.read_text(encoding="utf-8").splitlines()[0]
     assert "delta_v_mps" in injection_header
+    drag_header = drag_csv.read_text(encoding="utf-8").splitlines()[0]
+    assert "ground_distance_delta_km" in drag_header

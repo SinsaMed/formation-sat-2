@@ -17,6 +17,7 @@ SECONDS_PER_YEAR = SECONDS_PER_DAY * 365.25
 
 from constellation.geometry import triangle_area, triangle_aspect_ratio, triangle_side_lengths
 from constellation.orbit import (
+    EARTH_EQUATORIAL_RADIUS_M,
     cartesian_to_classical,
     geodetic_coordinates,
     haversine_distance,
@@ -300,6 +301,11 @@ def simulate_triangle_formation(
         satellite_ids,
         formation,
     )
+    drag_dispersion, drag_samples = _run_atmospheric_drag_dispersion_monte_carlo(
+        formation,
+        semi_major_axis_m,
+        inclination,
+    )
 
     window = _formation_window(
         triangle_aspect_series,
@@ -317,6 +323,7 @@ def simulate_triangle_formation(
         "maintenance": maintenance,
         "command_latency": command_latency,
         "injection_recovery": injection_recovery,
+        "drag_dispersion": drag_dispersion,
     }
 
     artefacts: MutableMapping[str, Optional[str]] = {
@@ -326,6 +333,7 @@ def simulate_triangle_formation(
         "command_windows_csv": None,
         "injection_recovery_csv": None,
         "injection_recovery_plot": None,
+        "drag_dispersion_csv": None,
     }
 
     result = TriangleFormationResult(
@@ -403,6 +411,25 @@ def simulate_triangle_formation(
             ],
         )
         artefacts["injection_recovery_csv"] = str(injection_path)
+
+        drag_path = output_path / "drag_dispersion.csv"
+        drag_samples.to_csv(
+            drag_path,
+            index=False,
+            columns=[
+                "sample_id",
+                "density_scale",
+                "drag_coefficient",
+                "ballistic_coefficient_m2_per_kg",
+                "semi_major_axis_delta_m",
+                "altitude_delta_m",
+                "along_track_shift_km",
+                "ground_distance_delta_km",
+                "command_distance_delta_km",
+                "within_tolerance",
+            ],
+        )
+        artefacts["drag_dispersion_csv"] = str(drag_path)
 
         plot_path = output_path / "injection_recovery_cdf.svg"
         _write_injection_recovery_plot(injection_samples, plot_path)
@@ -757,6 +784,132 @@ def _run_injection_recovery_monte_carlo(
             "recovery_time_s": recovery_time_s,
             "delta_v_budget_mps": delta_v_budget,
         },
+    }
+
+    return metrics, dataframe
+
+
+def _run_atmospheric_drag_dispersion_monte_carlo(
+    formation: Mapping[str, object],
+    semi_major_axis_m: float,
+    inclination_rad: float,
+) -> tuple[Mapping[str, object], pd.DataFrame]:
+    settings = formation.get("drag_dispersion", {})
+    sample_count = int(settings.get("samples", 200))
+    density_sigma = float(settings.get("density_sigma", 0.2))
+    drag_coefficient_sigma = float(settings.get("drag_coefficient_sigma", 0.05))
+    reference_density = float(settings.get("reference_density_kg_m3", 3.5e-12))
+    drag_coefficient = float(settings.get("drag_coefficient", 2.2))
+    ballistic_area = float(settings.get("reference_area_m2", 1.0))
+    spacecraft_mass = float(settings.get("spacecraft_mass_kg", 150.0))
+    time_horizon_orbits = float(settings.get("time_horizon_orbits", 15.0))
+    integration_step = float(settings.get("integration_step_s", 60.0))
+    seed = settings.get("seed")
+
+    if spacecraft_mass <= 0.0:
+        raise ValueError("Spacecraft mass must be positive for drag dispersions.")
+
+    rng = np.random.default_rng(seed)
+    ballistic_coeff_base = ballistic_area / spacecraft_mass
+
+    mean_motion = math.sqrt(MU_EARTH / semi_major_axis_m**3)
+    orbital_period = 2.0 * math.pi / mean_motion
+    horizon = max(time_horizon_orbits, 0.0) * orbital_period
+    horizon = max(horizon, integration_step)
+
+    records: list[Mapping[str, object]] = []
+    tolerance_km = float(formation.get("ground_tolerance_km", 350.0))
+    orbital_radius = semi_major_axis_m
+    ground_projection_scale = math.cos(inclination_rad)
+
+    time_samples = np.arange(0.0, horizon + 0.5 * integration_step, integration_step)
+
+    for sample_id in range(sample_count):
+        density_scale = max(0.0, 1.0 + rng.normal(0.0, density_sigma))
+        cd_scale = max(0.0, 1.0 + rng.normal(0.0, drag_coefficient_sigma))
+
+        rho = reference_density * density_scale
+        cd = drag_coefficient * cd_scale
+        ballistic_coefficient = ballistic_coeff_base
+
+        orbital_velocity = math.sqrt(MU_EARTH / semi_major_axis_m)
+        drag_acceleration = 0.5 * rho * cd * ballistic_coefficient * orbital_velocity**2
+        da_dt = -2.0 * semi_major_axis_m**2 * drag_acceleration / MU_EARTH
+
+        semi_major_axis_series = semi_major_axis_m + da_dt * time_samples
+        semi_major_axis_series = np.maximum(semi_major_axis_series, EARTH_EQUATORIAL_RADIUS_M + 150_000.0)
+
+        altitude_delta = semi_major_axis_series[-1] - semi_major_axis_m
+        new_mean_motion = math.sqrt(MU_EARTH / semi_major_axis_series[-1] ** 3)
+        delta_theta = (new_mean_motion - mean_motion) * horizon
+        along_track_shift = abs(delta_theta) * orbital_radius / 1_000.0
+
+        ground_distance_delta = along_track_shift * abs(ground_projection_scale)
+        command_distance_delta = along_track_shift
+
+        within_tolerance = ground_distance_delta <= tolerance_km
+
+        records.append(
+            {
+                "sample_id": sample_id,
+                "density_scale": float(density_scale),
+                "drag_coefficient": float(cd),
+                "ballistic_coefficient_m2_per_kg": float(ballistic_coefficient),
+                "semi_major_axis_delta_m": float(altitude_delta),
+                "altitude_delta_m": float(altitude_delta),
+                "along_track_shift_km": float(along_track_shift),
+                "ground_distance_delta_km": float(ground_distance_delta),
+                "command_distance_delta_km": float(command_distance_delta),
+                "within_tolerance": bool(within_tolerance),
+            }
+        )
+
+    dataframe = pd.DataFrame.from_records(records)
+
+    if dataframe.empty:
+        aggregate = {
+            "p95_ground_distance_delta_km": 0.0,
+            "max_ground_distance_delta_km": 0.0,
+            "p95_along_track_shift_km": 0.0,
+            "max_along_track_shift_km": 0.0,
+            "p95_altitude_delta_m": 0.0,
+        }
+        success_rate = 1.0
+    else:
+        aggregate = {
+            "p95_ground_distance_delta_km": float(
+                dataframe["ground_distance_delta_km"].quantile(0.95)
+            ),
+            "max_ground_distance_delta_km": float(
+                dataframe["ground_distance_delta_km"].max()
+            ),
+            "p95_along_track_shift_km": float(
+                dataframe["along_track_shift_km"].quantile(0.95)
+            ),
+            "max_along_track_shift_km": float(
+                dataframe["along_track_shift_km"].max()
+            ),
+            "p95_altitude_delta_m": float(
+                dataframe["altitude_delta_m"].quantile(0.95)
+            ),
+        }
+        success_rate = float(dataframe["within_tolerance"].mean())
+
+    metrics = {
+        "sample_count": sample_count,
+        "success_rate": success_rate,
+        "aggregate": aggregate,
+        "assumptions": {
+            "density_sigma": density_sigma,
+            "drag_coefficient_sigma": drag_coefficient_sigma,
+            "reference_density_kg_m3": reference_density,
+            "drag_coefficient": drag_coefficient,
+            "reference_area_m2": ballistic_area,
+            "spacecraft_mass_kg": spacecraft_mass,
+            "time_horizon_orbits": time_horizon_orbits,
+            "integration_step_s": integration_step,
+        },
+        "tolerance_km": tolerance_km,
     }
 
     return metrics, dataframe
