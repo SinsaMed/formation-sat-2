@@ -38,3 +38,21 @@ def test_triangle_formation_meets_requirements() -> None:
     plane_counts = Counter(entry["assigned_plane"] for entry in orbital.values())
     assert plane_counts["Plane A"] == 2
     assert plane_counts["Plane B"] == 1
+
+    maintenance = metrics["maintenance"]
+    budget = maintenance["assumptions"]["delta_v_budget_mps"]
+    assert maintenance["annual_delta_v_mps"]["max"] <= budget
+    for entry in maintenance["per_spacecraft"].values():
+        assert entry["annual_delta_v_mps"] <= budget
+
+    command_latency = metrics["command_latency"]
+    assert command_latency["max_latency_hours"] <= 12.0
+    assert command_latency["latency_margin_hours"] >= 0.0
+    assert command_latency["contact_probability"] > 0.0
+
+    injection = metrics["injection_recovery"]
+    assert injection["sample_count"] == 300
+    assert injection["success_rate"] >= 0.95
+    for entry in injection["per_spacecraft"].values():
+        assert entry["success_rate"] >= 0.95
+        assert entry["max_delta_v_mps"] <= injection["assumptions"]["delta_v_budget_mps"]

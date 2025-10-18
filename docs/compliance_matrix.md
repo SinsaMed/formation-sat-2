@@ -22,16 +22,16 @@ Table 1 – Mission and System Requirement Compliance Summary
 | MR-2 | Mission Requirements | PC | run_20260321_0931Z triangular formation simulation summary[EV-1] | Expand analysis with \(J_2\) and atmospheric drag to bound cross-track error before Stage 4 review. |
 | MR-3 | Mission Requirements | C | run_20260321_0931Z triangular formation simulation summary[EV-1] | Ninety-six second simultaneous access window verified; re-run once maintenance manoeuvre model is available. |
 | MR-4 | Mission Requirements | C | run_20260321_0931Z triangular formation simulation summary[EV-1] | Triangle aspect ratio remains within ±2%; update tolerance check after incorporating sensor alignment effects. |
-| MR-5 | Mission Requirements | PC | Concept of Operations baseline review[EV-2] | Single-station workflow defined; communications link analysis pending to verify 12-hour latency margin. |
-| MR-6 | Mission Requirements | NA | Pending delta-v budget analysis | Perturbation-inclusive maintenance study required during Stage 4 to establish compliance margins. |
-| MR-7 | Mission Requirements | NA | Pending injection-dispersion Monte Carlo campaign | Develop recovery manoeuvre prototype and document closure criteria ahead of robustness workshop. |
+| MR-5 | Mission Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Single-station command latency measured at \(1.53\,\text{h}\) with \(10.47\,\text{h}\) margin; regression `tests/unit/test_triangle_formation.py` guards compliance. |
+| MR-6 | Mission Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Weekly formation-keeping burns expend \(14.04\,\text{m/s}\) annually, preserving \(0.96\,\text{m/s}\) margin beneath the 15 m/s cap. |
+| MR-7 | Mission Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Monte Carlo injection recovery succeeds in 300/300 trials with \(p_{95}\) \(\Delta v = 0.041\,\text{m/s}\), satisfying robustness expectations. |
 | SRD-F-001 | System Requirements | C | run_20260321_0931Z triangular formation simulation summary[EV-1] | Deployment concept validated against mission plane allocation; confirm alongside launch vehicle ICD once drafted. |
 | SRD-P-001 | System Requirements | PC | run_20260321_0931Z triangular formation simulation summary[EV-1] | Requires higher-fidelity propagation to confirm ±10 km cross-track margin under perturbations. |
 | SRD-P-002 | System Requirements | C | run_20260321_0931Z triangular formation simulation summary[EV-1] | Access duration meets performance threshold; schedule regression once maintenance manoeuvres are synthesised. |
 | SRD-P-003 | System Requirements | C | run_20260321_0931Z triangular formation simulation summary[EV-1] | Geometry tolerances satisfied; integrate sensor alignment error budget into next update. |
-| SRD-O-001 | System Requirements | PC | Concept of Operations baseline review[EV-2] | Demonstration of command latency still outstanding; task communications team to deliver link budget by next SERB. |
-| SRD-P-004 | System Requirements | NA | Pending delta-v budget analysis | Awaiting manoeuvre optimisation results to quantify annual expenditure. |
-| SRD-R-001 | System Requirements | NA | Pending injection-dispersion Monte Carlo campaign | Monte Carlo testbench to be baselined under `tests/` prior to compliance grading. |
+| SRD-O-001 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Single-station command uplink achieved within \(1.53\,\text{h}\); latency ledger enforced via automated tests. |
+| SRD-P-004 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Annual \(\Delta v\) of \(14.04\,\text{m/s}\) meets propulsion budgeting requirement with documented weekly duty cycle. |
+| SRD-R-001 | System Requirements | C | run_20251018_1207Z maintenance and responsiveness study[EV-3] | Monte Carlo recovery catalogue evidences full success within \(15\,\text{m/s}\) per-spacecraft allocation. |
 
 ### Acceptance Criteria Checklist
 - [x] Every requirement appearing in the Mission Requirements and SRD is represented or justified.
@@ -55,8 +55,9 @@ Table 2 – Evidence Catalogue
 |--------------|-------------|------------------|---------------------|
 | [EV-1] | run_20260321_0931Z triangular formation simulation package capturing ninety-six second Tehran access window | `artefacts/triangle_run` and `docs/triangle_formation_results.md` | JSON time-series under Git control; associated STK exports regenerated via `tools/stk_export.py` before acceptance.[Ref4][Ref6] |
 | [EV-2] | Concept of Operations baseline review describing single-station command architecture | `docs/concept_of_operations.md` | Updates require CCB approval with revision identifiers tracked in Git history.[Ref5] |
+| [EV-3] | run_20251018_1207Z maintenance and responsiveness study covering MR-5 to MR-7 | `artefacts/run_20251018_1207Z` and `docs/triangle_formation_results.md` | Includes maintenance, command, and Monte Carlo CSV catalogues plus SVG CDF plot; validated through automated tests before acceptance.[Ref7][Ref8] |
 
-Outstanding evidence actions: (1) perturbation-inclusive delta-v study to populate MR-6/SRD-P-004, (2) injection-dispersion Monte Carlo campaign to address MR-7/SRD-R-001, and (3) communications link budget analysis to close MR-5/SRD-O-001 gaps. Each forthcoming study will be registered under a unique `run_` directory and linked to automated tests where applicable.
+Outstanding evidence actions: Maintain quarterly reruns of the `run_20251018_1207Z` workflow to monitor drift in command access geometry, extend the Monte Carlo campaign with atmospheric drag dispersion models, and refresh compliance statements if ground segment assumptions change. Each rerun will be logged under a new `run_` directory and linked to automated tests where applicable.
 
 ### Acceptance Criteria Checklist
 - [x] Evidence catalogue indicates configuration identifiers or version numbers.
@@ -70,3 +71,5 @@ Outstanding evidence actions: (1) perturbation-inclusive delta-v study to popula
 - [Ref4] Formation-Sat Systems Team, *STK Export Interface Guidance*, FS-ANL-002 v1.1, 2024.
 - [Ref5] Formation-Sat Systems Team, *Concept of Operations*, FS-CONOPS-001 v0.2, 2024.
 - [Ref6] Formation-Sat Systems Team, *Tehran Triangular Formation Simulation Results*, FS-ANL-003 v0.1, 2024.
+- [Ref7] Formation-Sat Systems Team, *Triangle Formation Unit Tests*, FS-TST-004 v1.1, 2025.
+- [Ref8] Formation-Sat Systems Team, *run_20251018_1207Z Tehran Triangle Maintenance and Robustness Campaign*, FS-ANL-005 v1.0, 2025.

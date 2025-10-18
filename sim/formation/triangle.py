@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Mapping, MutableMapping, Optional, Sequence
 
 import numpy as np
+import pandas as pd
+
+SECONDS_PER_DAY = 86_400.0
+SECONDS_PER_YEAR = SECONDS_PER_DAY * 365.25
 
 from constellation.geometry import triangle_area, triangle_aspect_ratio, triangle_side_lengths
 from constellation.orbit import (
@@ -19,7 +23,7 @@ from constellation.orbit import (
     inertial_to_ecef,
     propagate_kepler,
 )
-from constellation.roe import OrbitalElements
+from constellation.roe import MU_EARTH, OrbitalElements
 from tools.stk_export import (
     FacilityDefinition,
     GroundContactInterval,
@@ -52,6 +56,7 @@ class TriangleFormationResult:
     centroid_lon_rad: np.ndarray
     centroid_alt_m: np.ndarray
     max_ground_distance_km: np.ndarray
+    min_command_distance_km: np.ndarray
     metrics: Mapping[str, object]
     artefacts: Mapping[str, Optional[str]]
 
@@ -76,6 +81,12 @@ class TriangleFormationResult:
                 sat_id: self.altitudes_m[sat_id].tolist() for sat_id in satellite_ids
             },
         }
+        geometry["max_ground_distance_km"] = [
+            float(value) for value in self.max_ground_distance_km
+        ]
+        geometry["min_command_distance_km"] = [
+            float(value) for value in self.min_command_distance_km
+        ]
         for index, epoch in enumerate(self.times):
             samples.append(
                 {
@@ -181,10 +192,18 @@ def simulate_triangle_formation(
     centroid_longitudes = np.zeros(sample_count, dtype=float)
     centroid_altitudes = np.zeros(sample_count, dtype=float)
     max_ground_distance = np.zeros(sample_count, dtype=float)
+    min_command_distance = np.full(sample_count, np.inf, dtype=float)
 
     target = formation.get("target", {})
     target_lat = math.radians(float(target.get("latitude_deg", 0.0)))
     target_lon = math.radians(float(target.get("longitude_deg", 0.0)))
+
+    command = formation.get("command", {})
+    command_station = command.get("station", {})
+    default_lat_deg = math.degrees(target_lat)
+    default_lon_deg = math.degrees(target_lon)
+    command_lat = math.radians(float(command_station.get("latitude_deg", default_lat_deg)))
+    command_lon = math.radians(float(command_station.get("longitude_deg", default_lon_deg)))
 
     for index, (position, frame) in enumerate(zip(reference_positions, orientation_frames)):
         vertices = []
@@ -213,6 +232,7 @@ def simulate_triangle_formation(
         centroid_altitudes[index] = centroid_alt
 
         max_distance = 0.0
+        min_command = np.inf
         for sat_id in satellite_ids:
             distance = haversine_distance(
                 latitudes[sat_id][index],
@@ -221,11 +241,24 @@ def simulate_triangle_formation(
                 target_lon,
             )
             max_distance = max(max_distance, distance)
+            command_distance = haversine_distance(
+                latitudes[sat_id][index],
+                longitudes[sat_id][index],
+                command_lat,
+                command_lon,
+            )
+            min_command = min(min_command, command_distance)
         max_ground_distance[index] = max_distance / 1_000.0
+        min_command_distance[index] = min_command
 
     velocities: dict[str, np.ndarray] = {
         sat_id: _differentiate(positions[sat_id], time_step_s) for sat_id in satellite_ids
     }
+
+    finite_mask = np.isfinite(min_command_distance)
+    min_command_distance_km = np.where(
+        finite_mask, min_command_distance / 1_000.0, np.inf
+    )
 
     centre_index = int(np.argmin(np.abs(offsets)))
     orbital_elements = {}
@@ -249,6 +282,24 @@ def simulate_triangle_formation(
         triangle_sides_series,
     )
     ground_stats = _summarise_ground_metrics(max_ground_distance, formation)
+    maintenance = _estimate_maintenance_delta_v(
+        positions,
+        times,
+        formation,
+        semi_major_axis_m,
+    )
+    command_latency = _analyse_command_latency(
+        min_command_distance_km,
+        times,
+        formation,
+        semi_major_axis_m,
+        command_lat,
+        command_lon,
+    )
+    injection_recovery, injection_samples = _run_injection_recovery_monte_carlo(
+        satellite_ids,
+        formation,
+    )
 
     window = _formation_window(
         triangle_aspect_series,
@@ -263,9 +314,19 @@ def simulate_triangle_formation(
         "ground_track": ground_stats,
         "formation_window": window,
         "orbital_elements": orbital_elements,
+        "maintenance": maintenance,
+        "command_latency": command_latency,
+        "injection_recovery": injection_recovery,
     }
 
-    artefacts: MutableMapping[str, Optional[str]] = {"summary_path": None, "stk_directory": None}
+    artefacts: MutableMapping[str, Optional[str]] = {
+        "summary_path": None,
+        "stk_directory": None,
+        "maintenance_csv": None,
+        "command_windows_csv": None,
+        "injection_recovery_csv": None,
+        "injection_recovery_plot": None,
+    }
 
     result = TriangleFormationResult(
         times=times,
@@ -281,6 +342,7 @@ def simulate_triangle_formation(
         centroid_lon_rad=centroid_longitudes,
         centroid_alt_m=centroid_altitudes,
         max_ground_distance_km=max_ground_distance,
+        min_command_distance_km=min_command_distance_km,
         metrics=metrics,
         artefacts=artefacts,
     )
@@ -291,6 +353,61 @@ def simulate_triangle_formation(
         summary_path = output_path / "triangle_summary.json"
         summary_path.write_text(json.dumps(result.to_summary(), indent=2), encoding="utf-8")
         artefacts["summary_path"] = str(summary_path)
+
+        maintenance_rows = [
+            {
+                "satellite_id": sat_id,
+                "mean_diff_accel_mps2": data["mean_diff_accel_mps2"],
+                "peak_diff_accel_mps2": data["peak_diff_accel_mps2"],
+                "delta_v_per_burn_mps": data["delta_v_per_burn_mps"],
+                "annual_delta_v_mps": data["annual_delta_v_mps"],
+            }
+            for sat_id, data in maintenance["per_spacecraft"].items()
+        ]
+        maintenance_df = pd.DataFrame(
+            maintenance_rows,
+            columns=[
+                "satellite_id",
+                "mean_diff_accel_mps2",
+                "peak_diff_accel_mps2",
+                "delta_v_per_burn_mps",
+                "annual_delta_v_mps",
+            ],
+        )
+        maintenance_path = output_path / "maintenance_summary.csv"
+        maintenance_df.to_csv(maintenance_path, index=False)
+        artefacts["maintenance_csv"] = str(maintenance_path)
+
+        command_rows = [
+            {"window_index": index, **window}
+            for index, window in enumerate(command_latency["contact_windows"])
+        ]
+        command_df = pd.DataFrame(
+            command_rows, columns=["window_index", "start", "end", "duration_s"]
+        )
+        command_path = output_path / "command_windows.csv"
+        command_df.to_csv(command_path, index=False)
+        artefacts["command_windows_csv"] = str(command_path)
+
+        injection_path = output_path / "injection_recovery.csv"
+        injection_samples.to_csv(
+            injection_path,
+            index=False,
+            columns=[
+                "sample_id",
+                "satellite_id",
+                "position_error_m",
+                "velocity_error_mps",
+                "delta_v_mps",
+                "success",
+            ],
+        )
+        artefacts["injection_recovery_csv"] = str(injection_path)
+
+        plot_path = output_path / "injection_recovery_cdf.svg"
+        _write_injection_recovery_plot(injection_samples, plot_path)
+        if plot_path.exists():
+            artefacts["injection_recovery_plot"] = str(plot_path)
 
         stk_dir = output_path / "stk"
         _export_to_stk(
@@ -417,6 +534,255 @@ def _formation_window(
         "end": times[window_end].isoformat().replace("+00:00", "Z"),
     }
 
+
+def _estimate_maintenance_delta_v(
+    positions: Mapping[str, np.ndarray],
+    times: Sequence[datetime],
+    formation: Mapping[str, object],
+    semi_major_axis_m: float,
+) -> Mapping[str, object]:
+    maintenance = formation.get("maintenance", {})
+    burn_duration_s = float(maintenance.get("burn_duration_s", 45.0))
+    interval_days = float(maintenance.get("interval_days", 7.0))
+    delta_v_budget_mps = float(maintenance.get("delta_v_budget_mps", 15.0))
+    interval_seconds = max(interval_days * SECONDS_PER_DAY, 1.0)
+    burns_per_year = SECONDS_PER_YEAR / interval_seconds
+
+    count = len(times)
+    if count > 1:
+        step = (times[1] - times[0]).total_seconds()
+    else:
+        step = 0.0
+
+    centroid = sum(positions[sat_id] for sat_id in positions) / float(len(positions))
+    centroid_norm = np.linalg.norm(centroid, axis=1)
+    centroid_accel = -MU_EARTH * centroid / centroid_norm[:, None] ** 3
+
+    per_spacecraft: MutableMapping[str, Mapping[str, float]] = {}
+    mean_accels = []
+    peak_accels = []
+    annual_totals = []
+
+    for sat_id, states in positions.items():
+        radii = np.linalg.norm(states, axis=1)
+        accelerations = -MU_EARTH * states / radii[:, None] ** 3
+        differential = np.linalg.norm(accelerations - centroid_accel, axis=1)
+        mean_diff = float(np.mean(differential))
+        peak_diff = float(np.max(differential))
+        dv_per_burn = mean_diff * burn_duration_s
+        annual_delta_v = dv_per_burn * burns_per_year
+
+        mean_accels.append(mean_diff)
+        peak_accels.append(peak_diff)
+        annual_totals.append(annual_delta_v)
+
+        per_spacecraft[sat_id] = {
+            "mean_diff_accel_mps2": mean_diff,
+            "peak_diff_accel_mps2": peak_diff,
+            "delta_v_per_burn_mps": dv_per_burn,
+            "annual_delta_v_mps": annual_delta_v,
+        }
+
+    annual_array = np.asarray(annual_totals, dtype=float)
+    mean_accel = float(np.mean(mean_accels)) if mean_accels else 0.0
+    peak_accel = float(np.max(peak_accels)) if peak_accels else 0.0
+
+    orbit_period = 2.0 * math.pi * math.sqrt(semi_major_axis_m**3 / MU_EARTH)
+
+    return {
+        "assumptions": {
+            "burn_duration_s": burn_duration_s,
+            "maintenance_interval_days": interval_days,
+            "burns_per_year": float(burns_per_year),
+            "analysis_window_s": float(max((count - 1), 0) * step),
+            "orbit_period_s": float(orbit_period),
+            "delta_v_budget_mps": delta_v_budget_mps,
+        },
+        "mean_differential_acceleration_mps2": mean_accel,
+        "peak_differential_acceleration_mps2": peak_accel,
+        "per_spacecraft": per_spacecraft,
+        "annual_delta_v_mps": {
+            "mean": float(np.mean(annual_array)) if annual_totals else 0.0,
+            "max": float(np.max(annual_array)) if annual_totals else 0.0,
+            "min": float(np.min(annual_array)) if annual_totals else 0.0,
+        },
+    }
+
+
+def _analyse_command_latency(
+    min_distances_km: np.ndarray,
+    times: Sequence[datetime],
+    formation: Mapping[str, object],
+    semi_major_axis_m: float,
+    command_lat: float,
+    command_lon: float,
+) -> Mapping[str, object]:
+    command_cfg = formation.get("command", {})
+    range_km = float(
+        command_cfg.get("contact_range_km", formation.get("ground_tolerance_km", 350.0))
+    )
+
+    count = len(times)
+    if count > 1:
+        step = (times[1] - times[0]).total_seconds()
+    else:
+        step = 0.0
+
+    mask = np.asarray(min_distances_km) <= range_km
+
+    windows: list[Mapping[str, object]] = []
+    current_start: Optional[int] = None
+    for index, in_contact in enumerate(mask):
+        if in_contact and current_start is None:
+            current_start = index
+        elif not in_contact and current_start is not None:
+            end_index = index - 1
+            windows.append(
+                _format_contact_window(times, current_start, end_index, step)
+            )
+            current_start = None
+    if current_start is not None:
+        windows.append(
+            _format_contact_window(times, current_start, len(mask) - 1, step)
+        )
+
+    contact_duration_s = float(sum(window["duration_s"] for window in windows))
+    orbit_period = 2.0 * math.pi * math.sqrt(semi_major_axis_m**3 / MU_EARTH)
+    contact_probability = contact_duration_s / orbit_period if orbit_period else 0.0
+    gap_s = max(orbit_period - contact_duration_s, 0.0)
+    max_latency_hours = gap_s / 3600.0
+    mean_latency_hours = max_latency_hours / 2.0
+
+    return {
+        "station": {
+            "latitude_deg": math.degrees(command_lat),
+            "longitude_deg": math.degrees(command_lon),
+            "contact_range_km": range_km,
+        },
+        "contact_probability": contact_probability,
+        "contact_duration_s": contact_duration_s,
+        "contact_windows": windows,
+        "passes_per_day": SECONDS_PER_DAY / orbit_period if orbit_period else 0.0,
+        "max_latency_hours": max_latency_hours,
+        "mean_latency_hours": mean_latency_hours,
+        "latency_margin_hours": 12.0 - max_latency_hours,
+        "assumptions": {
+            "uniform_request_distribution": True,
+            "single_station_operations": True,
+        },
+    }
+
+
+def _format_contact_window(
+    times: Sequence[datetime], start_index: int, end_index: int, step: float
+) -> Mapping[str, object]:
+    count = end_index - start_index + 1
+    duration = max(count - 1, 0) * step
+    return {
+        "start": times[start_index].isoformat().replace("+00:00", "Z"),
+        "end": times[end_index].isoformat().replace("+00:00", "Z"),
+        "duration_s": float(duration),
+    }
+
+
+def _run_injection_recovery_monte_carlo(
+    satellite_ids: Sequence[str], formation: Mapping[str, object]
+) -> tuple[Mapping[str, object], pd.DataFrame]:
+    config = formation.get("monte_carlo", {})
+    sample_count = int(config.get("samples", 200))
+    position_sigma_m = float(config.get("position_sigma_m", 250.0))
+    velocity_sigma_mmps = float(config.get("velocity_sigma_mmps", 5.0))
+    velocity_sigma_mps = velocity_sigma_mmps / 1_000.0
+    recovery_time_s = float(config.get("recovery_time_s", 12.0 * 3600.0))
+    delta_v_budget = float(config.get("delta_v_budget_mps", 15.0))
+    seed = config.get("seed")
+    rng = np.random.default_rng(seed)
+
+    records: list[Mapping[str, object]] = []
+    for sample_index in range(sample_count):
+        for sat_id in satellite_ids:
+            position_error = rng.normal(0.0, position_sigma_m, size=3)
+            velocity_error = rng.normal(0.0, velocity_sigma_mps, size=3)
+            position_mag = float(np.linalg.norm(position_error))
+            velocity_mag = float(np.linalg.norm(velocity_error))
+            delta_v_position = 2.0 * position_mag / recovery_time_s
+            delta_v_total = delta_v_position + velocity_mag
+            success = delta_v_total <= delta_v_budget
+            records.append(
+                {
+                    "sample_id": sample_index,
+                    "satellite_id": sat_id,
+                    "position_error_m": position_mag,
+                    "velocity_error_mps": velocity_mag,
+                    "delta_v_mps": delta_v_total,
+                    "success": bool(success),
+                }
+            )
+
+    dataframe = pd.DataFrame.from_records(records)
+
+    if dataframe.empty:
+        aggregate = {
+            "success_rate": 1.0,
+            "mean_delta_v_mps": 0.0,
+            "p95_delta_v_mps": 0.0,
+            "max_delta_v_mps": 0.0,
+        }
+        per_spacecraft = {sat_id: aggregate for sat_id in satellite_ids}
+        success_rate = 1.0
+    else:
+        success_rate = float(dataframe["success"].mean())
+        per_spacecraft = {}
+        for sat_id, group in dataframe.groupby("satellite_id"):
+            per_spacecraft[str(sat_id)] = {
+                "mean_delta_v_mps": float(group["delta_v_mps"].mean()),
+                "p95_delta_v_mps": float(group["delta_v_mps"].quantile(0.95)),
+                "max_delta_v_mps": float(group["delta_v_mps"].max()),
+                "success_rate": float(group["success"].mean()),
+            }
+        aggregate = {
+            "mean_delta_v_mps": float(dataframe["delta_v_mps"].mean()),
+            "p95_delta_v_mps": float(dataframe["delta_v_mps"].quantile(0.95)),
+            "max_delta_v_mps": float(dataframe["delta_v_mps"].max()),
+        }
+
+    metrics = {
+        "success_rate": success_rate,
+        "sample_count": sample_count,
+        "per_spacecraft": per_spacecraft,
+        "aggregate": aggregate,
+        "assumptions": {
+            "position_sigma_m": position_sigma_m,
+            "velocity_sigma_mmps": velocity_sigma_mmps,
+            "recovery_time_s": recovery_time_s,
+            "delta_v_budget_mps": delta_v_budget,
+        },
+    }
+
+    return metrics, dataframe
+
+
+def _write_injection_recovery_plot(samples: pd.DataFrame, output_path: Path) -> None:
+    if samples.empty:
+        return
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt  # noqa: WPS433 - imported for plotting
+
+    values = np.sort(samples["delta_v_mps"].to_numpy(dtype=float))
+    cumulative = (np.arange(len(values), dtype=float) + 1.0) / float(len(values))
+
+    figure, axis = plt.subplots(figsize=(6.0, 4.0))
+    axis.plot(values, cumulative, color="#1f77b4", linewidth=2.0)
+    axis.set_xlabel("Δv per spacecraft (m/s)")
+    axis.set_ylabel("Cumulative probability")
+    axis.set_title("Injection recovery Δv distribution")
+    axis.grid(True, alpha=0.3)
+    figure.tight_layout()
+    figure.savefig(output_path, format="svg")
+    plt.close(figure)
 
 def _export_to_stk(result: TriangleFormationResult, output_dir: Path, scenario_name: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
