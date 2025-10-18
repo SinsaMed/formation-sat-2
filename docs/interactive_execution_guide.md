@@ -42,7 +42,13 @@ The interface polls the `/debug/log/tail` endpoint to surface the `debug.txt` fi
 2. Prepare `StateSample` series for each spacecraft using the CSV outputs from the debug workflow or the JSON artefacts from the web interface. Convert units to kilometres and kilometres per second before export if necessary.[Ref2][Ref3]
 3. Run the exporter with the prepared state histories to produce STK text ephemerides. Record any deviations or limitations in the mission log so downstream consumers understand the conversion assumptions.[Ref3]
 
+## 8. Automated STK Workflow for the Tehran Formation Scenario
+1. Install STK 11.2 with COM automation enabled on a Windows workstation and ensure `pywin32` is available within the project virtual environment.[Ref4]
+2. Execute `python sim/scripts/run_stk_tehran.py --output-dir artefacts/stk_runs` to synthesise the three-satellite equilateral formation, export STK-compliant ephemerides, and trigger the Connect command sequence that loads the spacecraft, activates ground tracks, and initiates animation playback inside STK. Provide `--dry-run` when testing on non-Windows systems to generate the Connect script without opening STK.[Ref4]
+3. Inspect `artefacts/stk_runs/formation_metrics.json` for separation statistics and review the per-spacecraft CSV ground-track overlays in `artefacts/stk_runs/ground_tracks`. The Connect script saved alongside the ephemerides mirrors the automated session and can be re-run from an STK console if the initial automation must be audited.[Ref4]
+
 ## References
 [Ref1] `run.py`, Formation SAT Web Run Service implementation, 2023.
 [Ref2] `run_debug.py`, Formation SAT Debugging CLI, 2023.
 [Ref3] `tools/stk_export.py`, Formation SAT STK Export Utilities, 2023.
+[Ref4] `sim/scripts/run_stk_tehran.py`, Formation SAT STK Automation Entry Point, 2024.
