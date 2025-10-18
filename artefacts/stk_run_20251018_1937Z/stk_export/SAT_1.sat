@@ -1,9 +1,0 @@
-stk.v.11.0
-BEGIN Satellite
-Name SAT_1
-CentralBody Earth
-BEGIN Ephemeris
-   Type External
-   File "SAT_1.e"
-END Ephemeris
-END Satellite
