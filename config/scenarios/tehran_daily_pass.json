@@ -12,7 +12,11 @@
     "author": "Orbit Dynamics Team",
     "created": "2024-06-02",
     "stakeholders": ["Imaging Payload Working Group", "Mission Planning Cell"],
-    "validated_against_stk_export": true
+    "validated_against_stk_export": true,
+    "alignment_validation": {
+      "run_id": "run_20260321_0740Z",
+      "epoch_utc": "2026-03-21T07:40:10Z"
+    }
   },
   "orbital_elements": {
     "epoch_utc": "2026-03-21T09:32:00Z",
@@ -21,7 +25,7 @@
       "semi_major_axis_km": 6880.150,
       "eccentricity": 0.00012,
       "inclination_deg": 97.70,
-      "raan_deg": 43.20,
+      "raan_deg": 350.9838169642857,
       "argument_of_perigee_deg": 87.00,
       "mean_anomaly_deg": 14.50
     },
@@ -39,8 +43,8 @@
     "daily_access_windows": [
       {
         "label": "Morning Imaging",
-        "start_utc": "2026-03-21T09:24:00Z",
-        "end_utc": "2026-03-21T09:36:00Z",
+        "start_utc": "2026-03-21T07:39:25Z",
+        "end_utc": "2026-03-21T07:40:55Z",
         "min_elevation_deg": 20.0,
         "target": "Tehran Urban Core"
       },

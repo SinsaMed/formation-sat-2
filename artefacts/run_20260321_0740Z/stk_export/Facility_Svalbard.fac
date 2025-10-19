@@ -1,0 +1,10 @@
+stk.v.11.0
+BEGIN Facility
+Name Svalbard
+CentralBody Earth
+BEGIN Location
+Latitude 78.223000
+Longitude 15.646000
+Altitude 0.400
+END Location
+END Facility

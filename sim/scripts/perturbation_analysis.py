@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Mapping, MutableMapping, Sequence
 
 import numpy as np
+from statistics import fmean
 
 from constellation.frames import rotation_matrix_rtn_to_eci
 from constellation.orbit import (
@@ -556,6 +557,26 @@ def _propagate_deterministic(
             "max": float(altitude_max),
         },
     }
+    centroid_summary = metrics.get("centroid", {})
+    if isinstance(centroid_summary, Mapping):
+        deterministic_metrics["centroid_cross_track"] = {
+            "min_cross_track_km": float(centroid_summary.get("min_cross_track_km", math.inf)),
+            "min_abs_cross_track_km": float(
+                centroid_summary.get("min_abs_cross_track_km", math.inf)
+            ),
+            "time_of_min_abs_cross_track": centroid_summary.get(
+                "time_of_min_abs_cross_track"
+            ),
+            "vehicle_cross_track_km": centroid_summary.get(
+                "vehicle_cross_track_km_at_min", {}
+            ),
+            "vehicle_abs_cross_track_km": centroid_summary.get(
+                "vehicle_abs_cross_track_km_at_min", {}
+            ),
+            "worst_vehicle_abs_cross_track_km": float(
+                centroid_summary.get("worst_vehicle_abs_cross_track_km", math.inf)
+            ),
+        }
     plane_metrics["compliant"] = bool(plane_metrics.get("target_distance_km", math.inf) <= 10.0)
     deterministic_metrics["plane_intersection"] = plane_metrics
     deterministic_metrics["relative_cross_track"] = relative_summary
@@ -605,6 +626,14 @@ def _initial_metric_structure(
         "vehicles": vehicle_metrics,
         "overall_max_abs_cross_track_km": -math.inf,
         "overall_min_abs_cross_track_km": math.inf,
+        "centroid": {
+            "min_cross_track_km": math.inf,
+            "min_abs_cross_track_km": math.inf,
+            "time_of_min_abs_cross_track": None,
+            "vehicle_cross_track_km_at_min": {},
+            "vehicle_abs_cross_track_km_at_min": {},
+            "worst_vehicle_abs_cross_track_km": math.inf,
+        },
     }
 
 
@@ -691,6 +720,8 @@ def _record_metrics(
     """Update cross-track statistics for the current epoch."""
 
     vehicle_entries = metrics["vehicles"]
+    centroid_metrics = metrics.get("centroid", {})
+    epoch_values: dict[str, float] = {}
 
     for index, state in enumerate(states):
         position_ecef = inertial_to_ecef(state.position_m, epoch)
@@ -701,6 +732,7 @@ def _record_metrics(
 
         cross_track_series[state.identifier].append(float(cross_track_km))
         altitude_series[state.identifier].append(float(altitude))
+        epoch_values[state.identifier] = float(cross_track_km)
 
         entry = vehicle_entries[index]
         entry["max_cross_track_km"] = max(entry["max_cross_track_km"], cross_track_km)
@@ -726,6 +758,26 @@ def _record_metrics(
         metrics["overall_min_abs_cross_track_km"] = min(
             metrics["overall_min_abs_cross_track_km"], abs_value
         )
+
+    if epoch_values and isinstance(centroid_metrics, MutableMapping):
+        centroid_value = fmean(epoch_values.values())
+        abs_centroid = abs(centroid_value)
+        if abs_centroid < centroid_metrics.get("min_abs_cross_track_km", math.inf):
+            centroid_metrics["min_cross_track_km"] = float(centroid_value)
+            centroid_metrics["min_abs_cross_track_km"] = float(abs_centroid)
+            centroid_metrics["time_of_min_abs_cross_track"] = (
+                epoch.isoformat().replace("+00:00", "Z")
+            )
+            centroid_metrics["vehicle_cross_track_km_at_min"] = {
+                identifier: float(value) for identifier, value in epoch_values.items()
+            }
+            centroid_metrics["vehicle_abs_cross_track_km_at_min"] = {
+                identifier: float(abs(value))
+                for identifier, value in epoch_values.items()
+            }
+            centroid_metrics["worst_vehicle_abs_cross_track_km"] = float(
+                max(abs(value) for value in epoch_values.values())
+            )
 
     leader_state = next((state for state in states if state.identifier == "FSAT-LDR"), None)
     plane_b_state = next(

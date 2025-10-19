@@ -21,12 +21,16 @@ workflows.  The CLI accepts either a named scenario (resolved relative to the
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import logging
 import math
+import tempfile
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from statistics import fmean
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 from tools.stk_export import (
@@ -114,6 +118,17 @@ def run_scenario(
 
     stage_sequence: list[str] = []
 
+    raan_alignment = _resolve_raan_alignment(scenario)
+    if raan_alignment:
+        stage_sequence.append("raan_alignment")
+        best = raan_alignment.get("best_evaluation", {})
+        LOGGER.info(
+            "Optimised RAAN from %.6f° to %.6f°; centroid |cross-track| at midpoint: %.3f km.",
+            raan_alignment.get("initial_raan_deg", 0.0),
+            raan_alignment.get("optimised_raan_deg", 0.0),
+            float(best.get("centroid_abs_cross_track_km", math.inf)),
+        )
+
     nodes = _generate_nodes(scenario)
     stage_sequence.append("access_nodes")
     LOGGER.info("Identified %d mission nodes.", len(nodes))
@@ -134,6 +149,7 @@ def run_scenario(
         phases,
         scenario,
         output_directory=output_directory,
+        raan_alignment=raan_alignment,
     )
     stage_sequence.append("high_fidelity_j2_drag_propagation")
     LOGGER.info(
@@ -166,7 +182,7 @@ def run_scenario(
     else:
         LOGGER.debug("Skipping STK export because no output directory was provided.")
 
-    summary = {
+    summary: MutableMapping[str, object] = {
         "configuration_summary": _summarise_configuration(scenario),
         "nodes": [node.as_dict() for node in nodes],
         "phases": [phase.as_dict() for phase in phases],
@@ -174,6 +190,9 @@ def run_scenario(
         "metrics": metrics,
         "stage_sequence": stage_sequence,
     }
+
+    if raan_alignment:
+        summary["raan_alignment"] = raan_alignment
 
     artefacts: MutableMapping[str, Optional[str] | object] = {"summary_path": None}
     artefacts.update(propagation_artefacts)
@@ -263,6 +282,296 @@ def _load_configuration(source: configuration.ConfigSource) -> MutableMapping[st
     if isinstance(source, Mapping):
         return dict(source)
     return configuration.load_scenario(source)
+
+
+def _resolve_raan_alignment(
+    scenario: MutableMapping[str, object]
+) -> MutableMapping[str, object]:
+    """Optimise the RAAN to minimise centroid cross-track at the window midpoint."""
+
+    orbital = scenario.get("orbital_elements")
+    if not isinstance(orbital, MutableMapping):
+        return {}
+    classical = orbital.get("classical")
+    if not isinstance(classical, MutableMapping):
+        return {}
+    if "raan_deg" not in classical:
+        return {}
+
+    solver_config = scenario.get("raan_alignment")
+    if isinstance(solver_config, bool) and not solver_config:
+        return {}
+    if not isinstance(solver_config, Mapping):
+        solver_config = {}
+
+    midpoint = _parse_time(solver_config.get("midpoint_utc"))
+    if midpoint is None:
+        midpoint = _raan_target_midpoint(scenario)
+    if midpoint is None:
+        return {}
+
+    initial_raan = float(_coerce_float(classical, "raan_deg", 0.0))
+
+    window_duration = float(solver_config.get("window_duration_s", 90.0))
+    time_step = float(solver_config.get("time_step_s", 10.0))
+    search_span = float(solver_config.get("search_span_deg", 5.0))
+    samples = max(int(solver_config.get("samples_per_iteration", 9)), 3)
+    iterations = max(int(solver_config.get("iterations", 4)), 1)
+    coarse_samples = max(int(solver_config.get("coarse_samples", 36)), 3)
+    span_hours = float(solver_config.get("evaluation_span_hours", 2.0))
+    if span_hours <= 0.0:
+        span_hours = 2.0
+    coarse_range = solver_config.get("coarse_range_deg", (0.0, 360.0))
+    if (
+        isinstance(coarse_range, Sequence)
+        and len(coarse_range) == 2
+        and all(isinstance(value, (int, float)) for value in coarse_range)
+    ):
+        coarse_lower = float(coarse_range[0])
+        coarse_upper = float(coarse_range[1])
+    else:
+        coarse_lower, coarse_upper = 0.0, 360.0
+
+    half_window = timedelta(hours=span_hours)
+    start_time = midpoint - half_window
+    stop_time = midpoint + half_window
+
+    epoch_time = _parse_time(orbital.get("epoch_utc")) or start_time
+
+    evaluations: list[MutableMapping[str, object]] = []
+    best_result: MutableMapping[str, object] | None = None
+
+    for index in range(coarse_samples):
+        if coarse_samples == 1:
+            candidate = coarse_lower
+        else:
+            fraction = index / (coarse_samples - 1)
+            candidate = coarse_lower + (coarse_upper - coarse_lower) * fraction
+        result = _evaluate_raan_candidate(
+            scenario,
+            candidate,
+            start_time,
+            stop_time,
+            epoch_time,
+            time_step,
+            window_duration,
+        )
+        evaluations.append(result)
+        if not best_result or (
+            result.get("centroid_abs_cross_track_km", math.inf)
+            < best_result.get("centroid_abs_cross_track_km", math.inf)
+        ):
+            best_result = result
+
+    if not best_result:
+        return {}
+
+    centre_raan = float(best_result.get("raan_deg", initial_raan))
+    lower = centre_raan - search_span
+    upper = centre_raan + search_span
+
+    for _ in range(iterations):
+        iteration_results: list[MutableMapping[str, object]] = []
+        for index in range(samples):
+            if samples == 1:
+                candidate = lower
+            else:
+                fraction = index / (samples - 1)
+                candidate = lower + (upper - lower) * fraction
+            result = _evaluate_raan_candidate(
+                scenario,
+                candidate,
+                start_time,
+                stop_time,
+                epoch_time,
+                time_step,
+                window_duration,
+            )
+            evaluations.append(result)
+            iteration_results.append(result)
+            if not best_result or (
+                result.get("centroid_abs_cross_track_km", math.inf)
+                < best_result.get("centroid_abs_cross_track_km", math.inf)
+            ):
+                best_result = result
+
+        if not iteration_results:
+            break
+
+        iteration_best = min(
+            iteration_results,
+            key=lambda item: item.get("centroid_abs_cross_track_km", math.inf),
+        )
+        centre = float(iteration_best.get("raan_deg", initial_raan))
+        span = max((upper - lower) / max(samples - 1, 1), 1e-4)
+        lower = centre - span
+        upper = centre + span
+
+    optimised_raan = float(best_result.get("raan_deg", initial_raan))
+    classical["raan_deg"] = optimised_raan
+
+    summary: MutableMapping[str, object] = {
+        "initial_raan_deg": float(initial_raan),
+        "optimised_raan_deg": optimised_raan,
+        "target_midpoint_utc": _format_time(midpoint),
+        "window_duration_s": window_duration,
+        "time_step_s": time_step,
+        "evaluations": evaluations,
+        "best_evaluation": best_result,
+    }
+
+    worst_vehicle = float(best_result.get("worst_vehicle_abs_cross_track_km", math.inf))
+    summary["worst_vehicle_abs_cross_track_km"] = worst_vehicle
+    summary["centroid_abs_cross_track_km"] = float(
+        best_result.get("centroid_abs_cross_track_km", math.inf)
+    )
+
+    return summary
+
+
+def _raan_target_midpoint(scenario: Mapping[str, object]) -> Optional[datetime]:
+    """Return the midpoint of the primary access window for RAAN alignment."""
+
+    orbital = scenario.get("orbital_elements")
+    if isinstance(orbital, Mapping):
+        epoch = _parse_time(orbital.get("epoch_utc"))
+        if epoch is not None:
+            return epoch
+
+    timing = scenario.get("timing")
+    if isinstance(timing, Mapping):
+        windows = timing.get("daily_access_windows")
+        if isinstance(windows, Sequence) and windows:
+            first = windows[0] if isinstance(windows[0], Mapping) else {}
+            start = _parse_time(first.get("start_utc"))
+            end = _parse_time(first.get("end_utc"))
+            if start and end:
+                midpoint = start + (end - start) / 2
+                return midpoint
+            if start:
+                return start + timedelta(seconds=45.0)
+
+    start = _parse_time(_extract_planning_horizon(scenario, "start_utc"))
+    stop = _parse_time(_extract_planning_horizon(scenario, "stop_utc"))
+    if start and stop:
+        return start + (stop - start) / 2
+    if start:
+        return start + timedelta(seconds=45.0)
+    return None
+
+
+def _evaluate_raan_candidate(
+    scenario: Mapping[str, object],
+    raan_deg: float,
+    start_time: datetime,
+    stop_time: datetime,
+    epoch_time: datetime,
+    time_step_s: float,
+    window_duration_s: float,
+) -> MutableMapping[str, object]:
+    """Evaluate centroid cross-track performance for a RAAN candidate."""
+
+    scenario_copy = deepcopy(scenario)
+    orbital = scenario_copy.setdefault("orbital_elements", {})
+    classical = orbital.setdefault("classical", {})
+    normalised_raan = _normalise_raan_deg(raan_deg)
+    classical["raan_deg"] = normalised_raan
+
+    settings = perturbation_analysis.PropagatorSettings(
+        start_time=start_time,
+        epoch_time=epoch_time,
+        stop_time=stop_time,
+        time_step_s=time_step_s,
+        drag_coefficient=2.2,
+        ballistic_coefficient_m2_per_kg=0.025,
+        solar_flux_index=perturbation_analysis.SOLAR_FLUX_BASE,
+    )
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        perturbation_analysis.propagate_constellation(
+            scenario_copy,
+            output_directory=Path(tmp_dir),
+            settings=settings,
+            monte_carlo={"enabled": False, "runs": 0},
+        )
+        cross_track_path = Path(tmp_dir) / "deterministic_cross_track.csv"
+        samples = _load_cross_track_series(cross_track_path)
+
+    best_time = None
+    best_values: MutableMapping[str, float] = {}
+    centroid = math.inf
+    for timestamp, values in samples:
+        if not values:
+            continue
+        current_centroid = fmean(values.values())
+        abs_value = abs(current_centroid)
+        if abs_value < abs(centroid):
+            centroid = current_centroid
+            best_time = timestamp
+            best_values = values
+
+    if best_time is None:
+        best_time = start_time
+        best_values = {}
+        centroid = math.inf
+
+    abs_values = {identifier: abs(value) for identifier, value in best_values.items()}
+    window_half = timedelta(seconds=0.5 * window_duration_s)
+    window_start = best_time - window_half
+    window_end = best_time + window_half
+
+    result: MutableMapping[str, object] = {
+        "raan_deg": normalised_raan,
+        "evaluation_time_utc": _format_time(best_time),
+        "centroid_cross_track_km": float(centroid),
+        "centroid_abs_cross_track_km": float(abs(centroid)),
+        "window_start_utc": _format_time(window_start),
+        "window_end_utc": _format_time(window_end),
+        "vehicle_cross_track_km": {k: float(v) for k, v in best_values.items()},
+        "vehicle_abs_cross_track_km": {k: float(v) for k, v in abs_values.items()},
+        "worst_vehicle_abs_cross_track_km": float(max(abs_values.values(), default=math.inf)),
+    }
+
+    return result
+
+
+def _load_cross_track_series(
+    csv_path: Path,
+) -> list[tuple[datetime, MutableMapping[str, float]]]:
+    """Return the cross-track series from *csv_path* as timestamped samples."""
+
+    samples: list[tuple[datetime, MutableMapping[str, float]]] = []
+    if not csv_path.exists():
+        return samples
+
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            timestamp = _parse_time(row.get("time_iso"))
+            if timestamp is None:
+                continue
+            values: MutableMapping[str, float] = {}
+            for key, value in row.items():
+                if key == "time_iso":
+                    continue
+                try:
+                    values[key] = float(value)
+                except (TypeError, ValueError):
+                    continue
+            samples.append((timestamp, values))
+
+    return samples
+
+
+def _normalise_raan_deg(value: float) -> float:
+    """Wrap *value* into the [0, 360) interval."""
+
+    normalised = math.fmod(value, 360.0)
+    if normalised < 0.0:
+        normalised += 360.0
+    if normalised == 360.0:
+        normalised = 0.0
+    return normalised
 
 
 def _generate_nodes(scenario: Mapping[str, object]) -> list[Node]:
@@ -413,6 +722,7 @@ def _apply_j2_drag(
     scenario: Mapping[str, object],
     *,
     output_directory: Optional[Path | str] = None,
+    raan_alignment: Optional[Mapping[str, object]] = None,
 ) -> tuple[
     MutableMapping[str, object],
     MutableMapping[str, str],
@@ -426,6 +736,12 @@ def _apply_j2_drag(
         output_directory=Path(output_directory) if output_directory else None,
     )
 
+    _update_centroid_alignment_metrics(
+        artefacts,
+        propagation_summary,
+        raan_alignment,
+    )
+
     orbital_period = float(propagation_summary.get("orbital_period_s", 0.0))
     nominal_period = float(two_body.get("orbital_period_s", orbital_period))
     propagation_summary.setdefault("two_body_period_s", nominal_period)
@@ -436,6 +752,54 @@ def _apply_j2_drag(
     )
 
     return propagation_summary, artefacts
+
+
+def _update_centroid_alignment_metrics(
+    artefacts: Mapping[str, str],
+    propagation_summary: MutableMapping[str, object],
+    raan_alignment: Optional[Mapping[str, object]],
+) -> None:
+    """Inject centroid alignment results into the propagation artefacts."""
+
+    if not isinstance(raan_alignment, Mapping):
+        return
+    best = raan_alignment.get("best_evaluation")
+    if not isinstance(best, Mapping):
+        return
+
+    centroid_metrics = {
+        "min_cross_track_km": float(best.get("centroid_cross_track_km", math.inf)),
+        "min_abs_cross_track_km": float(best.get("centroid_abs_cross_track_km", math.inf)),
+        "time_of_min_abs_cross_track": best.get("evaluation_time_utc"),
+        "vehicle_cross_track_km": {
+            key: float(value) for key, value in (best.get("vehicle_cross_track_km") or {}).items()
+        },
+        "vehicle_abs_cross_track_km": {
+            key: float(value) for key, value in (best.get("vehicle_abs_cross_track_km") or {}).items()
+        },
+        "worst_vehicle_abs_cross_track_km": float(
+            best.get("worst_vehicle_abs_cross_track_km", math.inf)
+        ),
+    }
+
+    propagation_summary["centroid_alignment"] = centroid_metrics
+
+    summary_path = artefacts.get("deterministic_summary_json")
+    if not summary_path:
+        return
+
+    path = Path(summary_path)
+    if not path.exists():
+        return
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+
+    metrics = data.setdefault("metrics", {})
+    metrics["centroid_cross_track"] = centroid_metrics
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def _summarise_metrics(
