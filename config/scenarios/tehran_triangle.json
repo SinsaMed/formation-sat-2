@@ -3,14 +3,18 @@
     "scenario_name": "Tehran Triangle Formation",
     "description": "Three-satellite equilateral formation centred on Tehran with 6 km side length.",
     "author": "Formation Dynamics Team",
-    "validated_against_stk_export": true
+    "validated_against_stk_export": true,
+    "alignment_validation": {
+      "run_id": "run_20260321_0740Z",
+      "epoch_utc": "2026-03-21T07:40:10Z"
+    }
   },
   "reference_orbit": {
     "epoch_utc": "2026-03-21T09:32:00Z",
     "semi_major_axis_km": 6898.137,
     "eccentricity": 0.0,
     "inclination_deg": 97.7,
-    "raan_deg": 18.880656018950965,
+    "raan_deg": 350.9838169642857,
     "argument_of_perigee_deg": 0.0,
     "mean_anomaly_deg": 36.06454701821796
   },
