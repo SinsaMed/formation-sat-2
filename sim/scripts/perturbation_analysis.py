@@ -4,10 +4,10 @@ The helper functions defined here extend the lightweight scenario pipeline by
 introducing a deterministic force model and a Monte Carlo dispersion analysis
 tailored to the Tehran daily pass configuration.  The propagated states capture
 cross-track offsets for every spacecraft in the formation, enabling direct
-verification of the ±10 km alignment requirement that governs MR-2 and
-SRD-P-001.  Outputs are serialisable to JSON and comma-separated value (CSV)
-formats so they remain compatible with Systems Tool Kit (STK 11.2) validation
-workflows as required by the repository guidelines.
+verification of the ±30 km primary alignment tolerance (and the ±70 km waiver
+ceiling) that governs MR-2 and SRD-P-001.  Outputs are serialisable to JSON and
+comma-separated value (CSV) formats so they remain compatible with Systems Tool
+Kit (STK 11.2) validation workflows as required by the repository guidelines.
 """
 
 from __future__ import annotations
