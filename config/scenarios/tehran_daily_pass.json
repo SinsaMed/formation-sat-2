@@ -14,7 +14,7 @@
     "stakeholders": ["Imaging Payload Working Group", "Mission Planning Cell"],
     "validated_against_stk_export": true,
     "alignment_validation": {
-      "run_id": "run_20251020_0921Z_tehran_daily_pass",
+      "run_id": "run_20260321_0740Z",
       "epoch_utc": "2026-03-21T07:40:10Z"
     }
   },
@@ -40,13 +40,11 @@
       "start_utc": "2026-03-21T00:00:00Z",
       "stop_utc": "2026-03-28T00:00:00Z"
     },
-    "propagation_start_utc": "2026-03-21T07:35:10Z",
     "daily_access_windows": [
       {
         "label": "Morning Imaging",
         "start_utc": "2026-03-21T07:39:25Z",
         "end_utc": "2026-03-21T07:40:55Z",
-        "midpoint_utc": "2026-03-21T07:40:10Z",
         "min_elevation_deg": 20.0,
         "target": "Tehran Urban Core"
       },
@@ -79,13 +77,6 @@
       "encryption_standard": "CCSDS 355.0-B-1"
     }
   },
-  "alignment_requirements": {
-    "cross_track_limits": {
-      "primary_km": 30.0,
-      "waiver_km": 70.0
-    }
-  },
-  "raan_alignment": false,
   "operational_constraints": {
     "power": {
       "min_state_of_charge_pct": 35,

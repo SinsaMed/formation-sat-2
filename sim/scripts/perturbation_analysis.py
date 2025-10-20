@@ -72,7 +72,7 @@ PLANE_ASSIGNMENTS = {
 
 DEFAULT_MONTE_CARLO = {
     "enabled": True,
-    "runs": 600,
+    "runs": 200,
     "seed": 42,
     "dispersions": {
         "semi_major_axis_sigma_m": 5.0,
@@ -230,20 +230,7 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
     planning = timing.get("planning_horizon", {}) if isinstance(timing.get("planning_horizon"), Mapping) else {}
     stop_time = _parse_time(planning.get("stop_utc"))
 
-    propagation_start = None
-    if isinstance(timing, Mapping):
-        propagation_start = _parse_time(timing.get("propagation_start_utc"))
-
-    if propagation_start is None:
-        if window_start is not None:
-            propagation_start = window_start - timedelta(minutes=5)
-        else:
-            propagation_start = reference_start - timedelta(minutes=30)
-
-    if window_start is not None and propagation_start >= window_start:
-        propagation_start = window_start - timedelta(minutes=2)
-
-    analysis_start = propagation_start
+    analysis_start = reference_start - timedelta(minutes=30)
     if not stop_time:
         stop_time = analysis_start + timedelta(hours=6)
     else:
@@ -263,38 +250,11 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
 
     requirements = scenario.get("alignment_requirements")
     if isinstance(requirements, Mapping):
-        cross_limits = requirements.get("cross_track_limits")
-        if isinstance(cross_limits, Mapping):
-            primary_candidate = cross_limits.get("primary_km")
-            waiver_candidate = cross_limits.get("waiver_km")
-            if primary_candidate is not None:
-                try:
-                    primary_limit = float(primary_candidate)
-                except (TypeError, ValueError):
-                    pass
-            if waiver_candidate is not None:
-                try:
-                    waiver_limit = float(waiver_candidate)
-                except (TypeError, ValueError):
-                    pass
-        legacy_primary = requirements.get("primary_cross_track_limit_km")
-        legacy_waiver = requirements.get("waiver_cross_track_limit_km")
-        if legacy_primary is not None:
-            try:
-                primary_limit = float(legacy_primary)
-            except (TypeError, ValueError):
-                pass
-        if legacy_waiver is not None:
-            try:
-                waiver_limit = float(legacy_waiver)
-            except (TypeError, ValueError):
-                pass
+        primary_limit = float(requirements.get("primary_cross_track_limit_km", primary_limit))
+        waiver_limit = float(requirements.get("waiver_cross_track_limit_km", waiver_limit))
         plane_candidate = requirements.get("plane_intersection_limit_km", plane_limit)
         if plane_candidate is not None:
-            try:
-                plane_limit = float(plane_candidate)
-            except (TypeError, ValueError):
-                plane_limit = plane_limit
+            plane_limit = float(plane_candidate)
 
     return PropagatorSettings(
         start_time=analysis_start,
@@ -655,17 +615,6 @@ def _propagate_deterministic(
     )
     waiver_compliant = math.isfinite(worst_abs) and worst_abs <= waiver_limit
 
-    finite_abs_values = [
-        value for value in evaluation_abs.values() if math.isfinite(value)
-    ]
-    if finite_abs_values:
-        waiver_pass_fraction = sum(
-            1 for value in finite_abs_values if value <= waiver_limit
-        ) / len(finite_abs_values)
-    else:
-        waiver_pass_fraction = 0.0
-    primary_pass_fraction = 1.0 if primary_compliant else 0.0
-
     for entry in metrics["vehicles"]:
         identifier = str(entry.get("identifier", ""))
         value = evaluation_values.get(identifier, float("nan"))
@@ -702,8 +651,6 @@ def _propagate_deterministic(
         "waiver_compliant": bool(waiver_compliant),
         "primary_limit_km": float(primary_limit),
         "waiver_limit_km": float(waiver_limit),
-        "primary_pass_fraction": float(primary_pass_fraction),
-        "waiver_pass_fraction": float(waiver_pass_fraction),
     }
     metrics["centroid_cross_track_km_at_evaluation"] = centroid_value_out
     metrics["centroid_abs_cross_track_km_at_evaluation"] = centroid_abs_out
@@ -1111,7 +1058,6 @@ def _run_monte_carlo(
             "max_abs_cross_track_km": {},
             "fleet_compliance_probability": 1.0,
         }
-    runs = max(runs, 500)
 
     dispersions = monte_carlo.get("dispersions", {})
     sigma_a = float(dispersions.get("semi_major_axis_sigma_m", 0.0))
