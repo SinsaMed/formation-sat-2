@@ -35,16 +35,38 @@
       "local_time_descending_node": "10:30"
     }
   },
+  "access_window": {
+    "start_utc": "2026-03-21T07:39:25Z",
+    "end_utc": "2026-03-21T07:40:55Z",
+    "midpoint_utc": "2026-03-21T07:40:10Z"
+  },
+  "cross_track_limits": {
+    "primary_km": 30.0,
+    "waiver_km": 70.0
+  },
+  "raan_alignment": {
+    "midpoint_utc": "2026-03-21T07:40:10Z",
+    "window_duration_s": 90.0,
+    "time_step_s": 10.0,
+    "propagation_margin_s": 300.0
+  },
   "timing": {
     "planning_horizon": {
       "start_utc": "2026-03-21T00:00:00Z",
       "stop_utc": "2026-03-28T00:00:00Z"
+    },
+    "propagation": {
+      "start_utc": "2026-03-21T07:34:25Z",
+      "end_utc": "2026-03-21T07:45:55Z",
+      "margin_s": 300.0,
+      "time_step_s": 10.0
     },
     "daily_access_windows": [
       {
         "label": "Morning Imaging",
         "start_utc": "2026-03-21T07:39:25Z",
         "end_utc": "2026-03-21T07:40:55Z",
+        "midpoint_utc": "2026-03-21T07:40:10Z",
         "min_elevation_deg": 20.0,
         "target": "Tehran Urban Core"
       },

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -70,9 +71,12 @@ PLANE_ASSIGNMENTS = {
     "FSAT-DP2": "Plane B",
 }
 
+LOGGER = logging.getLogger(__name__)
+
+
 DEFAULT_MONTE_CARLO = {
     "enabled": True,
-    "runs": 200,
+    "runs": 500,
     "seed": 42,
     "dispersions": {
         "semi_major_axis_sigma_m": 5.0,
@@ -168,6 +172,86 @@ def propagate_constellation(
     return summary, artefact_paths
 
 
+def scenario_cross_track_limits(
+    scenario: Mapping[str, object]
+) -> tuple[float, float, float | None]:
+    """Return the primary, waiver, and optional plane-intersection limits."""
+
+    primary_limit = float(os.getenv("FSAT_PRIMARY_CROSS_TRACK_LIMIT_KM", "30.0"))
+    waiver_limit = float(os.getenv("FSAT_WAIVER_CROSS_TRACK_LIMIT_KM", "70.0"))
+    plane_limit_env = os.getenv("FSAT_PLANE_INTERSECTION_LIMIT_KM")
+    plane_limit: float | None = (
+        float(plane_limit_env) if plane_limit_env is not None else None
+    )
+
+    limits = scenario.get("cross_track_limits")
+    if isinstance(limits, Mapping):
+        if "primary_km" in limits:
+            try:
+                primary_limit = float(limits["primary_km"])
+            except (TypeError, ValueError):
+                pass
+        if "waiver_km" in limits:
+            try:
+                waiver_limit = float(limits["waiver_km"])
+            except (TypeError, ValueError):
+                pass
+        plane_candidate = limits.get("plane_intersection_limit_km")
+        if plane_candidate is not None:
+            try:
+                plane_limit = float(plane_candidate)
+            except (TypeError, ValueError):
+                pass
+    else:
+        requirements = scenario.get("alignment_requirements")
+        if isinstance(requirements, Mapping):
+            primary_limit = float(
+                requirements.get("primary_cross_track_limit_km", primary_limit)
+            )
+            waiver_limit = float(
+                requirements.get("waiver_cross_track_limit_km", waiver_limit)
+            )
+            plane_candidate = requirements.get("plane_intersection_limit_km", plane_limit)
+            if plane_candidate is not None:
+                plane_limit = float(plane_candidate)
+
+    return primary_limit, waiver_limit, plane_limit
+
+
+def scenario_access_window(
+    scenario: Mapping[str, object]
+) -> tuple[datetime | None, datetime | None, datetime | None]:
+    """Return start, end, and midpoint timestamps for the primary access window."""
+
+    window = scenario.get("access_window")
+    start = _parse_time(window.get("start_utc")) if isinstance(window, Mapping) else None
+    end = _parse_time(window.get("end_utc")) if isinstance(window, Mapping) else None
+    midpoint = (
+        _parse_time(window.get("midpoint_utc")) if isinstance(window, Mapping) else None
+    )
+
+    timing = (
+        scenario.get("timing", {}) if isinstance(scenario.get("timing"), Mapping) else {}
+    )
+    windows = timing.get("daily_access_windows")
+    if start is None or end is None:
+        if isinstance(windows, Sequence) and windows:
+            primary = windows[0] if isinstance(windows[0], Mapping) else {}
+            if start is None:
+                start = _parse_time(primary.get("start_utc"))
+            if end is None:
+                end = _parse_time(primary.get("end_utc"))
+            if midpoint is None:
+                midpoint = _parse_time(primary.get("midpoint_utc"))
+
+    if midpoint is None and start and end:
+        midpoint = start + (end - start) / 2
+    elif midpoint is None and start:
+        midpoint = start + timedelta(seconds=45.0)
+
+    return start, end, midpoint
+
+
 def _build_summary(
     deterministic_metrics: MutableMapping[str, object],
     monte_carlo_metrics: MutableMapping[str, object],
@@ -205,17 +289,9 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
     """Return baseline propagation settings derived from the scenario."""
 
     timing = scenario.get("timing", {}) if isinstance(scenario.get("timing"), Mapping) else {}
-    windows = timing.get("daily_access_windows", []) if isinstance(timing.get("daily_access_windows"), Sequence) else []
-
-    window_start = None
-    window_end = None
-    if windows:
-        first_window = windows[0] if isinstance(windows[0], Mapping) else {}
-        window_start = _parse_time(first_window.get("start_utc"))
-        window_end = _parse_time(first_window.get("end_utc"))
-
+    window_start, window_end, window_midpoint = scenario_access_window(scenario)
     orbital_elements = scenario.get("orbital_elements", {})
-    reference_start = window_start
+    reference_start = window_start or window_midpoint
     if reference_start is None:
         reference_start = _parse_time(
             orbital_elements.get("epoch_utc") if isinstance(orbital_elements, Mapping) else None
@@ -228,39 +304,53 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
     ) or reference_start
 
     planning = timing.get("planning_horizon", {}) if isinstance(timing.get("planning_horizon"), Mapping) else {}
-    stop_time = _parse_time(planning.get("stop_utc"))
+    planning_stop = _parse_time(planning.get("stop_utc"))
 
-    analysis_start = reference_start - timedelta(minutes=30)
-    if not stop_time:
-        stop_time = analysis_start + timedelta(hours=6)
-    else:
-        stop_time = min(stop_time, analysis_start + timedelta(hours=6))
+    propagation = timing.get("propagation") if isinstance(timing.get("propagation"), Mapping) else {}
+    margin_s = 300.0
+    try:
+        margin_candidate = float(propagation.get("margin_s", margin_s))
+        margin_s = max(margin_candidate, 120.0)
+    except (TypeError, ValueError):
+        margin_s = max(margin_s, 120.0)
+    margin = timedelta(seconds=margin_s)
 
-    if window_start and window_end:
-        evaluation_time = window_start + (window_end - window_start) / 2
-    elif window_start:
-        evaluation_time = window_start + timedelta(seconds=45.0)
-    else:
-        evaluation_time = reference_start
+    start_override = _parse_time(propagation.get("start_utc")) if propagation else None
+    end_override = _parse_time(propagation.get("end_utc")) if propagation else None
+    time_step = 10.0
+    try:
+        time_step = float(propagation.get("time_step_s", time_step))
+    except (TypeError, ValueError):
+        time_step = 10.0
 
-    primary_limit = float(os.getenv("FSAT_PRIMARY_CROSS_TRACK_LIMIT_KM", "30.0"))
-    waiver_limit = float(os.getenv("FSAT_WAIVER_CROSS_TRACK_LIMIT_KM", "70.0"))
-    plane_limit_env = os.getenv("FSAT_PLANE_INTERSECTION_LIMIT_KM")
-    plane_limit = float(plane_limit_env) if plane_limit_env is not None else None
+    analysis_start = start_override or (reference_start - margin)
+    if window_start and analysis_start > window_start - margin:
+        analysis_start = window_start - margin
 
-    requirements = scenario.get("alignment_requirements")
-    if isinstance(requirements, Mapping):
-        primary_limit = float(requirements.get("primary_cross_track_limit_km", primary_limit))
-        waiver_limit = float(requirements.get("waiver_cross_track_limit_km", waiver_limit))
-        plane_candidate = requirements.get("plane_intersection_limit_km", plane_limit)
-        if plane_candidate is not None:
-            plane_limit = float(plane_candidate)
+    candidate_stop = end_override
+    if candidate_stop is None:
+        if window_end:
+            candidate_stop = window_end + margin
+        elif window_midpoint:
+            candidate_stop = window_midpoint + margin
+        else:
+            candidate_stop = analysis_start + timedelta(minutes=10)
+
+    if planning_stop:
+        candidate_stop = min(candidate_stop, planning_stop)
+
+    if candidate_stop <= analysis_start:
+        candidate_stop = analysis_start + timedelta(minutes=10)
+
+    evaluation_time = window_midpoint or reference_start
+
+    primary_limit, waiver_limit, plane_limit = scenario_cross_track_limits(scenario)
 
     return PropagatorSettings(
         start_time=analysis_start,
         epoch_time=epoch_time,
-        stop_time=stop_time,
-        time_step_s=60.0,
+        stop_time=candidate_stop,
+        time_step_s=time_step,
         drag_coefficient=2.2,
         ballistic_coefficient_m2_per_kg=0.025,
         solar_flux_index=SOLAR_FLUX_BASE,
@@ -291,6 +381,12 @@ def _normalise_monte_carlo(monte_carlo: Mapping[str, object] | None) -> MutableM
     if not isinstance(dispersions, Mapping):
         dispersions = DEFAULT_MONTE_CARLO["dispersions"]
     config["dispersions"] = dict(dispersions)
+
+    try:
+        runs = int(config.get("runs", DEFAULT_MONTE_CARLO["runs"]))
+    except (TypeError, ValueError):
+        runs = DEFAULT_MONTE_CARLO["runs"]
+    config["runs"] = max(runs, 500)
 
     return config
 
@@ -614,6 +710,15 @@ def _propagate_deterministic(
         and worst_abs <= waiver_limit
     )
     waiver_compliant = math.isfinite(worst_abs) and worst_abs <= waiver_limit
+    finite_vehicle_abs = [
+        value for value in evaluation_abs.values() if math.isfinite(value)
+    ]
+    waiver_pass_fraction = (
+        sum(1 for value in finite_vehicle_abs if value <= waiver_limit) / len(finite_vehicle_abs)
+        if finite_vehicle_abs
+        else 0.0
+    )
+    primary_pass_fraction = 1.0 if primary_compliant else 0.0
 
     for entry in metrics["vehicles"]:
         identifier = str(entry.get("identifier", ""))
@@ -651,6 +756,8 @@ def _propagate_deterministic(
         "waiver_compliant": bool(waiver_compliant),
         "primary_limit_km": float(primary_limit),
         "waiver_limit_km": float(waiver_limit),
+        "primary_pass_fraction": float(primary_pass_fraction),
+        "waiver_pass_fraction": float(waiver_pass_fraction),
     }
     metrics["centroid_cross_track_km_at_evaluation"] = centroid_value_out
     metrics["centroid_abs_cross_track_km_at_evaluation"] = centroid_abs_out
@@ -659,6 +766,8 @@ def _propagate_deterministic(
     metrics["waiver_compliant"] = bool(waiver_compliant)
     metrics["primary_limit_km"] = float(primary_limit)
     metrics["waiver_limit_km"] = float(waiver_limit)
+    metrics["primary_pass_fraction"] = float(primary_pass_fraction)
+    metrics["waiver_pass_fraction"] = float(waiver_pass_fraction)
 
     relative_summary = {
         "max_abs_km": float(relative_stats["max_abs"]),
@@ -1058,6 +1167,7 @@ def _run_monte_carlo(
             "max_abs_cross_track_km": {},
             "fleet_compliance_probability": 1.0,
         }
+    runs = max(runs, 500)
 
     dispersions = monte_carlo.get("dispersions", {})
     sigma_a = float(dispersions.get("semi_major_axis_sigma_m", 0.0))
@@ -1088,6 +1198,14 @@ def _run_monte_carlo(
     plane_limit = settings.plane_intersection_limit_km
 
     epoch_offset = (settings.start_time - settings.epoch_time).total_seconds()
+
+    evaluation_iso = evaluation_time.isoformat().replace("+00:00", "Z")
+    LOGGER.info(
+        "Monte Carlo dispersion: seed=%d, runs=%d, evaluation_utc=%s",
+        seed,
+        runs,
+        evaluation_iso,
+    )
 
     for _ in range(runs):
         dispersed_elements = OrbitalElements(
@@ -1572,5 +1690,10 @@ def _parse_time(value: object) -> datetime | None:
     return None
 
 
-__all__ = ["PropagatorSettings", "propagate_constellation"]
+__all__ = [
+    "PropagatorSettings",
+    "propagate_constellation",
+    "scenario_cross_track_limits",
+    "scenario_access_window",
+]
 
