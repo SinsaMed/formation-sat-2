@@ -933,20 +933,30 @@ def _summarise_metrics(
             metrics["monte_carlo_relative_compliance_probability"] = float(
                 compliance.get("relative_fraction", 0.0)
             )
-            metrics["monte_carlo_plane_compliance_probability"] = float(
-                compliance.get("plane_fraction", 0.0)
-            )
+            plane_fraction = compliance.get("plane_fraction")
+            if isinstance(plane_fraction, (int, float)) and math.isfinite(
+                float(plane_fraction)
+            ):
+                metrics["monte_carlo_plane_compliance_probability"] = float(
+                    plane_fraction
+                )
         metrics["monte_carlo_fleet_compliance_probability"] = float(
             monte_carlo.get("fleet_compliance_probability", 0.0)
         )
         metrics["monte_carlo_run_count"] = float(monte_carlo.get("runs", 0))
 
-    plane_intersection = perturbed.get("plane_intersection") if isinstance(perturbed, Mapping) else None
+    plane_intersection = (
+        perturbed.get("plane_intersection") if isinstance(perturbed, Mapping) else None
+    )
     if isinstance(plane_intersection, Mapping):
-        metrics["plane_intersection_distance_km"] = float(
-            plane_intersection.get("target_distance_km", 0.0)
-        )
-        metrics["plane_intersection_compliant"] = 1.0 if plane_intersection.get("compliant") else 0.0
+        distance = float(plane_intersection.get("target_distance_km", 0.0))
+        metrics["plane_intersection_distance_km"] = distance
+        plane_limit = plane_intersection.get("limit_km")
+        if isinstance(plane_limit, (int, float)) and math.isfinite(float(plane_limit)):
+            metrics["plane_intersection_limit_km"] = float(plane_limit)
+            compliant_flag = plane_intersection.get("compliant")
+            if compliant_flag is not None:
+                metrics["plane_intersection_compliant"] = 1.0 if compliant_flag else 0.0
 
     if metrics_specification:
         # Retain ordering requested by the caller while keeping the full set in the map.
