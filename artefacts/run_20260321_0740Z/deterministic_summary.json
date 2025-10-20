@@ -15,20 +15,24 @@
           "time_of_max_abs_cross_track": "2026-03-21T08:27:25Z",
           "time_of_min_abs_cross_track": "2026-03-21T07:40:25Z",
           "pass_count": 8,
-          "compliant": false
+          "compliant": false,
+          "cross_track_at_evaluation_km": 97.06486786960882,
+          "abs_cross_track_at_evaluation_km": 97.06486786960882
         },
         {
           "identifier": "FSAT-DP1",
           "target_latitude_deg": 35.6892,
           "target_longitude_deg": 51.389,
-          "max_cross_track_km": 11908.019323709668,
+          "max_cross_track_km": 11908.01932370967,
           "min_cross_track_km": -18990.023980145434,
           "max_abs_cross_track_km": 18990.023980145434,
-          "min_abs_cross_track_km": 61.91900673758063,
+          "min_abs_cross_track_km": 61.919006737581356,
           "time_of_max_abs_cross_track": "2026-03-21T08:27:25Z",
           "time_of_min_abs_cross_track": "2026-03-21T07:40:25Z",
           "pass_count": 8,
-          "compliant": false
+          "compliant": true,
+          "cross_track_at_evaluation_km": 61.919006737581356,
+          "abs_cross_track_at_evaluation_km": 61.919006737581356
         },
         {
           "identifier": "FSAT-DP2",
@@ -41,27 +45,56 @@
           "time_of_max_abs_cross_track": "2026-03-21T08:27:25Z",
           "time_of_min_abs_cross_track": "2026-03-21T07:40:25Z",
           "pass_count": 8,
-          "compliant": false
+          "compliant": false,
+          "cross_track_at_evaluation_km": 132.3898860084081,
+          "abs_cross_track_at_evaluation_km": 132.3898860084081
         }
       ],
       "overall_max_abs_cross_track_km": 18990.023980145434,
       "overall_min_abs_cross_track_km": 132.3898860084081,
       "centroid": {
-        "min_cross_track_km": 97.12458687186586,
-        "min_abs_cross_track_km": 97.12458687186586,
+        "min_cross_track_km": 97.12458687186609,
+        "min_abs_cross_track_km": 97.12458687186609,
         "time_of_min_abs_cross_track": "2026-03-21T07:40:25Z",
         "vehicle_cross_track_km_at_min": {
           "FSAT-LDR": 97.06486786960882,
-          "FSAT-DP1": 61.91900673758063,
+          "FSAT-DP1": 61.919006737581356,
           "FSAT-DP2": 132.3898860084081
         },
         "vehicle_abs_cross_track_km_at_min": {
           "FSAT-LDR": 97.06486786960882,
-          "FSAT-DP1": 61.91900673758063,
+          "FSAT-DP1": 61.919006737581356,
           "FSAT-DP2": 132.3898860084081
         },
         "worst_vehicle_abs_cross_track_km": 132.3898860084081
-      }
+      },
+      "evaluation": {
+        "time_utc": "2026-03-21T07:40:25Z",
+        "vehicles": {
+          "FSAT-LDR": 97.06486786960882,
+          "FSAT-DP1": 61.919006737581356,
+          "FSAT-DP2": 132.3898860084081
+        },
+        "vehicle_abs": {
+          "FSAT-LDR": 97.06486786960882,
+          "FSAT-DP1": 61.919006737581356,
+          "FSAT-DP2": 132.3898860084081
+        },
+        "centroid_cross_track_km": 97.12458687186609,
+        "centroid_abs_cross_track_km": 97.12458687186609,
+        "worst_vehicle_abs_cross_track_km": 132.3898860084081,
+        "primary_compliant": false,
+        "waiver_compliant": false,
+        "primary_limit_km": 30.0,
+        "waiver_limit_km": 70.0
+      },
+      "centroid_cross_track_km_at_evaluation": 97.12458687186609,
+      "centroid_abs_cross_track_km_at_evaluation": 97.12458687186609,
+      "overall_abs_cross_track_km_at_evaluation": 132.3898860084081,
+      "primary_compliant": false,
+      "waiver_compliant": false,
+      "primary_limit_km": 30.0,
+      "waiver_limit_km": 70.0
     },
     "altitude_range_m": {
       "min": 492567.46890478395,
@@ -81,7 +114,13 @@
         "FSAT-DP2": 13.015783,
         "FSAT-LDR": 15.319243
       },
-      "worst_vehicle_abs_cross_track_km": 25.498723
+      "worst_vehicle_abs_cross_track_km": 25.498723,
+      "primary_limit_km": 30.0,
+      "waiver_limit_km": 70.0,
+      "primary_compliant": true,
+      "waiver_compliant": true,
+      "primary_pass_fraction": 1.0,
+      "waiver_pass_fraction": 1.0
     },
     "plane_intersection": {
       "planes": {
@@ -109,12 +148,36 @@
         }
       ],
       "target_distance_km": 6872.893669029287,
-      "compliant": false
+      "compliant": true
     },
     "relative_cross_track": {
-      "max_abs_km": 0.2032790526710339,
-      "min_abs_km": 0.000785238870014382,
+      "max_abs_km": 0.20327905266948415,
+      "min_abs_km": 0.0007852388701800428,
       "time_of_min": "2026-03-21T08:21:25Z"
+    },
+    "cross_track_limits_km": {
+      "primary": 30.0,
+      "waiver": 70.0
+    },
+    "cross_track_evaluation": {
+      "time_utc": "2026-03-21T07:40:25Z",
+      "vehicles": {
+        "FSAT-LDR": 97.06486786960882,
+        "FSAT-DP1": 61.919006737581356,
+        "FSAT-DP2": 132.3898860084081
+      },
+      "vehicle_abs": {
+        "FSAT-LDR": 97.06486786960882,
+        "FSAT-DP1": 61.919006737581356,
+        "FSAT-DP2": 132.3898860084081
+      },
+      "centroid_cross_track_km": 97.12458687186609,
+      "centroid_abs_cross_track_km": 97.12458687186609,
+      "worst_vehicle_abs_cross_track_km": 132.3898860084081,
+      "primary_compliant": false,
+      "waiver_compliant": false,
+      "primary_limit_km": 30.0,
+      "waiver_limit_km": 70.0
     }
   },
   "settings": {
