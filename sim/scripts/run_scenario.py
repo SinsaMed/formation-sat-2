@@ -872,6 +872,7 @@ def _summarise_metrics(
     cross_track = perturbed.get("cross_track") if isinstance(perturbed, Mapping) else None
     primary_compliant = False
     waiver_compliant = False
+    primary_fraction = 0.0
     waiver_fraction = 0.0
     if isinstance(cross_track, Mapping):
         evaluation = cross_track.get("evaluation") if isinstance(cross_track.get("evaluation"), Mapping) else {}
@@ -894,31 +895,52 @@ def _summarise_metrics(
             )
             primary_compliant = bool(evaluation.get("primary_compliant", False))
             waiver_compliant = bool(evaluation.get("waiver_compliant", False))
+            try:
+                primary_fraction = float(
+                    evaluation.get(
+                        "primary_pass_fraction", 1.0 if primary_compliant else 0.0
+                    )
+                )
+            except (TypeError, ValueError):
+                primary_fraction = 1.0 if primary_compliant else 0.0
             vehicle_abs = evaluation.get("vehicle_abs")
             waiver_limit = evaluation.get("waiver_limit_km")
+            waiver_fraction_value = evaluation.get(
+                "waiver_pass_fraction", 1.0 if waiver_compliant else 0.0
+            )
+            try:
+                waiver_fraction = float(waiver_fraction_value)
+            except (TypeError, ValueError):
+                waiver_fraction = 1.0 if waiver_compliant else 0.0
             if isinstance(vehicle_abs, Mapping) and vehicle_abs:
                 metrics["worst_vehicle_cross_track_km"] = float(
                     max(float(value) for value in vehicle_abs.values())
                 )
-                finite_values = [
-                    float(value)
-                    for value in vehicle_abs.values()
-                    if isinstance(value, (int, float)) and math.isfinite(float(value))
-                ]
-                if finite_values and isinstance(waiver_limit, (int, float)):
-                    allowed = sum(
-                        1 for value in finite_values if value <= float(waiver_limit)
-                    )
-                    waiver_fraction = allowed / len(finite_values)
+                if not isinstance(waiver_fraction_value, (int, float)):
+                    finite_values = [
+                        float(value)
+                        for value in vehicle_abs.values()
+                        if isinstance(value, (int, float))
+                        and math.isfinite(float(value))
+                    ]
+                    if finite_values and isinstance(waiver_limit, (int, float)):
+                        allowed = sum(
+                            1 for value in finite_values if value <= float(waiver_limit)
+                        )
+                        waiver_fraction = allowed / len(finite_values)
         overall = float(cross_track.get("overall_max_abs_cross_track_km", 0.0))
         metrics["overall_max_cross_track_km"] = overall
         metrics["overall_min_cross_track_km"] = float(
             cross_track.get("overall_min_abs_cross_track_km", 0.0)
         )
     metrics["deterministic_primary_compliant"] = primary_compliant
-    metrics["deterministic_primary_pass_fraction"] = 1.0 if primary_compliant else 0.0
+    metrics["deterministic_primary_pass_fraction"] = float(
+        primary_fraction if math.isfinite(primary_fraction) else (1.0 if primary_compliant else 0.0)
+    )
     metrics["deterministic_waiver_compliant"] = waiver_compliant
-    metrics["deterministic_waiver_pass_fraction"] = float(waiver_fraction)
+    metrics["deterministic_waiver_pass_fraction"] = float(
+        waiver_fraction if math.isfinite(waiver_fraction) else (1.0 if waiver_compliant else 0.0)
+    )
 
     monte_carlo = perturbed.get("monte_carlo") if isinstance(perturbed, Mapping) else None
     if isinstance(monte_carlo, Mapping):
@@ -944,6 +966,11 @@ def _summarise_metrics(
             monte_carlo.get("fleet_compliance_probability", 0.0)
         )
         metrics["monte_carlo_run_count"] = float(monte_carlo.get("runs", 0))
+        if "seed" in monte_carlo:
+            try:
+                metrics["monte_carlo_seed"] = float(monte_carlo["seed"])
+            except (TypeError, ValueError):
+                metrics["monte_carlo_seed"] = monte_carlo["seed"]
 
     plane_intersection = (
         perturbed.get("plane_intersection") if isinstance(perturbed, Mapping) else None
