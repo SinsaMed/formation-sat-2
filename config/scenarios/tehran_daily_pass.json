@@ -14,7 +14,7 @@
     "stakeholders": ["Imaging Payload Working Group", "Mission Planning Cell"],
     "validated_against_stk_export": true,
     "alignment_validation": {
-      "run_id": "run_20260321_0740Z",
+      "run_id": "run_20260321_0740Z_tehran_daily_pass_resampled",
       "epoch_utc": "2026-03-21T07:40:10Z"
     }
   },
