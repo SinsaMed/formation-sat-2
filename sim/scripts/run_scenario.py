@@ -517,6 +517,25 @@ def _evaluate_raan_candidate(
         centroid = math.inf
 
     abs_values = {identifier: abs(value) for identifier, value in best_values.items()}
+    primary_limit = float(settings.primary_cross_track_limit_km)
+    waiver_limit = float(settings.waiver_cross_track_limit_km)
+    centroid_abs = abs(centroid) if math.isfinite(centroid) else math.inf
+    worst_abs = max(abs_values.values(), default=math.inf)
+    primary_compliant = (
+        math.isfinite(centroid_abs)
+        and centroid_abs <= primary_limit
+        and math.isfinite(worst_abs)
+        and worst_abs <= waiver_limit
+    )
+    waiver_compliant = math.isfinite(worst_abs) and worst_abs <= waiver_limit
+    finite_vehicle_abs = [
+        value for value in abs_values.values() if math.isfinite(value)
+    ]
+    waiver_fraction = (
+        sum(1 for value in finite_vehicle_abs if value <= waiver_limit) / len(finite_vehicle_abs)
+        if finite_vehicle_abs
+        else 0.0
+    )
     window_half = timedelta(seconds=0.5 * window_duration_s)
     window_start = best_time - window_half
     window_end = best_time + window_half
@@ -531,6 +550,12 @@ def _evaluate_raan_candidate(
         "vehicle_cross_track_km": {k: float(v) for k, v in best_values.items()},
         "vehicle_abs_cross_track_km": {k: float(v) for k, v in abs_values.items()},
         "worst_vehicle_abs_cross_track_km": float(max(abs_values.values(), default=math.inf)),
+        "primary_compliant": bool(primary_compliant),
+        "waiver_compliant": bool(waiver_compliant),
+        "primary_limit_km": primary_limit,
+        "waiver_limit_km": waiver_limit,
+        "primary_pass_fraction": 1.0 if primary_compliant else 0.0,
+        "waiver_pass_fraction": float(waiver_fraction),
     }
 
     return result
@@ -781,6 +806,12 @@ def _update_centroid_alignment_metrics(
         "worst_vehicle_abs_cross_track_km": float(
             best.get("worst_vehicle_abs_cross_track_km", math.inf)
         ),
+        "primary_limit_km": float(best.get("primary_limit_km", 0.0)),
+        "waiver_limit_km": float(best.get("waiver_limit_km", 0.0)),
+        "primary_compliant": bool(best.get("primary_compliant", False)),
+        "waiver_compliant": bool(best.get("waiver_compliant", False)),
+        "primary_pass_fraction": float(best.get("primary_pass_fraction", 0.0)),
+        "waiver_pass_fraction": float(best.get("waiver_pass_fraction", 0.0)),
     }
 
     propagation_summary["centroid_alignment"] = centroid_metrics
@@ -839,6 +870,9 @@ def _summarise_metrics(
     }
 
     cross_track = perturbed.get("cross_track") if isinstance(perturbed, Mapping) else None
+    primary_compliant = False
+    waiver_compliant = False
+    waiver_fraction = 0.0
     if isinstance(cross_track, Mapping):
         evaluation = cross_track.get("evaluation") if isinstance(cross_track.get("evaluation"), Mapping) else {}
         if evaluation:
@@ -858,32 +892,33 @@ def _summarise_metrics(
             metrics["deterministic_waiver_limit_km"] = float(
                 evaluation.get("waiver_limit_km", 0.0)
             )
-            metrics["deterministic_primary_compliant"] = bool(
-                evaluation.get("primary_compliant", False)
-            )
-            metrics["deterministic_waiver_compliant"] = bool(
-                evaluation.get("waiver_compliant", False)
-            )
+            primary_compliant = bool(evaluation.get("primary_compliant", False))
+            waiver_compliant = bool(evaluation.get("waiver_compliant", False))
             vehicle_abs = evaluation.get("vehicle_abs")
+            waiver_limit = evaluation.get("waiver_limit_km")
             if isinstance(vehicle_abs, Mapping) and vehicle_abs:
                 metrics["worst_vehicle_cross_track_km"] = float(
                     max(float(value) for value in vehicle_abs.values())
                 )
+                finite_values = [
+                    float(value)
+                    for value in vehicle_abs.values()
+                    if isinstance(value, (int, float)) and math.isfinite(float(value))
+                ]
+                if finite_values and isinstance(waiver_limit, (int, float)):
+                    allowed = sum(
+                        1 for value in finite_values if value <= float(waiver_limit)
+                    )
+                    waiver_fraction = allowed / len(finite_values)
         overall = float(cross_track.get("overall_max_abs_cross_track_km", 0.0))
         metrics["overall_max_cross_track_km"] = overall
         metrics["overall_min_cross_track_km"] = float(
             cross_track.get("overall_min_abs_cross_track_km", 0.0)
         )
-        vehicles = cross_track.get("vehicles")
-        if isinstance(vehicles, Sequence) and vehicles:
-            compliant_count = sum(
-                1
-                for vehicle in vehicles
-                if isinstance(vehicle, Mapping) and vehicle.get("compliant")
-            )
-            metrics["deterministic_compliance_fraction"] = (
-                compliant_count / len(vehicles)
-            )
+    metrics["deterministic_primary_compliant"] = primary_compliant
+    metrics["deterministic_primary_pass_fraction"] = 1.0 if primary_compliant else 0.0
+    metrics["deterministic_waiver_compliant"] = waiver_compliant
+    metrics["deterministic_waiver_pass_fraction"] = float(waiver_fraction)
 
     monte_carlo = perturbed.get("monte_carlo") if isinstance(perturbed, Mapping) else None
     if isinstance(monte_carlo, Mapping):
