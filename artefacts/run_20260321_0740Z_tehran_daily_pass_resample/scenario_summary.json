@@ -1,0 +1,2353 @@
+{
+  "artefacts": {
+    "deterministic_cross_track_csv": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/deterministic_cross_track.csv",
+    "deterministic_summary_json": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/deterministic_summary.json",
+    "monte_carlo_cross_track_csv": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/monte_carlo_cross_track.csv",
+    "monte_carlo_summary_json": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/monte_carlo_summary.json",
+    "relative_cross_track_csv": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/relative_cross_track.csv",
+    "solver_settings_json": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/solver_settings.json",
+    "stk_export_directory": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/stk_export",
+    "stk_export_files": [
+      "Contacts_Svalbard.int",
+      "Contacts_Tehran_Urban_Core.int",
+      "Facility_Svalbard.fac",
+      "Facility_Tehran_Iran.fac",
+      "Facility_Tehran_Urban_Core.fac",
+      "Tehran_Daily_Pass.sc",
+      "tehran_daily_pass.e",
+      "tehran_daily_pass.sat",
+      "tehran_daily_pass_groundtrack.gt"
+    ],
+    "stk_scenario_start_epoch": "2026-03-21T09:32:00Z",
+    "summary_path": "artefacts/run_20260321_0740Z_tehran_daily_pass_resample/scenario_summary.json"
+  },
+  "configuration_summary": {
+    "author": "Orbit Dynamics Team",
+    "description": "Daily dawn-dusk imaging opportunity over Tehran for infrastructure resilience monitoring.",
+    "identifier": "tehran_daily_pass",
+    "name": "Tehran Daily Pass",
+    "planning_horizon": {
+      "start_utc": "2026-03-21T00:00:00Z",
+      "stop_utc": "2026-03-28T00:00:00Z"
+    },
+    "validated_against_stk_export": true
+  },
+  "metrics": {
+    "average_revolutions_per_phase": 0.0765916483713882,
+    "centroid_abs_cross_track_at_evaluation_km": 12.142754610722838,
+    "centroid_cross_track_at_evaluation_km": 12.142754610722838,
+    "cross_track_evaluation_time_utc": "2026-03-21T07:40:10Z",
+    "deterministic_primary_compliant": true,
+    "deterministic_primary_limit_km": 30.0,
+    "deterministic_primary_pass_fraction": 1.0,
+    "deterministic_waiver_compliant": true,
+    "deterministic_waiver_limit_km": 70.0,
+    "deterministic_waiver_pass_fraction": 1.0,
+    "monte_carlo_fleet_compliance_probability": 1.0,
+    "monte_carlo_primary_compliance_probability": 1.0,
+    "monte_carlo_relative_compliance_probability": 1.0,
+    "monte_carlo_run_count": 1000.0,
+    "monte_carlo_waiver_compliance_probability": 1.0,
+    "node_count": 2.0,
+    "orbital_period_delta_s": 9.094947017729282e-13,
+    "orbital_period_nominal_s": 5679.470402447951,
+    "orbital_period_perturbed_s": 5679.4704024479515,
+    "overall_max_cross_track_km": 2478.2487974249293,
+    "overall_min_cross_track_km": 32.553673069915746,
+    "phase_count": 2.0,
+    "total_contact_duration_s": 870.0,
+    "worst_vehicle_cross_track_at_evaluation_km": 27.759459081570284,
+    "worst_vehicle_cross_track_km": 27.759459081570284
+  },
+  "nodes": [
+    {
+      "attributes": {
+        "midpoint_utc": "2026-03-21T07:40:10Z",
+        "min_elevation_deg": 20.0,
+        "target": "Tehran Urban Core"
+      },
+      "duration_s": 90.0,
+      "end": "2026-03-21T07:40:55Z",
+      "id": 1,
+      "label": "Morning Imaging",
+      "start": "2026-03-21T07:39:25Z",
+      "type": "access_window"
+    },
+    {
+      "attributes": {
+        "ground_station": "Svalbard",
+        "min_elevation_deg": 12.0,
+        "notes": "Allocated for priority data return following daily imaging."
+      },
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "label": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z",
+      "type": "access_window"
+    }
+  ],
+  "phases": [
+    {
+      "duration_s": 90.0,
+      "end": "2026-03-21T07:40:55Z",
+      "id": 1,
+      "node_id": 1,
+      "objective": "Morning Imaging",
+      "start": "2026-03-21T07:39:25Z"
+    },
+    {
+      "duration_s": 780.0,
+      "end": "2026-03-21T21:08:00Z",
+      "id": 2,
+      "node_id": 2,
+      "objective": "Evening Downlink",
+      "start": "2026-03-21T20:55:00Z"
+    }
+  ],
+  "propagation": {
+    "j2_drag": {
+      "altitude_range_m": {
+        "max": 513409.8838090012,
+        "min": 485849.55328248534
+      },
+      "centroid_alignment": {
+        "min_abs_cross_track_km": 23.906728333333334,
+        "min_cross_track_km": -23.906728333333334,
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "time_of_min_abs_cross_track": "2026-03-21T07:40:10Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.335902,
+          "FSAT-DP2": 39.629474,
+          "FSAT-LDR": 23.754809
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.335902,
+          "FSAT-DP2": -39.629474,
+          "FSAT-LDR": -23.754809
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "worst_vehicle_abs_cross_track_km": 39.629474
+      },
+      "cross_track": {
+        "centroid": {
+          "min_abs_cross_track_km": 23.906728450995615,
+          "min_cross_track_km": -23.906728450995615,
+          "time_of_min_abs_cross_track": "2026-03-21T07:40:05Z",
+          "vehicle_abs_cross_track_km_at_min": {
+            "FSAT-DP1": 8.335902338924946,
+            "FSAT-DP2": 39.62947425108514,
+            "FSAT-LDR": 23.754808762976758
+          },
+          "vehicle_cross_track_km_at_min": {
+            "FSAT-DP1": -8.335902338924946,
+            "FSAT-DP2": -39.62947425108514,
+            "FSAT-LDR": -23.754808762976758
+          },
+          "worst_vehicle_abs_cross_track_km": 39.62947425108514
+        },
+        "centroid_abs_cross_track_km_at_evaluation": 12.142754610722838,
+        "centroid_cross_track_km_at_evaluation": 12.142754610722838,
+        "evaluation": {
+          "centroid_abs_cross_track_km": 12.142754610722838,
+          "centroid_cross_track_km": 12.142754610722838,
+          "primary_compliant": true,
+          "primary_limit_km": 30.0,
+          "primary_pass_fraction": 1.0,
+          "time_utc": "2026-03-21T07:40:10Z",
+          "vehicle_abs": {
+            "FSAT-DP1": 27.759459081570284,
+            "FSAT-DP2": 3.537900590584698,
+            "FSAT-LDR": 12.206705341182925
+          },
+          "vehicles": {
+            "FSAT-DP1": 27.759459081570284,
+            "FSAT-DP2": -3.537900590584698,
+            "FSAT-LDR": 12.206705341182925
+          },
+          "waiver_compliant": true,
+          "waiver_limit_km": 70.0,
+          "waiver_pass_fraction": 1.0,
+          "worst_vehicle_abs_cross_track_km": 27.759459081570284
+        },
+        "overall_abs_cross_track_km_at_evaluation": 27.759459081570284,
+        "overall_max_abs_cross_track_km": 2478.2487974249293,
+        "overall_min_abs_cross_track_km": 32.553673069915746,
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "vehicles": [
+          {
+            "abs_cross_track_at_evaluation_km": 12.206705341182925,
+            "compliant": true,
+            "cross_track_at_evaluation_km": 12.206705341182925,
+            "identifier": "FSAT-LDR",
+            "max_abs_cross_track_km": 2469.986948427413,
+            "max_cross_track_km": 2469.986948427413,
+            "min_abs_cross_track_km": 23.754808762976758,
+            "min_cross_track_km": -2447.5901612817393,
+            "pass_count": 1,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T07:45:55Z",
+            "time_of_min_abs_cross_track": "2026-03-21T07:40:05Z"
+          },
+          {
+            "abs_cross_track_at_evaluation_km": 27.759459081570284,
+            "compliant": true,
+            "cross_track_at_evaluation_km": 27.759459081570284,
+            "identifier": "FSAT-DP1",
+            "max_abs_cross_track_km": 2478.2487974249293,
+            "max_cross_track_km": 2478.2487974249293,
+            "min_abs_cross_track_km": 8.335902338924946,
+            "min_cross_track_km": -2429.063992808464,
+            "pass_count": 1,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T07:45:55Z",
+            "time_of_min_abs_cross_track": "2026-03-21T07:40:05Z"
+          },
+          {
+            "abs_cross_track_at_evaluation_km": 3.537900590584698,
+            "compliant": true,
+            "cross_track_at_evaluation_km": -3.537900590584698,
+            "identifier": "FSAT-DP2",
+            "max_abs_cross_track_km": 2466.116291915889,
+            "max_cross_track_km": 2461.6905780793154,
+            "min_abs_cross_track_km": 32.553673069915746,
+            "min_cross_track_km": -2466.116291915889,
+            "pass_count": 1,
+            "target_latitude_deg": 35.6892,
+            "target_longitude_deg": 51.389,
+            "time_of_max_abs_cross_track": "2026-03-21T07:34:25Z",
+            "time_of_min_abs_cross_track": "2026-03-21T07:40:15Z"
+          }
+        ],
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0
+      },
+      "model": "high_fidelity_j2_drag",
+      "monte_carlo": {
+        "absolute_cross_track_compliance_probability": 1.0,
+        "centroid_abs_cross_track_km": {
+          "max": 24.567946437156234,
+          "mean": 23.91411379156524,
+          "min": 23.569355166705005,
+          "p95": 24.180422084370257,
+          "std": 0.152100297329668
+        },
+        "compliance": {
+          "primary_fraction": 1.0,
+          "relative_fraction": 1.0,
+          "waiver_fraction": 1.0
+        },
+        "cross_track_limits_km": {
+          "primary": 30.0,
+          "waiver": 70.0
+        },
+        "evaluation_abs_cross_track_km": {
+          "FSAT-DP1": {
+            "max": 9.571156313840003,
+            "mean": 8.351117282139315,
+            "min": 7.727302975387184,
+            "p95": 8.842244054206393,
+            "std": 0.2825436812601632
+          },
+          "FSAT-DP2": {
+            "max": 39.95334834917341,
+            "mean": 39.63144581631481,
+            "min": 39.433648850567366,
+            "p95": 39.76060090817563,
+            "std": 0.07630322016828257
+          },
+          "FSAT-LDR": {
+            "max": 24.220063688873857,
+            "mean": 23.7597782762416,
+            "min": 23.506276069290124,
+            "p95": 23.952380904316865,
+            "std": 0.10901767284027893
+          }
+        },
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "fleet_compliance_probability": 1.0,
+        "max_abs_cross_track_km": {
+          "FSAT-DP1": {
+            "max": 2478.4508863406345,
+            "mean": 2478.2508560898086,
+            "min": 2478.0561309897303,
+            "p95": 2478.370295464772,
+            "std": 0.06932351813398004
+          },
+          "FSAT-DP2": {
+            "max": 2466.2688860847397,
+            "mean": 2466.113632957924,
+            "min": 2465.925476873935,
+            "p95": 2466.2062684875254,
+            "std": 0.05520188110520464
+          },
+          "FSAT-LDR": {
+            "max": 2470.1891734994365,
+            "mean": 2469.9890055016076,
+            "min": 2469.7942065874267,
+            "p95": 2470.108596690734,
+            "std": 0.06937575329271442
+          }
+        },
+        "min_abs_cross_track_km": {
+          "FSAT-DP1": {
+            "max": 9.571156313840003,
+            "mean": 8.351117282139315,
+            "min": 7.727302975387184,
+            "p95": 8.842244054206393,
+            "std": 0.2825436812601632
+          },
+          "FSAT-DP2": {
+            "max": 33.09496024583111,
+            "mean": 32.56096826910236,
+            "min": 32.213985432161536,
+            "p95": 32.81273832590405,
+            "std": 0.14550998659532105
+          },
+          "FSAT-LDR": {
+            "max": 24.220063688873857,
+            "mean": 23.7597782762416,
+            "min": 23.506276069290124,
+            "p95": 23.952380904316865,
+            "std": 0.10901767284027893
+          }
+        },
+        "relative_cross_track_km": {
+          "fleet_relative_max": {
+            "max": 0.1999675868546386,
+            "mean": 0.1999675167569351,
+            "min": 0.19996742458000674,
+            "p95": 0.19996755845749892,
+            "std": 2.5676615576934038e-08
+          },
+          "fleet_relative_min": {
+            "max": 0.14285720205329286,
+            "mean": 0.14285116668500616,
+            "min": 0.14284329942612004,
+            "p95": 0.14285462853588904,
+            "std": 2.129350329687681e-06
+          }
+        },
+        "runs": 1000,
+        "seed": 4242,
+        "worst_vehicle_abs_cross_track_km": {
+          "max": 39.95334834917341,
+          "mean": 39.63144581631481,
+          "min": 39.433648850567366,
+          "p95": 39.76060090817563,
+          "std": 0.07630322016828257
+        }
+      },
+      "orbital_period_s": 5679.4704024479515,
+      "period_delta_s": 0.0,
+      "plane_intersection": {
+        "compliant": null,
+        "intersection_candidates": [
+          {
+            "distance_to_target_km": 7602.542678109226,
+            "latitude_deg": 73.79346300496941,
+            "longitude_deg": -161.4895196971343
+          },
+          {
+            "distance_to_target_km": 12434.965664680018,
+            "latitude_deg": -73.79346300496941,
+            "longitude_deg": 18.510480302865687
+          }
+        ],
+        "planes": {
+          "Plane A": [
+            -0.15864966189173907,
+            -0.9782009166040087,
+            -0.13398974414750692
+          ],
+          "Plane B": [
+            -0.15860818444505298,
+            -0.9782091050342739,
+            -0.13397906797365397
+          ]
+        },
+        "target_distance_km": 7602.542678109226
+      },
+      "settings": {
+        "ballistic_coefficient_m2_per_kg": 0.025,
+        "drag_coefficient": 2.2,
+        "epoch_time_utc": "2026-03-21T09:32:00Z",
+        "monte_carlo_runs": 1000,
+        "solar_flux_index": 150.0,
+        "start_time_utc": "2026-03-21T07:34:25Z",
+        "stop_time_utc": "2026-03-21T07:45:55Z",
+        "time_step_s": 10.0
+      },
+      "two_body_period_s": 5679.470402447951
+    },
+    "two_body": {
+      "mean_motion_rev_per_day": 15.212686021351585,
+      "model": "two_body",
+      "orbital_period_s": 5679.470402447951,
+      "phase_revolutions": [
+        {
+          "phase_id": 1.0,
+          "revolutions": 0.015846547938907902
+        },
+        {
+          "phase_id": 2.0,
+          "revolutions": 0.13733674880386848
+        }
+      ],
+      "semi_major_axis_km": 6880.15
+    }
+  },
+  "raan_alignment": {
+    "best_evaluation": {
+      "centroid_abs_cross_track_km": 23.906728333333334,
+      "centroid_cross_track_km": -23.906728333333334,
+      "evaluation_time_utc": "2026-03-21T07:40:10Z",
+      "primary_compliant": true,
+      "primary_limit_km": 30.0,
+      "primary_pass_fraction": 1.0,
+      "raan_deg": 350.7885044642857,
+      "sample_time_utc": "2026-03-21T07:40:05Z",
+      "vehicle_abs_cross_track_km": {
+        "FSAT-DP1": 8.335902,
+        "FSAT-DP2": 39.629474,
+        "FSAT-LDR": 23.754809
+      },
+      "vehicle_cross_track_km": {
+        "FSAT-DP1": -8.335902,
+        "FSAT-DP2": -39.629474,
+        "FSAT-LDR": -23.754809
+      },
+      "waiver_compliant": true,
+      "waiver_limit_km": 70.0,
+      "waiver_pass_fraction": 1.0,
+      "window_end_utc": "2026-03-21T07:40:55Z",
+      "window_start_utc": "2026-03-21T07:39:25Z",
+      "worst_vehicle_abs_cross_track_km": 39.629474
+    },
+    "centroid_abs_cross_track_km": 23.906728333333334,
+    "evaluations": [
+      {
+        "centroid_abs_cross_track_km": 30.731969333333335,
+        "centroid_cross_track_km": -30.731969333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 17.450299,
+          "FSAT-DP2": 44.769134,
+          "FSAT-LDR": 29.976475
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -17.450299,
+          "FSAT-DP2": -44.769134,
+          "FSAT-LDR": -29.976475
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 44.769134
+      },
+      {
+        "centroid_abs_cross_track_km": 834.691751,
+        "centroid_cross_track_km": -834.691751,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 0.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 830.769873,
+          "FSAT-DP2": 838.71139,
+          "FSAT-LDR": 834.59399
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -830.769873,
+          "FSAT-DP2": -838.71139,
+          "FSAT-LDR": -834.59399
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 838.71139
+      },
+      {
+        "centroid_abs_cross_track_km": 1763.0627083333336,
+        "centroid_cross_track_km": -1763.0627083333336,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 10.285714285714285,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 1758.534284,
+          "FSAT-DP2": 1767.637492,
+          "FSAT-LDR": 1763.016349
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -1758.534284,
+          "FSAT-DP2": -1767.637492,
+          "FSAT-LDR": -1763.016349
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 1767.637492
+      },
+      {
+        "centroid_abs_cross_track_km": 2686.641889666667,
+        "centroid_cross_track_km": -2686.641889666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 20.57142857142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 2681.358778,
+          "FSAT-DP2": 2691.955205,
+          "FSAT-LDR": 2686.611686
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -2681.358778,
+          "FSAT-DP2": -2691.955205,
+          "FSAT-LDR": -2686.611686
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 2691.955205
+      },
+      {
+        "centroid_abs_cross_track_km": 3602.452092333333,
+        "centroid_cross_track_km": -3602.452092333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 30.857142857142858,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 3596.371103,
+          "FSAT-DP2": 3608.555351,
+          "FSAT-LDR": 3602.429823
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -3596.371103,
+          "FSAT-DP2": -3608.555351,
+          "FSAT-LDR": -3602.429823
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 3608.555351
+      },
+      {
+        "centroid_abs_cross_track_km": 4507.291249333334,
+        "centroid_cross_track_km": -4507.291249333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 41.14285714285714,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 4500.384105,
+          "FSAT-DP2": 4514.21596,
+          "FSAT-LDR": 4507.273683
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -4500.384105,
+          "FSAT-DP2": -4514.21596,
+          "FSAT-LDR": -4507.273683
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 4514.21596
+      },
+      {
+        "centroid_abs_cross_track_km": 5397.505267333333,
+        "centroid_cross_track_km": -5397.505267333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 51.42857142857142,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 5389.745414,
+          "FSAT-DP2": 5405.279616,
+          "FSAT-LDR": 5397.490772
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -5389.745414,
+          "FSAT-DP2": -5405.279616,
+          "FSAT-LDR": -5397.490772
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 5405.279616
+      },
+      {
+        "centroid_abs_cross_track_km": 6268.805459,
+        "centroid_cross_track_km": -6268.805459,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 61.714285714285715,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 6260.165285,
+          "FSAT-DP2": 6277.458026,
+          "FSAT-LDR": 6268.793066
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -6260.165285,
+          "FSAT-DP2": -6277.458026,
+          "FSAT-LDR": -6268.793066
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 6277.458026
+      },
+      {
+        "centroid_abs_cross_track_km": 7116.057799666666,
+        "centroid_cross_track_km": -7116.057799666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 72.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 7106.508984,
+          "FSAT-DP2": 7125.617561,
+          "FSAT-LDR": 7116.046854
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -7106.508984,
+          "FSAT-DP2": -7125.617561,
+          "FSAT-LDR": -7116.046854
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 7125.617561
+      },
+      {
+        "centroid_abs_cross_track_km": 7933.031881333333,
+        "centroid_cross_track_km": -7933.031881333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 82.28571428571428,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 7922.547709,
+          "FSAT-DP2": 7943.526045,
+          "FSAT-LDR": 7933.02189
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -7922.547709,
+          "FSAT-DP2": -7943.526045,
+          "FSAT-LDR": -7933.02189
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 7943.526045
+      },
+      {
+        "centroid_abs_cross_track_km": 8712.109803,
+        "centroid_cross_track_km": -8712.109803,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 92.57142857142856,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8700.669642,
+          "FSAT-DP2": 8723.55941,
+          "FSAT-LDR": 8712.100357
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8700.669642,
+          "FSAT-DP2": -8723.55941,
+          "FSAT-LDR": -8712.100357
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 8723.55941
+      },
+      {
+        "centroid_abs_cross_track_km": 9443.97273,
+        "centroid_cross_track_km": -9443.97273,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 102.85714285714285,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 9431.56934,
+          "FSAT-DP2": 9456.38538,
+          "FSAT-LDR": 9443.96347
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -9431.56934,
+          "FSAT-DP2": -9456.38538,
+          "FSAT-LDR": -9443.96347
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 9456.38538
+      },
+      {
+        "centroid_abs_cross_track_km": 10117.316352,
+        "centroid_cross_track_km": -10117.316352,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 113.14285714285714,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 10103.966835,
+          "FSAT-DP2": 10130.675261,
+          "FSAT-LDR": 10117.30696
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -10103.966835,
+          "FSAT-DP2": -10130.675261,
+          "FSAT-LDR": -10117.30696
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 10130.675261
+      },
+      {
+        "centroid_abs_cross_track_km": 10718.703857666667,
+        "centroid_cross_track_km": -10718.703857666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 123.42857142857143,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 10704.464639,
+          "FSAT-DP2": 10732.952862,
+          "FSAT-LDR": 10718.694072
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -10704.464639,
+          "FSAT-DP2": -10732.952862,
+          "FSAT-LDR": -10718.694072
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 10732.952862
+      },
+      {
+        "centroid_abs_cross_track_km": 11232.745001333335,
+        "centroid_cross_track_km": -11232.745001333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 133.71428571428572,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11217.729725,
+          "FSAT-DP2": 11247.770619,
+          "FSAT-LDR": 11232.73466
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11217.729725,
+          "FSAT-DP2": -11247.770619,
+          "FSAT-LDR": -11232.73466
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11247.770619
+      },
+      {
+        "centroid_abs_cross_track_km": 11642.860319,
+        "centroid_cross_track_km": -11642.860319,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 144.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11627.256527,
+          "FSAT-DP2": 11658.475012,
+          "FSAT-LDR": 11642.849418
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11627.256527,
+          "FSAT-DP2": -11658.475012,
+          "FSAT-LDR": -11642.849418
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11658.475012
+      },
+      {
+        "centroid_abs_cross_track_km": 11932.861234999998,
+        "centroid_cross_track_km": -11932.861234999998,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 154.28571428571428,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11916.937766,
+          "FSAT-DP2": 11948.795967,
+          "FSAT-LDR": 11932.849972
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11916.937766,
+          "FSAT-DP2": -11948.795967,
+          "FSAT-LDR": -11932.849972
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11948.795967
+      },
+      {
+        "centroid_abs_cross_track_km": 12089.319950666666,
+        "centroid_cross_track_km": -12089.319950666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 164.57142857142856,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 12073.415203,
+          "FSAT-DP2": 12105.235937,
+          "FSAT-LDR": 12089.308712
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -12073.415203,
+          "FSAT-DP2": -12105.235937,
+          "FSAT-LDR": -12089.308712
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 12105.235937
+      },
+      {
+        "centroid_abs_cross_track_km": 12104.191538333333,
+        "centroid_cross_track_km": -12104.191538333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 174.85714285714286,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 12088.677878,
+          "FSAT-DP2": 12119.715943,
+          "FSAT-LDR": 12104.180794
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -12088.677878,
+          "FSAT-DP2": -12119.715943,
+          "FSAT-LDR": -12104.180794
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 12119.715943
+      },
+      {
+        "centroid_abs_cross_track_km": 11976.679484,
+        "centroid_cross_track_km": -11976.679484,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 185.1428571428571,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11961.911801,
+          "FSAT-DP2": 11991.457026,
+          "FSAT-LDR": 11976.669625
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11961.911801,
+          "FSAT-DP2": -11991.457026,
+          "FSAT-LDR": -11976.669625
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11991.457026
+      },
+      {
+        "centroid_abs_cross_track_km": 11713.432562333333,
+        "centroid_cross_track_km": -11713.432562333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 195.42857142857142,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11699.700307,
+          "FSAT-DP2": 11727.17361,
+          "FSAT-LDR": 11713.42377
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11699.700307,
+          "FSAT-DP2": -11727.17361,
+          "FSAT-LDR": -11713.42377
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11727.17361
+      },
+      {
+        "centroid_abs_cross_track_km": 11326.968724666667,
+        "centroid_cross_track_km": -11326.968724666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 205.7142857142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11314.469325,
+          "FSAT-DP2": 11339.475913,
+          "FSAT-LDR": 11326.960936
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11314.469325,
+          "FSAT-DP2": -11339.475913,
+          "FSAT-LDR": -11326.960936
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 11339.475913
+      },
+      {
+        "centroid_abs_cross_track_km": 10833.118637,
+        "centroid_cross_track_km": -10833.118637,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 216.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 10821.956886,
+          "FSAT-DP2": 10844.287428,
+          "FSAT-LDR": 10833.111597
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -10821.956886,
+          "FSAT-DP2": -10844.287428,
+          "FSAT-LDR": -10833.111597
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 10844.287428
+      },
+      {
+        "centroid_abs_cross_track_km": 10248.539759,
+        "centroid_cross_track_km": -10248.539759,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 226.28571428571428,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 10238.745083,
+          "FSAT-DP2": 10258.341082,
+          "FSAT-LDR": 10248.533112
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -10238.745083,
+          "FSAT-DP2": -10258.341082,
+          "FSAT-LDR": -10248.533112
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 10258.341082
+      },
+      {
+        "centroid_abs_cross_track_km": 9588.956339333334,
+        "centroid_cross_track_km": -9588.956339333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 236.57142857142858,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 9580.506265,
+          "FSAT-DP2": 9597.413055,
+          "FSAT-LDR": 9588.949698
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -9580.506265,
+          "FSAT-DP2": -9597.413055,
+          "FSAT-LDR": -9588.949698
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 9597.413055
+      },
+      {
+        "centroid_abs_cross_track_km": 8868.240544333334,
+        "centroid_cross_track_km": -8868.240544333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 246.85714285714286,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8861.082136,
+          "FSAT-DP2": 8875.405973,
+          "FSAT-LDR": 8868.233524
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8861.082136,
+          "FSAT-DP2": -8875.405973,
+          "FSAT-LDR": -8868.233524
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 8875.405973
+      },
+      {
+        "centroid_abs_cross_track_km": 8098.1345986666665,
+        "centroid_cross_track_km": -8098.1345986666665,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 257.14285714285717,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8092.20051,
+          "FSAT-DP2": 8104.076466,
+          "FSAT-LDR": 8098.12682
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8092.20051,
+          "FSAT-DP2": -8104.076466,
+          "FSAT-LDR": -8098.12682
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 8104.076466
+      },
+      {
+        "centroid_abs_cross_track_km": 7288.348485666666,
+        "centroid_cross_track_km": -7288.348485666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 267.42857142857144,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 7283.567497,
+          "FSAT-DP2": 7293.138404,
+          "FSAT-LDR": 7288.339556
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -7283.567497,
+          "FSAT-DP2": -7293.138404,
+          "FSAT-LDR": -7288.339556
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 7293.138404
+      },
+      {
+        "centroid_abs_cross_track_km": 6446.827263333333,
+        "centroid_cross_track_km": -6446.827263333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 277.7142857142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 6443.130464,
+          "FSAT-DP2": 6450.534596,
+          "FSAT-LDR": 6446.81673
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -6443.130464,
+          "FSAT-DP2": -6450.534596,
+          "FSAT-LDR": -6446.81673
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 6450.534596
+      },
+      {
+        "centroid_abs_cross_track_km": 5580.064222,
+        "centroid_cross_track_km": -5580.064222,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 288.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 5577.388139,
+          "FSAT-DP2": 5582.753027,
+          "FSAT-LDR": 5580.0515
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -5577.388139,
+          "FSAT-DP2": -5582.753027,
+          "FSAT-LDR": -5580.0515
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 5582.753027
+      },
+      {
+        "centroid_abs_cross_track_km": 4693.398896333333,
+        "centroid_cross_track_km": -4693.398896333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 298.2857142857143,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 4691.686544,
+          "FSAT-DP2": 4695.127016,
+          "FSAT-LDR": 4693.383129
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -4691.686544,
+          "FSAT-DP2": -4695.127016,
+          "FSAT-LDR": -4693.383129
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 4695.127016
+      },
+      {
+        "centroid_abs_cross_track_km": 3791.2768663333336,
+        "centroid_cross_track_km": -3791.2768663333336,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 308.57142857142856,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 3790.477098,
+          "FSAT-DP2": 3792.096873,
+          "FSAT-LDR": 3791.256628
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -3790.477098,
+          "FSAT-DP2": -3792.096873,
+          "FSAT-LDR": -3791.256628
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 3792.096873
+      },
+      {
+        "centroid_abs_cross_track_km": 2877.4683339999997,
+        "centroid_cross_track_km": -2877.4683339999997,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 318.85714285714283,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 2877.53276,
+          "FSAT-DP2": 2877.431378,
+          "FSAT-LDR": 2877.440864
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -2877.53276,
+          "FSAT-DP2": -2877.431378,
+          "FSAT-LDR": -2877.440864
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 2877.53276
+      },
+      {
+        "centroid_abs_cross_track_km": 1955.2546186666666,
+        "centroid_cross_track_km": -1955.2546186666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 329.1428571428571,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 1956.12702,
+          "FSAT-DP2": 1954.423589,
+          "FSAT-LDR": 1955.213247
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -1956.12702,
+          "FSAT-DP2": -1954.423589,
+          "FSAT-LDR": -1955.213247
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 1956.12702
+      },
+      {
+        "centroid_abs_cross_track_km": 1027.6275023333335,
+        "centroid_cross_track_km": -1027.6275023333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 339.42857142857144,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 1029.186511,
+          "FSAT-DP2": 1026.148652,
+          "FSAT-LDR": 1027.547344
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -1029.186511,
+          "FSAT-DP2": -1026.148652,
+          "FSAT-LDR": -1027.547344
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 1029.186511
+      },
+      {
+        "centroid_abs_cross_track_km": 100.360553,
+        "centroid_cross_track_km": -100.360553,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 349.7142857142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 99.673735,
+          "FSAT-DP2": 101.892415,
+          "FSAT-LDR": 99.515509
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -99.673735,
+          "FSAT-DP2": -101.892415,
+          "FSAT-LDR": -99.515509
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 101.892415
+      },
+      {
+        "centroid_abs_cross_track_km": 834.691751,
+        "centroid_cross_track_km": -834.691751,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 0.0,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 830.769873,
+          "FSAT-DP2": 838.71139,
+          "FSAT-LDR": 834.59399
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -830.769873,
+          "FSAT-DP2": -838.71139,
+          "FSAT-LDR": -834.59399
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 838.71139
+      },
+      {
+        "centroid_abs_cross_track_km": 435.171573,
+        "centroid_cross_track_km": -435.171573,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 345.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 436.814607,
+          "FSAT-DP2": 433.72059,
+          "FSAT-LDR": 434.979522
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -436.814607,
+          "FSAT-DP2": -433.72059,
+          "FSAT-LDR": -434.979522
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 436.814607
+      },
+      {
+        "centroid_abs_cross_track_km": 322.32676166666664,
+        "centroid_cross_track_km": -322.32676166666664,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 347.2338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 323.799163,
+          "FSAT-DP2": 321.114992,
+          "FSAT-LDR": 322.06613
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -323.799163,
+          "FSAT-DP2": -321.114992,
+          "FSAT-LDR": -322.06613
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 323.799163
+      },
+      {
+        "centroid_abs_cross_track_km": 209.78957666666668,
+        "centroid_cross_track_km": -209.78957666666668,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 348.4838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 210.798373,
+          "FSAT-DP2": 209.184244,
+          "FSAT-LDR": 209.386113
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -210.798373,
+          "FSAT-DP2": -209.184244,
+          "FSAT-LDR": -209.386113
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 210.798373
+      },
+      {
+        "centroid_abs_cross_track_km": 98.658503,
+        "centroid_cross_track_km": -98.658503,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 349.7338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 97.912953,
+          "FSAT-DP2": 100.263264,
+          "FSAT-LDR": 97.799292
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -97.912953,
+          "FSAT-DP2": -100.263264,
+          "FSAT-LDR": -97.799292
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 100.263264
+      },
+      {
+        "centroid_abs_cross_track_km": 30.731969333333335,
+        "centroid_cross_track_km": -30.731969333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 17.450299,
+          "FSAT-DP2": 44.769134,
+          "FSAT-LDR": 29.976475
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -17.450299,
+          "FSAT-DP2": -44.769134,
+          "FSAT-LDR": -29.976475
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 44.769134
+      },
+      {
+        "centroid_abs_cross_track_km": 134.146736,
+        "centroid_cross_track_km": -134.146736,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 352.2338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 128.802776,
+          "FSAT-DP2": 140.049992,
+          "FSAT-LDR": 133.58744
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -128.802776,
+          "FSAT-DP2": -140.049992,
+          "FSAT-LDR": -133.58744
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 140.049992
+      },
+      {
+        "centroid_abs_cross_track_km": 246.09115599999998,
+        "centroid_cross_track_km": -246.09115599999998,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 353.4838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 241.746228,
+          "FSAT-DP2": 250.756991,
+          "FSAT-LDR": 245.770249
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -241.746228,
+          "FSAT-DP2": -250.756991,
+          "FSAT-LDR": -245.770249
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 250.756991
+      },
+      {
+        "centroid_abs_cross_track_km": 358.781803,
+        "centroid_cross_track_km": -358.781803,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 354.7338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 354.754835,
+          "FSAT-DP2": 363.032406,
+          "FSAT-LDR": 358.558168
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -354.754835,
+          "FSAT-DP2": -363.032406,
+          "FSAT-LDR": -358.558168
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 363.032406
+      },
+      {
+        "centroid_abs_cross_track_km": 471.676906,
+        "centroid_cross_track_km": -471.676906,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 355.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 467.769712,
+          "FSAT-DP2": 475.755501,
+          "FSAT-LDR": 471.505505
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -467.769712,
+          "FSAT-DP2": -475.755501,
+          "FSAT-LDR": -471.505505
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 475.755501
+      },
+      {
+        "centroid_abs_cross_track_km": 98.658503,
+        "centroid_cross_track_km": -98.658503,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 349.7338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 97.912953,
+          "FSAT-DP2": 100.263264,
+          "FSAT-LDR": 97.799292
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -97.912953,
+          "FSAT-DP2": -100.263264,
+          "FSAT-LDR": -97.799292
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 100.263264
+      },
+      {
+        "centroid_abs_cross_track_km": 71.845818,
+        "centroid_cross_track_km": -71.845818,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.0463169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 69.780673,
+          "FSAT-DP2": 75.067684,
+          "FSAT-LDR": 70.689097
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -69.780673,
+          "FSAT-DP2": -75.067684,
+          "FSAT-LDR": -70.689097
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.3333333333333333,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 75.067684
+      },
+      {
+        "centroid_abs_cross_track_km": 46.66672066666666,
+        "centroid_cross_track_km": -46.66672066666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.3588169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 41.82962,
+          "FSAT-DP2": 53.115078,
+          "FSAT-LDR": 45.055464
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -41.82962,
+          "FSAT-DP2": -53.115078,
+          "FSAT-LDR": -45.055464
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 53.115078
+      },
+      {
+        "centroid_abs_cross_track_km": 27.001641333333335,
+        "centroid_cross_track_km": -27.001641333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.6713169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 15.103052,
+          "FSAT-DP2": 40.136188,
+          "FSAT-LDR": 25.765684
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -15.103052,
+          "FSAT-DP2": -40.136188,
+          "FSAT-LDR": -25.765684
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.136188
+      },
+      {
+        "centroid_abs_cross_track_km": 30.731969333333335,
+        "centroid_cross_track_km": -30.731969333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 17.450299,
+          "FSAT-DP2": 44.769134,
+          "FSAT-LDR": 29.976475
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -17.450299,
+          "FSAT-DP2": -44.769134,
+          "FSAT-LDR": -29.976475
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 44.769134
+      },
+      {
+        "centroid_abs_cross_track_km": 53.343411333333336,
+        "centroid_cross_track_km": -53.343411333333336,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 351.2963169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 44.485375,
+          "FSAT-DP2": 63.255775,
+          "FSAT-LDR": 52.289084
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -44.485375,
+          "FSAT-DP2": -63.255775,
+          "FSAT-LDR": -52.289084
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 63.255775
+      },
+      {
+        "centroid_abs_cross_track_km": 79.40278433333333,
+        "centroid_cross_track_km": -79.40278433333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 351.6088169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 72.466491,
+          "FSAT-DP2": 87.189143,
+          "FSAT-LDR": 78.552719
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -72.466491,
+          "FSAT-DP2": -87.189143,
+          "FSAT-LDR": -78.552719
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 87.189143
+      },
+      {
+        "centroid_abs_cross_track_km": 106.54603666666667,
+        "centroid_cross_track_km": -106.54603666666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 351.9213169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 100.607211,
+          "FSAT-DP2": 113.164481,
+          "FSAT-LDR": 105.866418
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -100.607211,
+          "FSAT-DP2": -113.164481,
+          "FSAT-LDR": -105.866418
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 113.164481
+      },
+      {
+        "centroid_abs_cross_track_km": 134.146736,
+        "centroid_cross_track_km": -134.146736,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 352.2338169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 128.802776,
+          "FSAT-DP2": 140.049992,
+          "FSAT-LDR": 133.58744
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -128.802776,
+          "FSAT-DP2": -140.049992,
+          "FSAT-LDR": -133.58744
+        },
+        "waiver_compliant": false,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 0.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 140.049992
+      },
+      {
+        "centroid_abs_cross_track_km": 46.66672066666666,
+        "centroid_cross_track_km": -46.66672066666666,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.3588169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 41.82962,
+          "FSAT-DP2": 53.115078,
+          "FSAT-LDR": 45.055464
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -41.82962,
+          "FSAT-DP2": -53.115078,
+          "FSAT-LDR": -45.055464
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 53.115078
+      },
+      {
+        "centroid_abs_cross_track_km": 40.93623466666667,
+        "centroid_cross_track_km": -40.93623466666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.4369419642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 34.921326,
+          "FSAT-DP2": 48.665124,
+          "FSAT-LDR": 39.222254
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -34.921326,
+          "FSAT-DP2": -48.665124,
+          "FSAT-LDR": -39.222254
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 48.665124
+      },
+      {
+        "centroid_abs_cross_track_km": 35.617426333333334,
+        "centroid_cross_track_km": -35.617426333333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.5150669642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 28.091938,
+          "FSAT-DP2": 44.895495,
+          "FSAT-LDR": 33.864846
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -28.091938,
+          "FSAT-DP2": -44.895495,
+          "FSAT-LDR": -33.864846
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 44.895495
+      },
+      {
+        "centroid_abs_cross_track_km": 30.884268000000002,
+        "centroid_cross_track_km": -30.884268000000002,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.5931919642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 21.41708,
+          "FSAT-DP2": 41.989822,
+          "FSAT-LDR": 29.245902
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -21.41708,
+          "FSAT-DP2": -41.989822,
+          "FSAT-LDR": -29.245902
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 41.989822
+      },
+      {
+        "centroid_abs_cross_track_km": 27.001641333333335,
+        "centroid_cross_track_km": -27.001641333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.6713169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 15.103052,
+          "FSAT-DP2": 40.136188,
+          "FSAT-LDR": 25.765684
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -15.103052,
+          "FSAT-DP2": -40.136188,
+          "FSAT-LDR": -25.765684
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.136188
+      },
+      {
+        "centroid_abs_cross_track_km": 24.426010333333334,
+        "centroid_cross_track_km": -24.426010333333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.7494419642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 9.868623,
+          "FSAT-DP2": 39.483044,
+          "FSAT-LDR": 23.926364
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -9.868623,
+          "FSAT-DP2": -39.483044,
+          "FSAT-LDR": -23.926364
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 39.483044
+      },
+      {
+        "centroid_abs_cross_track_km": 24.117898,
+        "centroid_cross_track_km": -24.117898,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8275669642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.158065,
+          "FSAT-DP2": 40.089112,
+          "FSAT-LDR": 24.106517
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.158065,
+          "FSAT-DP2": -40.089112,
+          "FSAT-LDR": -24.106517
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.089112
+      },
+      {
+        "centroid_abs_cross_track_km": 26.602977999999997,
+        "centroid_cross_track_km": -26.602977999999997,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.9056919642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11.644531,
+          "FSAT-DP2": 41.899783,
+          "FSAT-LDR": 26.26462
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11.644531,
+          "FSAT-DP2": -41.899783,
+          "FSAT-LDR": -26.26462
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 41.899783
+      },
+      {
+        "centroid_abs_cross_track_km": 30.731969333333335,
+        "centroid_cross_track_km": -30.731969333333335,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": false,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 0.0,
+        "raan_deg": 350.9838169642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 17.450299,
+          "FSAT-DP2": 44.769134,
+          "FSAT-LDR": 29.976475
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -17.450299,
+          "FSAT-DP2": -44.769134,
+          "FSAT-LDR": -29.976475
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 44.769134
+      },
+      {
+        "centroid_abs_cross_track_km": 24.426010333333334,
+        "centroid_cross_track_km": -24.426010333333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.7494419642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 9.868623,
+          "FSAT-DP2": 39.483044,
+          "FSAT-LDR": 23.926364
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -9.868623,
+          "FSAT-DP2": -39.483044,
+          "FSAT-LDR": -23.926364
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 39.483044
+      },
+      {
+        "centroid_abs_cross_track_km": 24.08459566666667,
+        "centroid_cross_track_km": -24.08459566666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.7689732142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.961994,
+          "FSAT-DP2": 39.516716,
+          "FSAT-LDR": 23.775077
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.961994,
+          "FSAT-DP2": -39.516716,
+          "FSAT-LDR": -23.775077
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 39.516716
+      },
+      {
+        "centroid_abs_cross_track_km": 23.906728333333334,
+        "centroid_cross_track_km": -23.906728333333334,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.7885044642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.335902,
+          "FSAT-DP2": 39.629474,
+          "FSAT-LDR": 23.754809
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.335902,
+          "FSAT-DP2": -39.629474,
+          "FSAT-LDR": -23.754809
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 39.629474
+      },
+      {
+        "centroid_abs_cross_track_km": 23.914187666666667,
+        "centroid_cross_track_km": -23.914187666666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8080357142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.056022,
+          "FSAT-DP2": 39.820647,
+          "FSAT-LDR": 23.865894
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.056022,
+          "FSAT-DP2": -39.820647,
+          "FSAT-LDR": -23.865894
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 39.820647
+      },
+      {
+        "centroid_abs_cross_track_km": 24.117898,
+        "centroid_cross_track_km": -24.117898,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8275669642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.158065,
+          "FSAT-DP2": 40.089112,
+          "FSAT-LDR": 24.106517
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.158065,
+          "FSAT-DP2": -40.089112,
+          "FSAT-LDR": -24.106517
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.089112
+      },
+      {
+        "centroid_abs_cross_track_km": 24.511559000000002,
+        "centroid_cross_track_km": -24.511559000000002,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8470982142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 8.62849,
+          "FSAT-DP2": 40.43333,
+          "FSAT-LDR": 24.472857
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -8.62849,
+          "FSAT-DP2": -40.43333,
+          "FSAT-LDR": -24.472857
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.43333
+      },
+      {
+        "centroid_abs_cross_track_km": 25.074329666666667,
+        "centroid_cross_track_km": -25.074329666666667,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8666294642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 9.412224,
+          "FSAT-DP2": 40.851386,
+          "FSAT-LDR": 24.959379
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -9.412224,
+          "FSAT-DP2": -40.851386,
+          "FSAT-LDR": -24.959379
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 40.851386
+      },
+      {
+        "centroid_abs_cross_track_km": 25.77973233333333,
+        "centroid_cross_track_km": -25.77973233333333,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.8861607142857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 10.438936,
+          "FSAT-DP2": 41.34104,
+          "FSAT-LDR": 25.559221
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -10.438936,
+          "FSAT-DP2": -41.34104,
+          "FSAT-LDR": -25.559221
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 41.34104
+      },
+      {
+        "centroid_abs_cross_track_km": 26.602977999999997,
+        "centroid_cross_track_km": -26.602977999999997,
+        "evaluation_time_utc": "2026-03-21T07:40:10Z",
+        "primary_compliant": true,
+        "primary_limit_km": 30.0,
+        "primary_pass_fraction": 1.0,
+        "raan_deg": 350.9056919642857,
+        "sample_time_utc": "2026-03-21T07:40:05Z",
+        "vehicle_abs_cross_track_km": {
+          "FSAT-DP1": 11.644531,
+          "FSAT-DP2": 41.899783,
+          "FSAT-LDR": 26.26462
+        },
+        "vehicle_cross_track_km": {
+          "FSAT-DP1": -11.644531,
+          "FSAT-DP2": -41.899783,
+          "FSAT-LDR": -26.26462
+        },
+        "waiver_compliant": true,
+        "waiver_limit_km": 70.0,
+        "waiver_pass_fraction": 1.0,
+        "window_end_utc": "2026-03-21T07:40:55Z",
+        "window_start_utc": "2026-03-21T07:39:25Z",
+        "worst_vehicle_abs_cross_track_km": 41.899783
+      }
+    ],
+    "initial_raan_deg": 350.9838169642857,
+    "optimised_raan_deg": 350.7885044642857,
+    "target_midpoint_utc": "2026-03-21T07:40:10Z",
+    "time_step_s": 10.0,
+    "window_duration_s": 90.0,
+    "worst_vehicle_abs_cross_track_km": 39.629474
+  },
+  "stage_sequence": [
+    "raan_alignment",
+    "access_nodes",
+    "mission_phases",
+    "two_body_propagation",
+    "high_fidelity_j2_drag_propagation",
+    "metric_extraction",
+    "stk_export"
+  ]
+}
