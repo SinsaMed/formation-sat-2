@@ -104,7 +104,7 @@ class DebugRunRequest(BaseModel):
 
     mode: str = Field(
         ...,
-        regex="^(triangle|scenario)$",
+        pattern="^(triangle|scenario)$",
         description="Select between the triangle simulation or the generic scenario pipeline.",
     )
     scenario_id: Optional[str] = Field(
@@ -120,7 +120,7 @@ class DebugRunRequest(BaseModel):
         description="Optional directory root for storing debug artefacts.",
     )
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _validate_mode_arguments(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
         mode = values.get("mode")
         if mode == "triangle":

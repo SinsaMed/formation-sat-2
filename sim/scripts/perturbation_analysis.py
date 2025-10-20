@@ -76,8 +76,8 @@ LOGGER = logging.getLogger(__name__)
 
 DEFAULT_MONTE_CARLO = {
     "enabled": True,
-    "runs": 500,
-    "seed": 42,
+    "runs": 1000,
+    "seed": 4242,
     "dispersions": {
         "semi_major_axis_sigma_m": 5.0,
         "inclination_sigma_deg": 0.01,
@@ -677,22 +677,48 @@ def _propagate_deterministic(
 
     evaluation_time = _resolve_evaluation_time(settings)
     evaluation_timestamp = evaluation_time
-    evaluation_index = 0
+    before_index = after_index = 0
+    fraction = 0.0
     if times:
-        evaluation_index = min(
-            range(len(times)),
-            key=lambda idx: abs((times[idx] - evaluation_time).total_seconds()),
+        before_index = max(
+            (idx for idx, stamp in enumerate(times) if stamp <= evaluation_time),
+            default=0,
         )
-        evaluation_timestamp = times[evaluation_index]
+        after_index = min(
+            (idx for idx, stamp in enumerate(times) if stamp >= evaluation_time),
+            default=len(times) - 1,
+        )
+        if after_index < before_index:
+            after_index = before_index
+        before_time = times[before_index]
+        after_time = times[after_index]
+        if after_time > before_time:
+            elapsed = (evaluation_time - before_time).total_seconds()
+            span = (after_time - before_time).total_seconds()
+            fraction = max(0.0, min(elapsed / span, 1.0))
+        else:
+            fraction = 0.0
 
     evaluation_values: dict[str, float] = {}
     evaluation_abs: dict[str, float] = {}
     for identifier, series_values in cross_track_series.items():
-        value = float("nan")
-        if evaluation_index < len(series_values):
-            value = float(series_values[evaluation_index])
-        elif series_values:
-            value = float(series_values[-1])
+        value_before = float("nan")
+        value_after = float("nan")
+        if series_values:
+            clamped_before = min(before_index, len(series_values) - 1)
+            clamped_after = min(after_index, len(series_values) - 1)
+            value_before = float(series_values[clamped_before])
+            value_after = float(series_values[clamped_after])
+            if math.isfinite(value_before) and math.isfinite(value_after):
+                value = value_before + fraction * (value_after - value_before)
+            elif math.isfinite(value_before):
+                value = value_before
+            elif math.isfinite(value_after):
+                value = value_after
+            else:
+                value = float("nan")
+        else:
+            value = float("nan")
         evaluation_values[identifier] = value
         evaluation_abs[identifier] = abs(value) if math.isfinite(value) else math.inf
 
@@ -1340,8 +1366,8 @@ def _run_monte_carlo(
 
         plane_success = True
         if math.isfinite(plane_distance):
-            intersection_distances.append(plane_distance)
             if plane_limit is not None:
+                intersection_distances.append(plane_distance)
                 plane_success = plane_distance <= plane_limit
         elif plane_limit is not None:
             plane_success = False
@@ -1367,7 +1393,6 @@ def _run_monte_carlo(
         "max_abs_cross_track_km": {},
         "min_abs_cross_track_km": {},
         "evaluation_abs_cross_track_km": {},
-        "plane_intersection_distance_km": {},
         "relative_cross_track_km": {},
         "compliance": {
             "primary_fraction": float(primary_success_count / runs) if runs else 0.0,
@@ -1388,6 +1413,9 @@ def _run_monte_carlo(
             "waiver": float(waiver_limit),
         },
     }
+
+    if plane_limit is not None:
+        aggregated["plane_intersection_distance_km"] = {}
 
     if plane_limit is not None:
         aggregated["compliance"]["plane_fraction"] = float(
@@ -1430,7 +1458,7 @@ def _run_monte_carlo(
             "max": float(np.max(array)),
         }
 
-    if intersection_distances:
+    if plane_limit is not None and intersection_distances:
         array = np.asarray(intersection_distances, dtype=float)
         aggregated["plane_intersection_distance_km"]["fleet"] = {
             "mean": float(np.mean(array)),

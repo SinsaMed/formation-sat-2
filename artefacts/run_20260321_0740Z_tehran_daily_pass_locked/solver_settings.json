@@ -12,8 +12,8 @@
     }
   },
   "monte_carlo": {
-    "runs": 500,
-    "seed": 42,
+    "runs": 1000,
+    "seed": 4242,
     "dispersions": {
       "semi_major_axis_sigma_m": 5.0,
       "inclination_sigma_deg": 0.01,

@@ -1045,10 +1045,10 @@ def _summarise_metrics(
         perturbed.get("plane_intersection") if isinstance(perturbed, Mapping) else None
     )
     if isinstance(plane_intersection, Mapping):
-        distance = float(plane_intersection.get("target_distance_km", 0.0))
-        metrics["plane_intersection_distance_km"] = distance
         plane_limit = plane_intersection.get("limit_km")
         if isinstance(plane_limit, (int, float)) and math.isfinite(float(plane_limit)):
+            distance = float(plane_intersection.get("target_distance_km", 0.0))
+            metrics["plane_intersection_distance_km"] = distance
             metrics["plane_intersection_limit_km"] = float(plane_limit)
             compliant_flag = plane_intersection.get("compliant")
             if compliant_flag is not None:
