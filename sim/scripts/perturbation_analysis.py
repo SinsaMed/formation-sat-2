@@ -709,11 +709,14 @@ def _propagate_deterministic(
         }
     plane_distance = float(plane_metrics.get("target_distance_km", math.inf))
     plane_limit = settings.plane_intersection_limit_km
-    if plane_limit is not None and math.isfinite(plane_distance):
-        plane_metrics["compliant"] = bool(plane_distance <= plane_limit)
+    if plane_limit is not None:
         plane_metrics["limit_km"] = float(plane_limit)
+        if math.isfinite(plane_distance):
+            plane_metrics["compliant"] = bool(plane_distance <= plane_limit)
+        else:
+            plane_metrics["compliant"] = False
     else:
-        plane_metrics["compliant"] = True
+        plane_metrics["compliant"] = None
     deterministic_metrics["plane_intersection"] = plane_metrics
     deterministic_metrics["relative_cross_track"] = relative_summary
     deterministic_metrics["cross_track_limits_km"] = {
@@ -1272,8 +1275,6 @@ def _run_monte_carlo(
         aggregated["compliance"]["plane_fraction"] = float(
             plane_success_count / runs
         ) if runs else 0.0
-    else:
-        aggregated["compliance"]["plane_fraction"] = 1.0
 
     for identifier, values in run_metrics_max.items():
         if not values:
