@@ -18,11 +18,6 @@
     "argument_of_perigee_deg": 0.0,
     "mean_anomaly_deg": 36.06454701821796
   },
-  "access_window": {
-    "start_utc": "2026-03-21T07:39:25Z",
-    "midpoint_utc": "2026-03-21T07:40:10Z",
-    "end_utc": "2026-03-21T07:40:55Z"
-  },
   "formation": {
     "side_length_m": 6000.0,
     "duration_s": 180.0,
@@ -70,13 +65,6 @@
       "integration_step_s": 120.0,
       "seed": 20260321
     }
-  },
-  "alignment_requirements": {
-    "cross_track_limits": {
-      "primary_km": 30.0,
-      "waiver_km": 70.0
-    }
-  },
-  "raan_alignment": false
+  }
 }
 
