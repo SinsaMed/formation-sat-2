@@ -485,6 +485,7 @@ def _evaluate_raan_candidate(
         drag_coefficient=2.2,
         ballistic_coefficient_m2_per_kg=0.025,
         solar_flux_index=perturbation_analysis.SOLAR_FLUX_BASE,
+        evaluation_time=start_time + timedelta(seconds=0.5 * window_duration_s),
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -839,6 +840,35 @@ def _summarise_metrics(
 
     cross_track = perturbed.get("cross_track") if isinstance(perturbed, Mapping) else None
     if isinstance(cross_track, Mapping):
+        evaluation = cross_track.get("evaluation") if isinstance(cross_track.get("evaluation"), Mapping) else {}
+        if evaluation:
+            metrics["cross_track_evaluation_time_utc"] = evaluation.get("time_utc")
+            metrics["centroid_cross_track_at_evaluation_km"] = float(
+                evaluation.get("centroid_cross_track_km", 0.0)
+            )
+            metrics["centroid_abs_cross_track_at_evaluation_km"] = float(
+                evaluation.get("centroid_abs_cross_track_km", 0.0)
+            )
+            metrics["worst_vehicle_cross_track_at_evaluation_km"] = float(
+                evaluation.get("worst_vehicle_abs_cross_track_km", 0.0)
+            )
+            metrics["deterministic_primary_limit_km"] = float(
+                evaluation.get("primary_limit_km", 0.0)
+            )
+            metrics["deterministic_waiver_limit_km"] = float(
+                evaluation.get("waiver_limit_km", 0.0)
+            )
+            metrics["deterministic_primary_compliant"] = bool(
+                evaluation.get("primary_compliant", False)
+            )
+            metrics["deterministic_waiver_compliant"] = bool(
+                evaluation.get("waiver_compliant", False)
+            )
+            vehicle_abs = evaluation.get("vehicle_abs")
+            if isinstance(vehicle_abs, Mapping) and vehicle_abs:
+                metrics["worst_vehicle_cross_track_km"] = float(
+                    max(float(value) for value in vehicle_abs.values())
+                )
         overall = float(cross_track.get("overall_max_abs_cross_track_km", 0.0))
         metrics["overall_max_cross_track_km"] = overall
         metrics["overall_min_cross_track_km"] = float(
@@ -846,35 +876,31 @@ def _summarise_metrics(
         )
         vehicles = cross_track.get("vehicles")
         if isinstance(vehicles, Sequence) and vehicles:
-            worst_vehicle = max(
-                (
-                    float(vehicle.get("max_abs_cross_track_km", 0.0))
-                    for vehicle in vehicles
-                    if isinstance(vehicle, Mapping)
-                ),
-                default=0.0,
-            )
-            metrics["worst_vehicle_cross_track_km"] = worst_vehicle
-            worst_min = max(
-                (
-                    float(vehicle.get("min_abs_cross_track_km", 0.0))
-                    for vehicle in vehicles
-                    if isinstance(vehicle, Mapping)
-                ),
-                default=0.0,
-            )
             compliant_count = sum(
                 1
                 for vehicle in vehicles
                 if isinstance(vehicle, Mapping) and vehicle.get("compliant")
             )
-            metrics["worst_vehicle_min_cross_track_km"] = worst_min
             metrics["deterministic_compliance_fraction"] = (
                 compliant_count / len(vehicles)
             )
 
     monte_carlo = perturbed.get("monte_carlo") if isinstance(perturbed, Mapping) else None
     if isinstance(monte_carlo, Mapping):
+        compliance = monte_carlo.get("compliance")
+        if isinstance(compliance, Mapping):
+            metrics["monte_carlo_primary_compliance_probability"] = float(
+                compliance.get("primary_fraction", 0.0)
+            )
+            metrics["monte_carlo_waiver_compliance_probability"] = float(
+                compliance.get("waiver_fraction", 0.0)
+            )
+            metrics["monte_carlo_relative_compliance_probability"] = float(
+                compliance.get("relative_fraction", 0.0)
+            )
+            metrics["monte_carlo_plane_compliance_probability"] = float(
+                compliance.get("plane_fraction", 0.0)
+            )
         metrics["monte_carlo_fleet_compliance_probability"] = float(
             monte_carlo.get("fleet_compliance_probability", 0.0)
         )

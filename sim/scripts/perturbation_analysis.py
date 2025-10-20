@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Mapping, MutableMapping, Sequence
 
+import os
+
 import numpy as np
 from statistics import fmean
 
@@ -91,6 +93,10 @@ class PropagatorSettings:
     drag_coefficient: float
     ballistic_coefficient_m2_per_kg: float
     solar_flux_index: float
+    evaluation_time: datetime | None = None
+    primary_cross_track_limit_km: float = 30.0
+    waiver_cross_track_limit_km: float = 70.0
+    plane_intersection_limit_km: float | None = None
 
 
 @dataclass
@@ -201,33 +207,54 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
     timing = scenario.get("timing", {}) if isinstance(scenario.get("timing"), Mapping) else {}
     windows = timing.get("daily_access_windows", []) if isinstance(timing.get("daily_access_windows"), Sequence) else []
 
-    orbital_elements = scenario.get("orbital_elements", {})
+    window_start = None
+    window_end = None
     if windows:
         first_window = windows[0] if isinstance(windows[0], Mapping) else {}
-        start_time = _parse_time(first_window.get("start_utc"))
-    else:
-        start_time = _parse_time(
+        window_start = _parse_time(first_window.get("start_utc"))
+        window_end = _parse_time(first_window.get("end_utc"))
+
+    orbital_elements = scenario.get("orbital_elements", {})
+    reference_start = window_start
+    if reference_start is None:
+        reference_start = _parse_time(
             orbital_elements.get("epoch_utc") if isinstance(orbital_elements, Mapping) else None
         )
+    if reference_start is None:
+        reference_start = datetime(2026, 3, 21, 0, 0, 0, tzinfo=timezone.utc)
+
+    epoch_time = _parse_time(
+        orbital_elements.get("epoch_utc") if isinstance(orbital_elements, Mapping) else None
+    ) or reference_start
 
     planning = timing.get("planning_horizon", {}) if isinstance(timing.get("planning_horizon"), Mapping) else {}
     stop_time = _parse_time(planning.get("stop_utc"))
 
-    if not start_time:
-        start_time = datetime(2026, 3, 21, 0, 0, 0, tzinfo=timezone.utc)
-
-    epoch_time = _parse_time(
-        orbital_elements.get("epoch_utc") if isinstance(orbital_elements, Mapping) else None
-    )
-    if not epoch_time:
-        epoch_time = start_time
-
-    analysis_start = start_time - timedelta(minutes=30)
-
+    analysis_start = reference_start - timedelta(minutes=30)
     if not stop_time:
         stop_time = analysis_start + timedelta(hours=6)
     else:
         stop_time = min(stop_time, analysis_start + timedelta(hours=6))
+
+    if window_start and window_end:
+        evaluation_time = window_start + (window_end - window_start) / 2
+    elif window_start:
+        evaluation_time = window_start + timedelta(seconds=45.0)
+    else:
+        evaluation_time = reference_start
+
+    primary_limit = float(os.getenv("FSAT_PRIMARY_CROSS_TRACK_LIMIT_KM", "30.0"))
+    waiver_limit = float(os.getenv("FSAT_WAIVER_CROSS_TRACK_LIMIT_KM", "70.0"))
+    plane_limit_env = os.getenv("FSAT_PLANE_INTERSECTION_LIMIT_KM")
+    plane_limit = float(plane_limit_env) if plane_limit_env is not None else None
+
+    requirements = scenario.get("alignment_requirements")
+    if isinstance(requirements, Mapping):
+        primary_limit = float(requirements.get("primary_cross_track_limit_km", primary_limit))
+        waiver_limit = float(requirements.get("waiver_cross_track_limit_km", waiver_limit))
+        plane_candidate = requirements.get("plane_intersection_limit_km", plane_limit)
+        if plane_candidate is not None:
+            plane_limit = float(plane_candidate)
 
     return PropagatorSettings(
         start_time=analysis_start,
@@ -237,6 +264,10 @@ def _default_settings(scenario: Mapping[str, object]) -> PropagatorSettings:
         drag_coefficient=2.2,
         ballistic_coefficient_m2_per_kg=0.025,
         solar_flux_index=SOLAR_FLUX_BASE,
+        evaluation_time=evaluation_time,
+        primary_cross_track_limit_km=primary_limit,
+        waiver_cross_track_limit_km=waiver_limit,
+        plane_intersection_limit_km=plane_limit,
     )
 
 
@@ -262,6 +293,17 @@ def _normalise_monte_carlo(monte_carlo: Mapping[str, object] | None) -> MutableM
     config["dispersions"] = dict(dispersions)
 
     return config
+
+
+def _resolve_evaluation_time(settings: PropagatorSettings) -> datetime:
+    """Return a clamped evaluation time within the propagation span."""
+
+    evaluation = settings.evaluation_time or settings.start_time
+    if evaluation < settings.start_time:
+        evaluation = settings.start_time
+    if evaluation > settings.stop_time:
+        evaluation = settings.stop_time
+    return evaluation
 
 
 def _scenario_orbital_elements(scenario: Mapping[str, object]) -> OrbitalElements:
@@ -533,10 +575,90 @@ def _propagate_deterministic(
     overall_min_abs = 0.0
     for entry in metrics["vehicles"]:
         min_abs = float(entry.get("min_abs_cross_track_km", math.inf))
-        entry["compliant"] = bool(min_abs <= 10.0)
         if math.isfinite(min_abs):
             overall_min_abs = max(overall_min_abs, min_abs)
     metrics["overall_min_abs_cross_track_km"] = float(overall_min_abs)
+
+    evaluation_time = _resolve_evaluation_time(settings)
+    evaluation_timestamp = evaluation_time
+    evaluation_index = 0
+    if times:
+        evaluation_index = min(
+            range(len(times)),
+            key=lambda idx: abs((times[idx] - evaluation_time).total_seconds()),
+        )
+        evaluation_timestamp = times[evaluation_index]
+
+    evaluation_values: dict[str, float] = {}
+    evaluation_abs: dict[str, float] = {}
+    for identifier, series_values in cross_track_series.items():
+        value = float("nan")
+        if evaluation_index < len(series_values):
+            value = float(series_values[evaluation_index])
+        elif series_values:
+            value = float(series_values[-1])
+        evaluation_values[identifier] = value
+        evaluation_abs[identifier] = abs(value) if math.isfinite(value) else math.inf
+
+    centroid_value = fmean(evaluation_values.values()) if evaluation_values else math.nan
+    centroid_abs = abs(centroid_value) if math.isfinite(centroid_value) else math.inf
+    worst_abs = max(evaluation_abs.values()) if evaluation_abs else math.inf
+
+    primary_limit = float(settings.primary_cross_track_limit_km)
+    waiver_limit = float(settings.waiver_cross_track_limit_km)
+
+    primary_compliant = (
+        math.isfinite(centroid_abs)
+        and centroid_abs <= primary_limit
+        and math.isfinite(worst_abs)
+        and worst_abs <= waiver_limit
+    )
+    waiver_compliant = math.isfinite(worst_abs) and worst_abs <= waiver_limit
+
+    for entry in metrics["vehicles"]:
+        identifier = str(entry.get("identifier", ""))
+        value = evaluation_values.get(identifier, float("nan"))
+        abs_value = evaluation_abs.get(identifier, math.inf)
+        entry["cross_track_at_evaluation_km"] = (
+            float(value) if math.isfinite(value) else None
+        )
+        entry["abs_cross_track_at_evaluation_km"] = (
+            float(abs_value) if math.isfinite(abs_value) else None
+        )
+        entry["compliant"] = bool(
+            math.isfinite(abs_value) and abs_value <= waiver_limit
+        )
+
+    evaluation_timestamp_iso = evaluation_timestamp.isoformat().replace("+00:00", "Z")
+    centroid_value_out = float(centroid_value) if math.isfinite(centroid_value) else None
+    centroid_abs_out = float(centroid_abs) if math.isfinite(centroid_abs) else None
+    worst_abs_out = float(worst_abs) if math.isfinite(worst_abs) else None
+
+    metrics["evaluation"] = {
+        "time_utc": evaluation_timestamp_iso,
+        "vehicles": {
+            identifier: (float(value) if math.isfinite(value) else None)
+            for identifier, value in evaluation_values.items()
+        },
+        "vehicle_abs": {
+            identifier: (float(value) if math.isfinite(value) else None)
+            for identifier, value in evaluation_abs.items()
+        },
+        "centroid_cross_track_km": centroid_value_out,
+        "centroid_abs_cross_track_km": centroid_abs_out,
+        "worst_vehicle_abs_cross_track_km": worst_abs_out,
+        "primary_compliant": bool(primary_compliant),
+        "waiver_compliant": bool(waiver_compliant),
+        "primary_limit_km": float(primary_limit),
+        "waiver_limit_km": float(waiver_limit),
+    }
+    metrics["centroid_cross_track_km_at_evaluation"] = centroid_value_out
+    metrics["centroid_abs_cross_track_km_at_evaluation"] = centroid_abs_out
+    metrics["overall_abs_cross_track_km_at_evaluation"] = worst_abs_out
+    metrics["primary_compliant"] = bool(primary_compliant)
+    metrics["waiver_compliant"] = bool(waiver_compliant)
+    metrics["primary_limit_km"] = float(primary_limit)
+    metrics["waiver_limit_km"] = float(waiver_limit)
 
     relative_summary = {
         "max_abs_km": float(relative_stats["max_abs"]),
@@ -576,10 +698,29 @@ def _propagate_deterministic(
             "worst_vehicle_abs_cross_track_km": float(
                 centroid_summary.get("worst_vehicle_abs_cross_track_km", math.inf)
             ),
+            "evaluation_cross_track_km": centroid_value_out,
+            "evaluation_abs_cross_track_km": centroid_abs_out,
+            "worst_vehicle_abs_cross_track_km_at_evaluation": worst_abs_out,
+            "evaluation_time_utc": evaluation_timestamp_iso,
+            "primary_limit_km": float(primary_limit),
+            "waiver_limit_km": float(waiver_limit),
+            "primary_compliant": bool(primary_compliant),
+            "waiver_compliant": bool(waiver_compliant),
         }
-    plane_metrics["compliant"] = bool(plane_metrics.get("target_distance_km", math.inf) <= 10.0)
+    plane_distance = float(plane_metrics.get("target_distance_km", math.inf))
+    plane_limit = settings.plane_intersection_limit_km
+    if plane_limit is not None and math.isfinite(plane_distance):
+        plane_metrics["compliant"] = bool(plane_distance <= plane_limit)
+        plane_metrics["limit_km"] = float(plane_limit)
+    else:
+        plane_metrics["compliant"] = True
     deterministic_metrics["plane_intersection"] = plane_metrics
     deterministic_metrics["relative_cross_track"] = relative_summary
+    deterministic_metrics["cross_track_limits_km"] = {
+        "primary": float(primary_limit),
+        "waiver": float(waiver_limit),
+    }
+    deterministic_metrics["cross_track_evaluation"] = metrics["evaluation"]
 
     series = {
         "samples": [
@@ -926,11 +1067,22 @@ def _run_monte_carlo(
     vehicle_ids = [entry.get("identifier", "spacecraft") for entry in formation]
     run_metrics_max: dict[str, list[float]] = {str(identifier): [] for identifier in vehicle_ids}
     run_metrics_min: dict[str, list[float]] = {str(identifier): [] for identifier in vehicle_ids}
+    run_metrics_eval: dict[str, list[float]] = {str(identifier): [] for identifier in vehicle_ids}
     intersection_distances: list[float] = []
     relative_max_list: list[float] = []
     relative_min_list: list[float] = []
-    absolute_success_count = 0
+    centroid_abs_list: list[float] = []
+    worst_abs_list: list[float] = []
+
+    primary_success_count = 0
+    waiver_success_count = 0
     relative_success_count = 0
+    plane_success_count = 0
+
+    evaluation_time = _resolve_evaluation_time(settings)
+    primary_limit = float(settings.primary_cross_track_limit_km)
+    waiver_limit = float(settings.waiver_cross_track_limit_km)
+    plane_limit = settings.plane_intersection_limit_km
 
     epoch_offset = (settings.start_time - settings.epoch_time).total_seconds()
 
@@ -959,8 +1111,11 @@ def _run_monte_carlo(
         vehicle_metrics = _initial_metric_structure(states, target_lat, target_lon)
         previous_signs = {state.identifier: 0.0 for state in states}
         relative_run_stats = {"max": 0.0, "min": math.inf}
+        evaluation_snapshot: dict[str, float] = {}
+        evaluation_best = math.inf
 
         while epoch <= settings.stop_time + timedelta(seconds=1e-6):
+            current_values: dict[str, float] = {}
             for idx, state in enumerate(states):
                 position_ecef = inertial_to_ecef(state.position_m, epoch)
                 latitude, longitude, _ = geodetic_coordinates(position_ecef)
@@ -981,11 +1136,18 @@ def _run_monte_carlo(
                 if abs_value < vehicle_entry["min_abs_cross_track_km"]:
                     vehicle_entry["min_abs_cross_track_km"] = abs_value
 
+                current_values[str(state.identifier)] = float(cross_track_km)
+
                 identifier = str(state.identifier)
                 previous_sign = previous_signs[identifier]
                 if previous_sign != 0.0 and previous_sign * cross_track_km < 0.0:
                     vehicle_entry["pass_count"] += 1
                 previous_signs[identifier] = cross_track_km
+
+            diff = abs((epoch - evaluation_time).total_seconds())
+            if diff < evaluation_best:
+                evaluation_best = diff
+                evaluation_snapshot = dict(current_values)
 
             if epoch >= settings.stop_time:
                 break
@@ -1011,29 +1173,71 @@ def _run_monte_carlo(
                     if abs_val < relative_run_stats["min"]:
                         relative_run_stats["min"] = abs_val
 
-        absolute_run_compliant = True
+        evaluation_abs = {
+            identifier: abs(value) if math.isfinite(value) else math.inf
+            for identifier, value in evaluation_snapshot.items()
+        }
+        centroid_value = (
+            fmean(evaluation_snapshot.values()) if evaluation_snapshot else math.nan
+        )
+        centroid_abs = abs(centroid_value) if math.isfinite(centroid_value) else math.inf
+        worst_abs = max(evaluation_abs.values()) if evaluation_abs else math.inf
+
+        primary_compliant = (
+            math.isfinite(centroid_abs)
+            and centroid_abs <= primary_limit
+            and math.isfinite(worst_abs)
+            and worst_abs <= waiver_limit
+        )
+        waiver_compliant = math.isfinite(worst_abs) and worst_abs <= waiver_limit
+
+        if math.isfinite(centroid_abs):
+            centroid_abs_list.append(centroid_abs)
+        if math.isfinite(worst_abs):
+            worst_abs_list.append(worst_abs)
+
         for entry in vehicle_metrics["vehicles"]:
             identifier = str(entry["identifier"])
             max_abs = float(entry["max_abs_cross_track_km"])
             min_abs = float(entry.get("min_abs_cross_track_km", math.inf))
-            entry["compliant"] = bool(min_abs <= 10.0)
+            value = evaluation_snapshot.get(identifier, float("nan"))
+            abs_value = evaluation_abs.get(identifier, math.inf)
+            entry["cross_track_at_evaluation_km"] = (
+                float(value) if math.isfinite(value) else None
+            )
+            entry["abs_cross_track_at_evaluation_km"] = (
+                float(abs_value) if math.isfinite(abs_value) else None
+            )
+            entry["compliant"] = bool(
+                math.isfinite(abs_value) and abs_value <= waiver_limit
+            )
             run_metrics_max[identifier].append(max_abs)
             if math.isfinite(min_abs):
                 run_metrics_min[identifier].append(min_abs)
-            absolute_run_compliant = absolute_run_compliant and bool(entry["compliant"])
+            if math.isfinite(abs_value):
+                run_metrics_eval[identifier].append(abs_value)
 
+        plane_success = True
         if math.isfinite(plane_distance):
             intersection_distances.append(plane_distance)
-            absolute_run_compliant = absolute_run_compliant and plane_distance <= 10.0
+            if plane_limit is not None:
+                plane_success = plane_distance <= plane_limit
+        elif plane_limit is not None:
+            plane_success = False
+
+        if plane_success:
+            plane_success_count += 1
 
         if math.isfinite(relative_run_stats["max"]):
             relative_max_list.append(relative_run_stats["max"])
         if math.isfinite(relative_run_stats["min"]):
             relative_min_list.append(relative_run_stats["min"])
-        if absolute_run_compliant:
-            absolute_success_count += 1
 
-        if relative_run_stats["max"] <= 10.0:
+        if primary_compliant:
+            primary_success_count += 1
+        if waiver_compliant:
+            waiver_success_count += 1
+        if relative_run_stats["max"] <= waiver_limit:
             relative_success_count += 1
 
     aggregated: MutableMapping[str, object] = {
@@ -1041,13 +1245,35 @@ def _run_monte_carlo(
         "seed": seed,
         "max_abs_cross_track_km": {},
         "min_abs_cross_track_km": {},
+        "evaluation_abs_cross_track_km": {},
         "plane_intersection_distance_km": {},
         "relative_cross_track_km": {},
-        "fleet_compliance_probability": float(relative_success_count / runs),
+        "compliance": {
+            "primary_fraction": float(primary_success_count / runs) if runs else 0.0,
+            "waiver_fraction": float(waiver_success_count / runs) if runs else 0.0,
+            "relative_fraction": float(relative_success_count / runs) if runs else 0.0,
+        },
+        "fleet_compliance_probability": float(primary_success_count / runs)
+        if runs
+        else 0.0,
         "absolute_cross_track_compliance_probability": float(
-            absolute_success_count / runs
-        ),
+            waiver_success_count / runs
+        )
+        if runs
+        else 0.0,
+        "evaluation_time_utc": evaluation_time.isoformat().replace("+00:00", "Z"),
+        "cross_track_limits_km": {
+            "primary": float(primary_limit),
+            "waiver": float(waiver_limit),
+        },
     }
+
+    if plane_limit is not None:
+        aggregated["compliance"]["plane_fraction"] = float(
+            plane_success_count / runs
+        ) if runs else 0.0
+    else:
+        aggregated["compliance"]["plane_fraction"] = 1.0
 
     for identifier, values in run_metrics_max.items():
         if not values:
@@ -1066,6 +1292,18 @@ def _run_monte_carlo(
             continue
         array = np.asarray(values, dtype=float)
         aggregated["min_abs_cross_track_km"][identifier] = {
+            "mean": float(np.mean(array)),
+            "std": float(np.std(array)),
+            "p95": float(np.percentile(array, 95.0)),
+            "min": float(np.min(array)),
+            "max": float(np.max(array)),
+        }
+
+    for identifier, values in run_metrics_eval.items():
+        if not values:
+            continue
+        array = np.asarray(values, dtype=float)
+        aggregated["evaluation_abs_cross_track_km"][identifier] = {
             "mean": float(np.mean(array)),
             "std": float(np.std(array)),
             "p95": float(np.percentile(array, 95.0)),
@@ -1095,6 +1333,25 @@ def _run_monte_carlo(
     if relative_min_list:
         array = np.asarray(relative_min_list, dtype=float)
         aggregated["relative_cross_track_km"]["fleet_relative_min"] = {
+            "mean": float(np.mean(array)),
+            "std": float(np.std(array)),
+            "p95": float(np.percentile(array, 95.0)),
+            "min": float(np.min(array)),
+            "max": float(np.max(array)),
+        }
+
+    if centroid_abs_list:
+        array = np.asarray(centroid_abs_list, dtype=float)
+        aggregated["centroid_abs_cross_track_km"] = {
+            "mean": float(np.mean(array)),
+            "std": float(np.std(array)),
+            "p95": float(np.percentile(array, 95.0)),
+            "min": float(np.min(array)),
+            "max": float(np.max(array)),
+        }
+    if worst_abs_list:
+        array = np.asarray(worst_abs_list, dtype=float)
+        aggregated["worst_vehicle_abs_cross_track_km"] = {
             "mean": float(np.mean(array)),
             "std": float(np.std(array)),
             "p95": float(np.percentile(array, 95.0)),
