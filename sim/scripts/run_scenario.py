@@ -304,23 +304,28 @@ def _resolve_raan_alignment(
     if not isinstance(solver_config, Mapping):
         solver_config = {}
 
+    window_start, window_end, window_midpoint = perturbation_analysis.scenario_access_window(
+        scenario
+    )
+
     midpoint = _parse_time(solver_config.get("midpoint_utc"))
     if midpoint is None:
-        midpoint = _raan_target_midpoint(scenario)
+        midpoint = window_midpoint or _raan_target_midpoint(scenario)
     if midpoint is None:
         return {}
 
     initial_raan = float(_coerce_float(classical, "raan_deg", 0.0))
 
-    window_duration = float(solver_config.get("window_duration_s", 90.0))
+    if window_start and window_end:
+        window_duration = (window_end - window_start).total_seconds()
+    else:
+        window_duration = float(solver_config.get("window_duration_s", 90.0))
     time_step = float(solver_config.get("time_step_s", 10.0))
     search_span = float(solver_config.get("search_span_deg", 5.0))
     samples = max(int(solver_config.get("samples_per_iteration", 9)), 3)
     iterations = max(int(solver_config.get("iterations", 4)), 1)
     coarse_samples = max(int(solver_config.get("coarse_samples", 36)), 3)
-    span_hours = float(solver_config.get("evaluation_span_hours", 2.0))
-    if span_hours <= 0.0:
-        span_hours = 2.0
+    margin_s = max(float(solver_config.get("propagation_margin_s", 300.0)), 120.0)
     coarse_range = solver_config.get("coarse_range_deg", (0.0, 360.0))
     if (
         isinstance(coarse_range, Sequence)
@@ -332,14 +337,38 @@ def _resolve_raan_alignment(
     else:
         coarse_lower, coarse_upper = 0.0, 360.0
 
-    half_window = timedelta(hours=span_hours)
-    start_time = midpoint - half_window
-    stop_time = midpoint + half_window
+    margin = timedelta(seconds=margin_s)
+    if window_start:
+        start_time = window_start - margin
+    else:
+        start_time = midpoint - margin
+    if window_end:
+        stop_time = window_end + margin
+    else:
+        stop_time = midpoint + margin
 
     epoch_time = _parse_time(orbital.get("epoch_utc")) or start_time
 
-    evaluations: list[MutableMapping[str, object]] = []
-    best_result: MutableMapping[str, object] | None = None
+    primary_limit, waiver_limit, plane_limit = perturbation_analysis.scenario_cross_track_limits(
+        scenario
+    )
+
+    baseline = _evaluate_raan_candidate(
+        scenario,
+        initial_raan,
+        start_time,
+        stop_time,
+        epoch_time,
+        time_step,
+        window_duration,
+        midpoint,
+        primary_limit,
+        waiver_limit,
+        plane_limit,
+    )
+
+    evaluations: list[MutableMapping[str, object]] = [baseline]
+    best_result: MutableMapping[str, object] | None = baseline
 
     for index in range(coarse_samples):
         if coarse_samples == 1:
@@ -355,6 +384,10 @@ def _resolve_raan_alignment(
             epoch_time,
             time_step,
             window_duration,
+            midpoint,
+            primary_limit,
+            waiver_limit,
+            plane_limit,
         )
         evaluations.append(result)
         if not best_result or (
@@ -386,6 +419,10 @@ def _resolve_raan_alignment(
                 epoch_time,
                 time_step,
                 window_duration,
+                midpoint,
+                primary_limit,
+                waiver_limit,
+                plane_limit,
             )
             evaluations.append(result)
             iteration_results.append(result)
@@ -407,7 +444,18 @@ def _resolve_raan_alignment(
         lower = centre - span
         upper = centre + span
 
-    optimised_raan = float(best_result.get("raan_deg", initial_raan))
+    baseline_value = baseline.get("centroid_abs_cross_track_km", math.inf)
+    best_value = best_result.get("centroid_abs_cross_track_km", math.inf) if best_result else math.inf
+    if (
+        isinstance(baseline_value, (int, float))
+        and isinstance(best_value, (int, float))
+        and float(best_value) < float(baseline_value)
+    ):
+        optimised_raan = float(best_result.get("raan_deg", initial_raan))
+    else:
+        best_result = baseline
+        optimised_raan = float(initial_raan)
+
     classical["raan_deg"] = optimised_raan
 
     summary: MutableMapping[str, object] = {
@@ -420,17 +468,29 @@ def _resolve_raan_alignment(
         "best_evaluation": best_result,
     }
 
-    worst_vehicle = float(best_result.get("worst_vehicle_abs_cross_track_km", math.inf))
+    worst_candidate = best_result.get("worst_vehicle_abs_cross_track_km", math.inf)
+    if isinstance(worst_candidate, (int, float)):
+        worst_vehicle = float(worst_candidate)
+    else:
+        worst_vehicle = math.inf
     summary["worst_vehicle_abs_cross_track_km"] = worst_vehicle
-    summary["centroid_abs_cross_track_km"] = float(
-        best_result.get("centroid_abs_cross_track_km", math.inf)
-    )
+
+    centroid_candidate = best_result.get("centroid_abs_cross_track_km", math.inf)
+    if isinstance(centroid_candidate, (int, float)):
+        centroid_abs = float(centroid_candidate)
+    else:
+        centroid_abs = math.inf
+    summary["centroid_abs_cross_track_km"] = centroid_abs
 
     return summary
 
 
 def _raan_target_midpoint(scenario: Mapping[str, object]) -> Optional[datetime]:
     """Return the midpoint of the primary access window for RAAN alignment."""
+
+    start, end, midpoint = perturbation_analysis.scenario_access_window(scenario)
+    if midpoint is not None:
+        return midpoint
 
     orbital = scenario.get("orbital_elements")
     if isinstance(orbital, Mapping):
@@ -468,6 +528,10 @@ def _evaluate_raan_candidate(
     epoch_time: datetime,
     time_step_s: float,
     window_duration_s: float,
+    evaluation_time: datetime,
+    primary_limit_km: float,
+    waiver_limit_km: float,
+    plane_limit_km: float | None,
 ) -> MutableMapping[str, object]:
     """Evaluate centroid cross-track performance for a RAAN candidate."""
 
@@ -485,7 +549,10 @@ def _evaluate_raan_candidate(
         drag_coefficient=2.2,
         ballistic_coefficient_m2_per_kg=0.025,
         solar_flux_index=perturbation_analysis.SOLAR_FLUX_BASE,
-        evaluation_time=start_time + timedelta(seconds=0.5 * window_duration_s),
+        evaluation_time=evaluation_time,
+        primary_cross_track_limit_km=primary_limit_km,
+        waiver_cross_track_limit_km=waiver_limit_km,
+        plane_intersection_limit_km=plane_limit_km,
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -498,25 +565,24 @@ def _evaluate_raan_candidate(
         cross_track_path = Path(tmp_dir) / "deterministic_cross_track.csv"
         samples = _load_cross_track_series(cross_track_path)
 
-    best_time = None
-    best_values: MutableMapping[str, float] = {}
-    centroid = math.inf
+    sample_time = None
+    sample_values: MutableMapping[str, float] = {}
+    best_diff = math.inf
     for timestamp, values in samples:
         if not values:
             continue
-        current_centroid = fmean(values.values())
-        abs_value = abs(current_centroid)
-        if abs_value < abs(centroid):
-            centroid = current_centroid
-            best_time = timestamp
-            best_values = values
+        diff = abs((timestamp - evaluation_time).total_seconds())
+        if diff < best_diff:
+            best_diff = diff
+            sample_time = timestamp
+            sample_values = values
 
-    if best_time is None:
-        best_time = start_time
-        best_values = {}
-        centroid = math.inf
+    if sample_time is None:
+        sample_time = evaluation_time
+        sample_values = {}
 
-    abs_values = {identifier: abs(value) for identifier, value in best_values.items()}
+    centroid = fmean(sample_values.values()) if sample_values else math.nan
+    abs_values = {identifier: abs(value) for identifier, value in sample_values.items()}
     primary_limit = float(settings.primary_cross_track_limit_km)
     waiver_limit = float(settings.waiver_cross_track_limit_km)
     centroid_abs = abs(centroid) if math.isfinite(centroid) else math.inf
@@ -537,19 +603,30 @@ def _evaluate_raan_candidate(
         else 0.0
     )
     window_half = timedelta(seconds=0.5 * window_duration_s)
-    window_start = best_time - window_half
-    window_end = best_time + window_half
+    window_start = evaluation_time - window_half
+    window_end = evaluation_time + window_half
+
+    centroid_value_out = float(centroid) if math.isfinite(centroid) else None
+    centroid_abs_out = float(centroid_abs) if math.isfinite(centroid_abs) else None
+    worst_abs_out = float(worst_abs) if math.isfinite(worst_abs) else None
 
     result: MutableMapping[str, object] = {
         "raan_deg": normalised_raan,
-        "evaluation_time_utc": _format_time(best_time),
-        "centroid_cross_track_km": float(centroid),
-        "centroid_abs_cross_track_km": float(abs(centroid)),
+        "evaluation_time_utc": _format_time(evaluation_time),
+        "sample_time_utc": _format_time(sample_time),
+        "centroid_cross_track_km": centroid_value_out,
+        "centroid_abs_cross_track_km": centroid_abs_out,
         "window_start_utc": _format_time(window_start),
         "window_end_utc": _format_time(window_end),
-        "vehicle_cross_track_km": {k: float(v) for k, v in best_values.items()},
-        "vehicle_abs_cross_track_km": {k: float(v) for k, v in abs_values.items()},
-        "worst_vehicle_abs_cross_track_km": float(max(abs_values.values(), default=math.inf)),
+        "vehicle_cross_track_km": {
+            k: (float(v) if math.isfinite(v) else None)
+            for k, v in sample_values.items()
+        },
+        "vehicle_abs_cross_track_km": {
+            k: (float(v) if math.isfinite(v) else None)
+            for k, v in abs_values.items()
+        },
+        "worst_vehicle_abs_cross_track_km": worst_abs_out,
         "primary_compliant": bool(primary_compliant),
         "waiver_compliant": bool(waiver_compliant),
         "primary_limit_km": primary_limit,
@@ -872,7 +949,8 @@ def _summarise_metrics(
     cross_track = perturbed.get("cross_track") if isinstance(perturbed, Mapping) else None
     primary_compliant = False
     waiver_compliant = False
-    waiver_fraction = 0.0
+    primary_fraction = None
+    waiver_fraction = None
     if isinstance(cross_track, Mapping):
         evaluation = cross_track.get("evaluation") if isinstance(cross_track.get("evaluation"), Mapping) else {}
         if evaluation:
@@ -894,6 +972,16 @@ def _summarise_metrics(
             )
             primary_compliant = bool(evaluation.get("primary_compliant", False))
             waiver_compliant = bool(evaluation.get("waiver_compliant", False))
+            if "primary_pass_fraction" in evaluation:
+                try:
+                    primary_fraction = float(evaluation.get("primary_pass_fraction", 0.0))
+                except (TypeError, ValueError):
+                    primary_fraction = None
+            if "waiver_pass_fraction" in evaluation:
+                try:
+                    waiver_fraction = float(evaluation.get("waiver_pass_fraction", 0.0))
+                except (TypeError, ValueError):
+                    waiver_fraction = None
             vehicle_abs = evaluation.get("vehicle_abs")
             waiver_limit = evaluation.get("waiver_limit_km")
             if isinstance(vehicle_abs, Mapping) and vehicle_abs:
@@ -905,7 +993,11 @@ def _summarise_metrics(
                     for value in vehicle_abs.values()
                     if isinstance(value, (int, float)) and math.isfinite(float(value))
                 ]
-                if finite_values and isinstance(waiver_limit, (int, float)):
+                if (
+                    waiver_fraction is None
+                    and finite_values
+                    and isinstance(waiver_limit, (int, float))
+                ):
                     allowed = sum(
                         1 for value in finite_values if value <= float(waiver_limit)
                     )
@@ -916,8 +1008,12 @@ def _summarise_metrics(
             cross_track.get("overall_min_abs_cross_track_km", 0.0)
         )
     metrics["deterministic_primary_compliant"] = primary_compliant
-    metrics["deterministic_primary_pass_fraction"] = 1.0 if primary_compliant else 0.0
+    if primary_fraction is None:
+        primary_fraction = 1.0 if primary_compliant else 0.0
+    metrics["deterministic_primary_pass_fraction"] = float(primary_fraction)
     metrics["deterministic_waiver_compliant"] = waiver_compliant
+    if waiver_fraction is None:
+        waiver_fraction = 1.0 if waiver_compliant else 0.0
     metrics["deterministic_waiver_pass_fraction"] = float(waiver_fraction)
 
     monte_carlo = perturbed.get("monte_carlo") if isinstance(perturbed, Mapping) else None

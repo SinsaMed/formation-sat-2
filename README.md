@@ -47,6 +47,8 @@ The accompanying GitHub Actions workflow (`.github/workflows/ci.yml`) executes t
 2. Alternatively, call the runner directly with `python -m sim.scripts.run_scenario tehran_daily_pass --output-dir artefacts/scenario` to specify a named scenario housed under `config/scenarios/`.
 3. Supply bespoke configurations via `python -m sim.scripts.run_scenario /path/to/configuration.yaml --output-dir outputs/custom` when iterating on local mission concepts. The tool logs the stage sequence (nodes, phases, two-body propagation, J2 plus drag, and metric extraction) to `stdout` so analysts can confirm that every component executed in order.
 
+Deterministic cross-track assessments now sample the exact access-window midpoint (`midpoint_utc`), ensuring the locked 90-second geometry is validated where it matters operationally. The pass/fail tallies therefore measure compliance with the ±30 km centroid tolerance and the ±70 km worst-vehicle waiver limit at that instant, keeping the reporting aligned with mission assurance criteria.
+
 ## Contributing
 All contributions must preserve the academic tone and reference discipline specified in `AGENTS.md`. Each pull request should:
 - Summarise the mission design progress achieved,
