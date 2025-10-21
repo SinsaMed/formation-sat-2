@@ -21,7 +21,7 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 
 ## STK Verification
 1. **Prepare the STK workspace.** Open STK 11.2 and create a new scenario matching the start and stop epochs reported in the JSON summary.
-2. **Import ephemerides and ground tracks.** Load the `.e` and `_groundtrack.gt` files located under `artefacts/triangle_run/stk/` (or from the regenerated `artefacts/triangle/stk/` directory) for each spacecraft, ensuring the assets are referenced to the TEME frame as documented in the exporter guide.[Ref2]
+2. **Import ephemerides and ground tracks.** Load the `.e` and `_groundtrack.gt` files located under `artefacts/triangle_run/stk_export/` (or from the regenerated `artefacts/triangle/stk_export/` directory) for each spacecraft, ensuring the assets are referenced to the TEME frame as documented in the exporter guide.[Ref2]
 3. **Load facilities and contact intervals.** Add the generated `.fac` and `.int` files to visualise the Tehran ground facility and the simultaneous contact window. The interval should match the ninety-second duration established by the Python simulation.[Ref1]
 4. **Cross-check metrics.** Use STK's built-in measurement tools to confirm that the triangle side lengths and centroid altitude match the analytical results to within numerical tolerance.[Ref1]
 
