@@ -9,10 +9,10 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 3. **Confirm exporter compatibility.** Familiarise yourself with `tools/stk_export.py` to understand the file formats and metadata required by STK 11.2 ingestion workflows.[Ref2]
 
 ## Execution Procedure
-1. **Inspect the archived run.** Review `artefacts/triangle_run/triangle_summary.json` and the accompanying CSV outputs to understand the baseline metrics delivered with the repository before initiating a fresh propagation.[Ref1]
+1. **Inspect the archived run.** Review the curated `artefacts/triangle_run/` snapshot—mirroring the drag-inclusive rerun `run_20251018_1424Z`—so that `triangle_summary.json`, `maintenance_summary.csv`, `command_windows.csv`, `injection_recovery.csv`, `drag_dispersion.csv`, `injection_recovery_cdf.svg`, and the accompanying `run_metadata.json` ledger refresh the baseline before initiating a fresh propagation.[Ref1]
 2. **Launch the formation runner.** Invoke `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` to propagate the formation, compute geometry metrics, and serialise the results into a new `artefacts/triangle/` directory that mirrors the archived structure.
 3. **Observe command output.** Verify that the terminal log reports a formation window of at least ninety seconds alongside the UTC start and end timestamps for the Tehran overflight.
-4. **Inspect generated artefacts.** Examine the regenerated `artefacts/triangle/triangle_summary.json` (or the committed `artefacts/triangle_run/triangle_summary.json`) to confirm the recorded triangle metrics, centroid behaviour, and orbital element reconstruction.[Ref1]
+4. **Inspect generated artefacts.** Examine the regenerated `artefacts/triangle/triangle_summary.json` (or the committed `artefacts/triangle_run/triangle_summary.json`) together with the curated CSV analytics to confirm the recorded triangle metrics, centroid behaviour, maintenance \(\Delta v\), command latency, injection recovery statistics, and drag dispersion margins remain within the documented tolerances.[Ref1]
 
 ## Output Interpretation
 1. **Validate temporal coverage.** Within either the archived or regenerated summary JSON, ensure the `formation_window.duration_s` field exceeds the ninety-second threshold mandated by the mission requirement set.[Ref1]

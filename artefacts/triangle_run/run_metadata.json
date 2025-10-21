@@ -1,0 +1,39 @@
+{
+  "run_id": "run_20251018_1424Z",
+  "timestamp_utc": "2025-10-18T14:24:25.333551Z",
+  "cadence_days": 90.0,
+  "scenario_path": "config/scenarios/tehran_triangle.json",
+  "notes": "Curated snapshot of the quarterly drag dispersion rerun for quick reference inside the repository.",
+  "source_run_directory": "artefacts/run_20251018_1424Z",
+  "drag_dispersion_summary": {
+    "sample_count": 200,
+    "success_rate": 1.0,
+    "aggregate": {
+      "p95_ground_distance_delta_km": 0.00048607427603366334,
+      "max_ground_distance_delta_km": 0.0005669341198483206,
+      "p95_along_track_shift_km": 0.0036277939738054775,
+      "max_along_track_shift_km": 0.004231287860598512,
+      "p95_altitude_delta_m": -0.01364324111491442
+    },
+    "assumptions": {
+      "density_sigma": 0.25,
+      "drag_coefficient_sigma": 0.05,
+      "reference_density_kg_m3": 3.2e-12,
+      "drag_coefficient": 2.2,
+      "reference_area_m2": 1.1,
+      "spacecraft_mass_kg": 165.0,
+      "time_horizon_orbits": 12.0,
+      "integration_step_s": 120.0
+    },
+    "tolerance_km": 350.0
+  },
+  "artefacts": {
+    "summary_path": "triangle_summary.json",
+    "stk_directory": "stk",
+    "maintenance_csv": "maintenance_summary.csv",
+    "command_windows_csv": "command_windows.csv",
+    "injection_recovery_csv": "injection_recovery.csv",
+    "injection_recovery_plot": "injection_recovery_cdf.svg",
+    "drag_dispersion_csv": "drag_dispersion.csv"
+  }
+}
