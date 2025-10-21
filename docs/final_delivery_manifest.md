@@ -18,10 +18,11 @@ This manifest consolidates the artefacts that deliver the Tehran triangular-form
 | Verification test | PyTest case that enforces the \(\geq 90\,\text{s}\) access window and plane-allocation logic. | `tests/unit/test_triangle_formation.py` |
 
 ## Reproduction Procedure
-1. Execute `make setup` followed by `make triangle` from the repository root to generate the summary JSON and STK directory under `artefacts/triangle/`.
-2. Inspect `artefacts/triangle/triangle_summary.json` to confirm the recorded formation window and orbital element metrics.
-3. Launch STK 11.2 and import the exported ephemerides, ground tracks, and interval lists located in `artefacts/triangle/stk/` to visualise the Tehran pass.
-4. Run `pytest tests/unit/test_triangle_formation.py` to verify that future modifications preserve the \(\geq 90\,\text{s}\) requirement and plane allocation schema.
+1. Inspect the archived evidence bundle in `artefacts/triangle_run/` to review the delivered `triangle_summary.json`, CSV analytics, and STK export set prior to re-running the simulation.
+2. Execute `make setup` followed by `make triangle` from the repository root to recreate the dataset within a fresh `artefacts/triangle/` directory while using the managed dependency stack.
+3. Compare `artefacts/triangle/triangle_summary.json` against the committed `artefacts/triangle_run/triangle_summary.json` to confirm that regenerated metrics reproduce the documented \(96\,\text{s}\) formation window and orbital element reconstruction.
+4. Launch STK 11.2 and import the ephemerides, ground tracks, and interval lists from `artefacts/triangle_run/stk/` (or from the newly generated `artefacts/triangle/stk/` when re-running) to visualise the Tehran pass and validate interoperability.[Ref2]
+5. Run `pytest tests/unit/test_triangle_formation.py` to verify that future modifications preserve the \(\geq 90\,\text{s}\) requirement and plane allocation schema.
 
 ## References
 - [Ref1] `docs/triangle_formation_results.md`.

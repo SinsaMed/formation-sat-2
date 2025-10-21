@@ -359,7 +359,6 @@ def simulate_triangle_formation(
         output_path = Path(output_directory)
         output_path.mkdir(parents=True, exist_ok=True)
         summary_path = output_path / "triangle_summary.json"
-        summary_path.write_text(json.dumps(result.to_summary(), indent=2), encoding="utf-8")
         artefacts["summary_path"] = str(summary_path)
 
         maintenance_rows = [
@@ -443,6 +442,11 @@ def simulate_triangle_formation(
             scenario_name=str(metadata.get("scenario_name", "Tehran Triangle Formation")),
         )
         artefacts["stk_directory"] = str(stk_dir)
+
+        summary_payload = result.to_summary()
+        summary_path.write_text(
+            json.dumps(summary_payload, indent=2), encoding="utf-8"
+        )
 
     return result
 
