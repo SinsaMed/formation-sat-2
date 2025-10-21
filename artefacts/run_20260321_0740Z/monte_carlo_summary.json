@@ -122,5 +122,6 @@
     "min": 132.23496764875446,
     "max": 132.5554454226144
   },
+  "centroid_abs_cross_track_km_mean": 97.13132819974224,
   "centroid_abs_cross_track_km_p95": 97.27754622955656
 }

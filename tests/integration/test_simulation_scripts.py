@@ -49,8 +49,12 @@ def test_scenario_runner_produces_summary(
     monte_carlo = payload["propagation"]["j2_drag"].get("monte_carlo", {})
     if monte_carlo:
         assert "centroid_abs_cross_track_km_p95" in monte_carlo
+        assert "centroid_abs_cross_track_km_mean" in monte_carlo
         assert monte_carlo["centroid_abs_cross_track_km_p95"] == pytest.approx(
             monte_carlo["centroid_abs_cross_track_km"]["p95"]
+        )
+        assert monte_carlo["centroid_abs_cross_track_km_mean"] == pytest.approx(
+            monte_carlo["centroid_abs_cross_track_km"]["mean"]
         )
 
 

@@ -15,8 +15,9 @@ This guide explains how to ingest the exported Tehran daily pass artefacts into 
 
 ## Geometry and Operations Verification
 1. Run the animation from the planning-horizon start to end while monitoring the satellite’s altitude, inclination, and ground-track coverage. Compare the observed orbital period and repeat-ground-track cadence against the metrics recorded in the scenario summary (`orbital_period_nominal_s`, `orbital_period_perturbed_s`).【Ref1】
-2. Inspect the imported interval lists (`Contacts_*.int`) to ensure imaging and downlink windows align with the metadata expectations (09:24 UTC imaging and 20:55 UTC downlink). Confirm that minimum elevation constraints are satisfied by querying access reports in STK.
+2. Inspect the imported interval lists (`Contacts_*.int`) to ensure the morning imaging contact spans 07:39:25–07:40:55Z and the evening downlink extends from 20:55:00–21:08:00Z, matching the authoritative metadata. Confirm that minimum elevation constraints are satisfied by querying access reports in STK.
 3. Validate that facility geometry (Tehran area of interest, Svalbard ground station) matches the documented latitudes and longitudes. Any discrepancies should trigger a rerun of the export pipeline after correcting the configuration.
+4. Cross-check the STK scenario properties against the `scenario_summary.json` metadata to ensure the optimised right ascension of the ascending node remains at \(350.7885044642857^{\circ}\). Minor offsets caused by epoch or \(J_2\) drift should be recorded in the validation log together with the comparison method.
 
 ## Evidence Capture and Reporting
 1. Capture annotated screenshots of the 3D orbit depiction, 2D ground-track coverage, and access report plots demonstrating compliance with imaging and downlink assumptions. Store the images within the run directory using descriptive filenames (e.g., `run_YYYYMMDD_hhmmZ_tehran_groundtrack.svg`).
