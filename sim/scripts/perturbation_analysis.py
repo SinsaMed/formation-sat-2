@@ -1497,6 +1497,7 @@ def _run_monte_carlo(
             "max": float(np.max(array)),
         }
         aggregated["centroid_abs_cross_track_km"] = centroid_stats
+        aggregated["centroid_abs_cross_track_km_mean"] = centroid_stats["mean"]
         aggregated["centroid_abs_cross_track_km_p95"] = centroid_stats["p95"]
     if worst_abs_list:
         array = np.asarray(worst_abs_list, dtype=float)

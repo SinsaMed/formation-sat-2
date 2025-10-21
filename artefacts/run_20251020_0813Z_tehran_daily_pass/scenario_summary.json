@@ -351,6 +351,7 @@
           "p95": 132.51719283441727,
           "std": 0.0638440566184486
         },
+        "centroid_abs_cross_track_km_mean": 97.13132819974224,
         "centroid_abs_cross_track_km_p95": 97.27754622955656
       },
       "orbital_period_s": 5679.4704024479515,
