@@ -9,18 +9,19 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 3. **Confirm exporter compatibility.** Familiarise yourself with `tools/stk_export.py` to understand the file formats and metadata required by STK 11.2 ingestion workflows.[Ref2]
 
 ## Execution Procedure
-1. **Launch the formation runner.** Invoke `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` to propagate the formation, compute geometry metrics, and serialise the results.
-2. **Observe command output.** Verify that the terminal log reports a formation window of at least ninety seconds alongside the UTC start and end timestamps for the Tehran overflight.
-3. **Inspect generated artefacts.** Examine `artefacts/triangle/triangle_summary.json` to confirm the recorded triangle metrics, centroid behaviour, and orbital element reconstruction.[Ref1]
+1. **Inspect the archived run.** Review `artefacts/triangle_run/triangle_summary.json` and the accompanying CSV outputs to understand the baseline metrics delivered with the repository before initiating a fresh propagation.[Ref1]
+2. **Launch the formation runner.** Invoke `python -m sim.scripts.run_triangle --output-dir artefacts/triangle` to propagate the formation, compute geometry metrics, and serialise the results into a new `artefacts/triangle/` directory that mirrors the archived structure.
+3. **Observe command output.** Verify that the terminal log reports a formation window of at least ninety seconds alongside the UTC start and end timestamps for the Tehran overflight.
+4. **Inspect generated artefacts.** Examine the regenerated `artefacts/triangle/triangle_summary.json` (or the committed `artefacts/triangle_run/triangle_summary.json`) to confirm the recorded triangle metrics, centroid behaviour, and orbital element reconstruction.[Ref1]
 
 ## Output Interpretation
-1. **Validate temporal coverage.** Within the summary JSON, ensure the `formation_window.duration_s` field exceeds the ninety-second threshold mandated by the mission requirement set.[Ref1]
+1. **Validate temporal coverage.** Within either the archived or regenerated summary JSON, ensure the `formation_window.duration_s` field exceeds the ninety-second threshold mandated by the mission requirement set.[Ref1]
 2. **Check geometric fidelity.** Review the `triangle.aspect_ratio_max` and `triangle.mean_side_lengths_m` entries to confirm the equilateral geometry is preserved across the access interval.[Ref1]
 3. **Review ground-track alignment.** Confirm the `ground_track.max_ground_distance_km` value remains below the tolerance specified in the configuration, demonstrating that all three spacecraft remain within the observation corridor above Tehran.[Ref1]
 
 ## STK Verification
 1. **Prepare the STK workspace.** Open STK 11.2 and create a new scenario matching the start and stop epochs reported in the JSON summary.
-2. **Import ephemerides and ground tracks.** Load the `.e` and `_groundtrack.gt` files located under `artefacts/triangle/stk/` for each spacecraft, ensuring the assets are referenced to the TEME frame as documented in the exporter guide.[Ref2]
+2. **Import ephemerides and ground tracks.** Load the `.e` and `_groundtrack.gt` files located under `artefacts/triangle_run/stk/` (or from the regenerated `artefacts/triangle/stk/` directory) for each spacecraft, ensuring the assets are referenced to the TEME frame as documented in the exporter guide.[Ref2]
 3. **Load facilities and contact intervals.** Add the generated `.fac` and `.int` files to visualise the Tehran ground facility and the simultaneous contact window. The interval should match the ninety-second duration established by the Python simulation.[Ref1]
 4. **Cross-check metrics.** Use STK's built-in measurement tools to confirm that the triangle side lengths and centroid altitude match the analytical results to within numerical tolerance.[Ref1]
 
