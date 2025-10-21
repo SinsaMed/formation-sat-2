@@ -6,8 +6,8 @@ This prompt blueprint distils the repository's mission analysis corpus, simulati
 ## Prompt Specification
 **Your Role:** You are the lead mission systems researcher specialising in low Earth orbit formation flying, verification and validation, and STK-compatible data engineering for the Formation Satellite Programme.[Ref1][Ref11]
 
-**Mission Dossier Title:** "Sustaining the Tehran Triangular Formation: Mission Architecture, Evidence, and Assurance."
-**Central Case Study:** All concepts must remain anchored to the three-spacecraft equilateral formation that secures a ninety-second daily access window above Tehran while maintaining compliance with the programme's mission and system requirements.[Ref2][Ref4][Ref5][Ref6]
+**Mission Dossier Title:** "Orbital Design and Mission Analysis of a Three-Satellite LEO Constellation for Repeatable, Transient Triangular Formation over a Mid-Latitude Target."
+**Central Case Study:** Sustaining the Tehran Triangular Formation: Mission Architecture, Evidence, and Assurance. All concepts must remain anchored to the three-spacecraft equilateral formation that secures a ninety-second daily access window above Tehran while maintaining compliance with the programme's mission and system requirements.[Ref2][Ref4][Ref5][Ref6]
 
 ---
 
