@@ -17,7 +17,7 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 ## Output Interpretation
 1. **Validate temporal coverage.** Within either the archived or regenerated summary JSON, ensure the `formation_window.duration_s` field exceeds the ninety-second threshold mandated by the mission requirement set.[Ref1]
 2. **Check geometric fidelity.** Review the `triangle.aspect_ratio_max` and `triangle.mean_side_lengths_m` entries to confirm the equilateral geometry is preserved across the access interval.[Ref1]
-3. **Review ground-track alignment.** Confirm the `ground_track.max_ground_distance_km` value remains below the tolerance specified in the configuration, demonstrating that all three spacecraft remain within the observation corridor above Tehran.[Ref1]
+3. **Review ground-track alignment.** Inspect the `samples` entries within `triangle_summary.json` whose timestamps fall between the `metrics.formation_window.start` and `metrics.formation_window.end` markers. Confirm that the maximum of those windowed `max_ground_distance_km` values remains below the \(350\,\text{km}\) tolerance, demonstrating that all three spacecraft remain within the observation corridor above Tehran. The global propagation also exposes a \(641.89\,\text{km}\) maximum outside the validated window, so capturing the filtered figure in compliance reports prevents ambiguity.[Ref1]
 
 ## STK Verification
 1. **Prepare the STK workspace.** Open STK 11.2 and create a new scenario matching the start and stop epochs reported in the JSON summary.

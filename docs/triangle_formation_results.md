@@ -11,7 +11,9 @@ This memorandum records the first fully fledged simulation of the three-satellit
 5. **Export for STK validation.** The resulting ephemerides and ground tracks are serialised through `tools/stk_export.py`, guaranteeing ingestion compatibility with STK 11.2 scenario files.
 
 ## Results
-The simulation yields the metrics summarised in Table 1. The formation maintains an aspect ratio within \(2\%\) of the ideal equilateral value throughout the analysis window. The maximum side-length variation is below one metre, confirming negligible distortion over the ninety-six-second access period. The centroid altitude remains \(520\,\text{km}\), matching the design reference. Automated regression `tests/unit/test_triangle_formation.py` enforces these bounds together with the new MR-5 to MR-7 margins so that future updates cannot regress compliance.[Ref3]
+The simulation yields the metrics summarised in Table 1. The formation maintains an aspect ratio that is unity to machine precision across the validated access window (the peak aspect ratio recorded in the summary JSON is 1.00000000000018). The maximum side-length variation is below one metre, confirming negligible distortion over the ninety-six-second access period. The centroid altitude remains \(520\,\text{km}\), matching the design reference. Automated regression `tests/unit/test_triangle_formation.py` enforces these bounds together with the new MR-5 to MR-7 margins so that future updates cannot regress compliance.[Ref3]
+
+The committed `triangle_summary.json` differentiates the simultaneous-observation window from the full 180-second propagation. Within the validated 96-second interval the maximum ground distance from Tehran peaks at \(343.62\,\text{km}\), whereas the complete propagation reaches \(641.89\,\text{km}\). Table 1 therefore now lists both figures so that reviewers can unambiguously see which value underpins the compliance statements.[Ref2]
 
 Table 1 – Key formation metrics
 
@@ -22,8 +24,9 @@ Table 1 – Key formation metrics
 | Window end (UTC) | 2026-03-21T09:32:48Z |
 | Mean triangle area | \(1.56\times 10^7\,\text{m}^2\) |
 | Mean side length | \(6.00\pm0.00\,\text{km}\) |
-| Maximum aspect ratio | 1.0002 |
-| Maximum ground distance to Tehran | \(344\,\text{km}\) |
+| Maximum aspect ratio | 1.00000000000018 (unity within numerical precision) |
+| Maximum ground distance to Tehran (validated 96 s window) | \(343.62\,\text{km}\) |
+| Maximum ground distance to Tehran (full propagation) | \(641.89\,\text{km}\) |
 
 ## Orbital Element Reconstruction
 The midpoint of the validated access window was sampled to recover classical orbital elements for each spacecraft using the new `cartesian_to_classical` routine. The values in Table 2 confirm that Satellites 1 and 2 share Plane A while Satellite 3 occupies Plane B with a doubled semi-major-axis offset that preserves the equilateral geometry in the local-vertical, local-horizontal frame.[Ref1]
