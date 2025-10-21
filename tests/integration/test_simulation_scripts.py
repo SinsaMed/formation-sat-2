@@ -46,6 +46,12 @@ def test_scenario_runner_produces_summary(
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
     assert payload["metrics"]["phase_count"] >= 1.0
     assert payload["propagation"]["two_body"]["model"] == "two_body"
+    monte_carlo = payload["propagation"]["j2_drag"].get("monte_carlo", {})
+    if monte_carlo:
+        assert "centroid_abs_cross_track_km_p95" in monte_carlo
+        assert monte_carlo["centroid_abs_cross_track_km_p95"] == pytest.approx(
+            monte_carlo["centroid_abs_cross_track_km"]["p95"]
+        )
 
 
 def test_baseline_stub_still_raises_not_implemented(

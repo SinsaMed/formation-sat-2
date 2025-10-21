@@ -1489,13 +1489,15 @@ def _run_monte_carlo(
 
     if centroid_abs_list:
         array = np.asarray(centroid_abs_list, dtype=float)
-        aggregated["centroid_abs_cross_track_km"] = {
+        centroid_stats = {
             "mean": float(np.mean(array)),
             "std": float(np.std(array)),
             "p95": float(np.percentile(array, 95.0)),
             "min": float(np.min(array)),
             "max": float(np.max(array)),
         }
+        aggregated["centroid_abs_cross_track_km"] = centroid_stats
+        aggregated["centroid_abs_cross_track_km_p95"] = centroid_stats["p95"]
     if worst_abs_list:
         array = np.asarray(worst_abs_list, dtype=float)
         aggregated["worst_vehicle_abs_cross_track_km"] = {
