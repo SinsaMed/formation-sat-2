@@ -50,7 +50,19 @@ Establish a launch and early deployment evidence base that anchors the constella
 
 Conclude this subsection by articulating how realistic launch dispersion data conditions the repository’s Monte Carlo campaigns and by stating any gaps that subsequent simulation work must close.
 
-### 1.4 Repository Artefact Integration Tasks
+### 1.4 Payload Data Products and Usage Mandates
+
+Develop a payload-focused evidence base that couples Tehran’s hazard profile to sensing modalities, data product specifications, and downstream analytics. Use this subsection to ensure the compendium’s payload narrative is grounded in contemporary literature and clearly aligned with the constellation’s revisit geometry.
+
+1.  **Tehran-relevant sensing modality survey:** Catalogue optical, multispectral, hyperspectral, thermal infrared, synthetic-aperture radar (SAR), and radar interferometry payload concepts that operate effectively over arid, high-smog urban regions. For each modality, extract exemplar missions or instruments published between 2019 and 2025, noting wavelength bands, polarisation options, illumination constraints, and demonstrated use cases for Tehran-like environments \[Ref24\]. Highlight how each modality supports disaster-response agencies or infrastructure stewards.
+2.  **Resolution and cadence requirements:** Derive spatial resolution, swath width, radiometric resolution, and temporal revisit benchmarks demanded by Tehran’s priority applications (e.g., earthquake damage assessment, subsidence monitoring, air-quality surveillance). Present these requirements in a comparative table distinguishing urgent disaster activation thresholds from routine infrastructure monitoring expectations, and relate them to the mission’s 90 s formation window and daily revisit cadence \[Ref25\].
+3.  **Calibration and validation considerations:** Summarise on-orbit calibration needs for the shortlisted payload types, covering geometric alignment, radiometric calibration, and atmospheric correction strategies appropriate for semi-arid urban basins. Specify how calibration sequences interface with the simulation timeline and identify any required ground-truth campaigns or reference datasets. Document where new calibration logs or adjustment parameters should be stored within repository artefacts and how STK export compatibility will be maintained.
+4.  **Data product and analytics mapping:** Define the end-to-end analytical workflows that consume the payload data, including rapid damage mapping, change detection for transportation corridors, subsidence trend analysis, and pollution hotspot classification. For each workflow, state the required intermediate CSV or JSON deliverables (e.g., `payload/window_summary.csv`, `analytics/tehran_damage_indices.json`), cite the processing scripts or notebooks that must be developed, and indicate how outputs feed Chapter 4 compliance assessments and Chapter 6 recommendations \[Ref26\].
+5.  **Stakeholder integration narrative:** Connect the identified data products to stakeholder decision timelines, emphasising how revisit-driven latency, signal-to-noise ratio (SNR) expectations, and data dissemination cadences satisfy mission requirements MR‑1 through MR‑7. Note any open questions that subsequent chapters must resolve, such as payload pointing coordination during the transient formation or priority ordering when analytics pipelines compete for bandwidth.
+
+Conclude by stating how the payload literature review will be cross-referenced in Chapter 3’s pipeline documentation and Chapter 4’s evidence audit, ensuring that sensing performance is treated as rigorously as geometric compliance.
+
+### 1.5 Repository Artefact Integration Tasks
 
 1.  **Mission requirements traceability:** Tabulate every mission requirement (MR‑1 – MR‑7) from the compliance matrix and note the compliance status and supporting evidence (EV‑1 through EV‑5). Include columns for requirement description, threshold, margin, evidence tag, and associated run directories \[Ref7\].
 2.  **Configuration snapshot:** Summarise the baseline configuration parameters from the primary YAML file, including project metadata (name, version, author), global constants (Earth radius, μ, $`J_{2}`$ ), platform properties (mass, cross‑sectional area, drag coefficient), orbital elements, simulation controls (time step, propagation span), and output directives.
@@ -58,7 +70,7 @@ Conclude this subsection by articulating how realistic launch dispersion data co
 4.  **Authoritative runs:** Map run identifiers (e.g., `run_20251018_1207Z`, `run_20251020_1900Z_daily_pass_locked`) to their purpose (baseline, locked, exploratory) and summarise the metrics captured (window duration, aspect ratio, centroid distances, delta‑v consumption). Cross‑link to the compliance matrix and note which runs serve as evidence for each requirement.
 5.  **STK compatibility:** State the procedure for exporting ephemerides and ground tracks via the `stk_export.py` script, including the names of the classes used (`StateSample`, `PropagatedStateHistory`, `GroundTrack`, `GroundContactInterval`) and the sanitisation of identifiers to satisfy STK import rules \[Ref8\].
 
-### 1.5 Literature Review Prompt Blocks
+### 1.6 Literature Review Prompt Blocks
 
 To organise the literature review, prepare discrete search blocks with guiding questions. For each block, identify at least five sources and construct a matrix capturing key findings, repository alignment, identified gaps, and a proposed citation tag.
 
@@ -69,11 +81,11 @@ To organise the literature review, prepare discrete search blocks with guiding q
 5.  **Block E – Comparative Mission Case Studies and Design Translation:** Perform an exhaustive review of formation‑flying programmes that parallel the Tehran concept, including radar interferometry pairs, gravity mapping tandems, and technology demonstrators. For each, summarise propulsion systems, relative navigation payloads (GPS, Galileo, differential carrier‑phase), operational cadences, and any transient formation experiments. Translate lessons into concrete design choices for this project—such as adopting point‑mass spacecraft models, prioritising daily repeatability over continuous formations, and selecting equilateral versus near‑isosceles geometry. Document outstanding gaps that motivate bespoke analysis in later chapters.
 6.  **Block F – Urban Target Benchmarking and Tehran Trade Study:** Compile literature on spaceborne monitoring campaigns focused on major metropolitan areas. For each cited project, record the city name, latitude/longitude bounds, land area, dominant hazards or monitoring priorities, and any orbital constraints reported (e.g., revisit frequency, lighting conditions, regulatory limitations). Use this block to synthesise a defensible rationale for prioritising Tehran, explicitly linking its geographic footprint, seismic and air‑quality challenges, and political or regulatory context to the three‑satellite triangular formation choice and ground segment strategy.
 
-### 1.6 Narrative Flow Outline
+### 1.7 Narrative Flow Outline
 
 Begin Chapter 1 with a concise mission statement and stakeholder summary. Transition into the requirement hierarchy, emphasising traceability to stakeholder motivations. Introduce the literature‑review themes and summarise the repository artefacts that motivate each theme. Ensure the narrative explicitly reports how the literature synthesis justifies modelling simplifications and geometry selections, then conclude with a roadmap preview of how subsequent chapters operationalise the mission framing through simulation, analysis, validation, and recommendations.
 
-### 1.7 Chapter 1 Deliverable Checklist
+### 1.8 Chapter 1 Deliverable Checklist
 
 1.  Mission overview narrative aligned with repository intent and stakeholder drivers.
 2.  Literature review synthesis covering geometry, operations, maintenance, and triangular formation applications.
@@ -89,8 +101,16 @@ Begin Chapter 1 with a concise mission statement and stakeholder summary. Trans
 12. Formation taxonomy decision brief articulating why the three‑satellite transient triangle is selected after surveying alternate topologies, including cost, control, and sensing considerations.
 13. Urban target benchmarking dossier detailing precedent city studies, geographic descriptors, operational challenges, and the resulting justification for adopting Tehran as the primary target.
 14. Communications throughput literature digest summarising downlink budgets, spectrum coordination precedents, and data-volume constraints mapped to MR-5 or the proposed communications requirement. Document how the surveyed missions tie contact scheduling and throughput governance into compliance evidence for Chapter 3 analyses and Chapter 6 recommendations.
+7.  Payload sensing modality and analytics register documenting Tehran-focused resolution, cadence, calibration, and stakeholder usage requirements, with cross-references to proposed CSV/JSON deliverables and simulation artefact linkages.
+8.  Candidate launch vehicle and dispenser trade table logging mass margins, slot availability, separation delta‑v envelopes, injection accuracy, and RAAN targeting suitability (populate \[Suggested Table 1.4\]).
+9.  Post-separation phasing and error-budget register linking deployment timelines, injection dispersions, and Monte Carlo assumptions to the alignment-maintenance activities scheduled for Chapter 4 (populate \[Suggested Figure 1.3\] and \[Suggested Table 1.5\]).
+10. References section enumerating all cited artefacts and external sources.
+11. A literature‑review matrix with at least five entries per block summarising key findings and gaps.
+12. Comparative mission analogue digest capturing justification statements for geometry choices, modelling assumptions, and operational cadences derived from the literature review.
+13. Formation taxonomy decision brief articulating why the three‑satellite transient triangle is selected after surveying alternate topologies, including cost, control, and sensing considerations.
+14. Urban target benchmarking dossier detailing precedent city studies, geographic descriptors, operational challenges, and the resulting justification for adopting Tehran as the primary target.
 
-### 1.8 Chapter 1 Suggested Figures, Tables, and Equations
+### 1.9 Chapter 1 Suggested Figures, Tables, and Equations
 
 - **\[Suggested Figure 1.1\]** A timeline schematic illustrating project roadmap stages mapped to mission phases (e.g., preliminary design, prototype runs, locked baseline, exploratory analyses).
 - **\[Suggested Figure 1.2\]** A schematic showing the dual‑plane constellation geometry relative to the target latitude and the equilateral formation built at conjunction.
@@ -100,10 +120,11 @@ Begin Chapter 1 with a concise mission statement and stakeholder summary. Trans
 - **\[Suggested Table 1.3\]** Comparative urban target attributes summarising precedent missions (city name, latitude/longitude span, land area, dominant hazards, mission goals, cited formation topology) alongside the Tehran case to evidence the target selection rationale.
 - **\[Suggested Table 1.4\]** Candidate launch vehicles and dispenser configurations documenting payload accommodation, mass margins, deployment geometry (stack order, dispenser orientation, ejection vectors), separation sequencing, injection accuracy, RAAN targeting notes, and cited references for each rideshare option.
 - **\[Suggested Table 1.5\]** Post-separation error budget ledger itemising injection dispersions, phasing strategy corrections, residual alignment errors, Monte Carlo assumption linkages, and Chapter 4 robustness cross-references.
+- **\[Suggested Table 1.6\]** Tehran payload data product and analytics matrix summarising sensing modalities, required spatial/temporal resolution, calibration artefacts, downstream processing scripts, and mandated CSV/JSON deliverables.
 - **\[Suggested Equation 1.1\]** The Hill–Clohessy–Wiltshire relative motion relations used to compute relative orbital element offsets.
 - **\[Suggested Equation 1.2\]** The great‑circle distance formula used for converting angular centroid errors into ground distances.
 
-### 1.9 Chapter 1 References
+### 1.10 Chapter 1 References
 
 1.  **Mission Overview Document** – Contains mission intent statements and stakeholder rationale \[Ref1\].
 2.  **Mission Requirements Document (MRD)** – Defines MR‑1 through MR‑7 and associated thresholds and margins \[Ref2\].
@@ -113,8 +134,11 @@ Begin Chapter 1 with a concise mission statement and stakeholder summary. Trans
 6.  **AAS 23‑155 Passive Safety Using Relative Orbital Elements** – Describes an ROE‑based technique for passive safety assessment and notes the geometric insight of ROEs \[Ref6\].
 7.  **Compliance Matrix File** – Provides requirement compliance status and evidence tags \[Ref7\].
 8.  **STK Exporter Documentation** – Describes exporter classes and validation procedures \[Ref8\].
+9.  **Tehran Remote-Sensing Modalities Survey** – Aggregates recent studies on optical, SAR, and hyperspectral sensing for arid megacities \[Ref24\].
+10. **Urban Infrastructure Monitoring Resolution Compendium** – Summarises spatial and temporal resolution targets for disaster response and asset management \[Ref25\].
+11. **Disaster Analytics Data Product Standards** – Details CSV/JSON reporting conventions for rapid damage and environmental assessments \[Ref26\].
 
-### 1.10 Extended Task Breakdown – Chapter 1
+### 1.11 Extended Task Breakdown – Chapter 1
 
 1.  **Mission Synopsis:** Write a 250–300 word mission synopsis referencing the Mission Overview Document and MRD. Include the target latitude, dual‑plane architecture, 90‑second formation window, and stakeholder motivations. Maintain academic tone and cite relevant references.
 2.  **Traceability Table:** Construct a table linking MR‑1 through MR‑7 to stakeholder motivations, thresholds, margins, evidence tags, and run identifiers. Use columns for requirement identifier, description, driver, threshold, margin, evidence tag, and status (compliant/non‑compliant/waiver).
@@ -234,7 +258,20 @@ Chapter 3 details the simulation workflows, automation tools, and continuous in
 4.  **Deterministic vs Monte Carlo outputs:** Describe the fields included in deterministic summaries (mean formation window, aspect ratio, side length, centroid distance, maintenance delta‑v) versus those in Monte Carlo summaries (probability distributions, confidence intervals, compliance fractions). Discuss how the simulation stores each and how analysts should interpret them.
 5.  **High‑fidelity propagation:** Detail the integration scheme used for the high‑fidelity propagation stage (e.g., Runge–Kutta with perturbation models). Clarify the order of operations when applying $`J_{2}`$ effects, drag, and optionally solar radiation pressure. Mention any third‑party libraries or ephemeris models used.
 
-### 3.2 Triangle Simulation Workflow
+### 3.2 End-to-End Data Pipeline Documentation Tasks
+
+Document how raw simulations and payload-facing artefacts flow through the repository so that downstream sensing products are reproducible and auditable.
+
+1.  **Ingest specification:** Enumerate all input data feeds required to initialise payload analytics, including STK-exported ephemerides, `triangle_summary.json`, `command_windows.csv`, and any auxiliary atmospheric or seismic datasets. For each feed, record format, unit conventions, coordinate frames, and ingestion scripts, and describe how Tehran-specific payload observations (e.g., `payload/raw_observation.csv`) will be staged for processing.
+2.  **Calibration staging:** Detail the calibration steps needed before analytical exploitation, covering radiometric normalisation, geometric co-registration, and noise filtering for each sensing modality identified in Chapter 1. Specify where calibration parameters and logs (e.g., `payload/calibration_history.json`) are stored, how they trace back to run identifiers, and how STK compatibility is preserved when calibrated ephemerides are regenerated.
+3.  **Processing script mapping:** Provide a step-by-step mapping of processing scripts or notebooks (e.g., `tools/payload_pipeline.py`, `tools/tehran_damage_indices.ipynb`) that transform ingested data into mission metrics. Note dependencies on existing simulation artefacts, required environment variables, and how seeds or configuration hashes are logged to maintain reproducibility.
+4.  **Analytics deliverable definitions:** Define the CSV and JSON products that emerge from each processing stage, including intermediate outputs such as `analytics/tehran_damage_indices.json`, `analytics/infrastructure_stability.csv`, and `analytics/air_quality_latency.csv`. Explain the schema for each deliverable, the statistical summaries expected (e.g., median SNR, percentile latency), and how these files underpin Chapter 4 evidence statements and Chapter 6 recommendations.
+5.  **Archival and dissemination expectations:** Outline retention policies, directory structures (e.g., `artefacts/payload_pipeline/run_YYYYMMDD_hhmmZ/`), and metadata requirements for long-term storage. Describe how to bundle provenance notes, checksum manifests, and README files so that reviewers can trace lineage from ingestion through analytics without encountering binary artefacts.
+6.  **Simulation linkage audit:** Cross-reference each pipeline stage with the simulation outputs that supply upstream data (`run_scenario.py`, `run_triangle.py`, `tools/stk_export.py`). Highlight any gaps where new exports or logging hooks are needed, and assign actions to generate missing artefacts before declaring the payload data pipeline complete.
+
+Conclude this subsection by enumerating open questions for validation (e.g., whether calibration residuals meet SNR targets) that must be resolved before payload evidence feeds the Chapter 4 checklist.
+
+### 3.3 Triangle Simulation Workflow
 
 1.  **Execution path:** Outline the major steps of `run_triangle.py`: reading configuration, computing LVLH offsets and ROE values, propagating the nominal formation, calculating metrics, estimating maintenance delta‑v, executing Monte Carlo campaigns, performing drag dispersion analysis, and exporting results. Explain how each step writes to CSV, JSON, and SVG outputs.
 2.  **Metric definitions:** Define key metrics computed by the simulator: formation window duration, aspect ratio, minimum and maximum side lengths, centroid ground distances, maintenance budgets, command latency margins, injection recovery success rates, and drag dispersion statistics. Map each metric to mission requirements and acceptance criteria.
@@ -242,7 +279,7 @@ Chapter 3 details the simulation workflows, automation tools, and continuous in
 4.  **Drag dispersion analysis:** Explain the method for simulating atmospheric drag variability and its impact on maintenance budgets. Note the scaling factors and perturbations applied and how results inform robustness assessments.
 5.  **STK export:** Reiterate the process for exporting ephemerides and other artefacts to STK. Summarise file formats (.e, .sat, .gt, .int) and mention the validation guide used to import them successfully.
 
-### 3.3 Automation and Interactive Interfaces
+### 3.4 Automation and Interactive Interfaces
 
 1.  **FastAPI service:** Provide an overview of the web service exposed by `run.py`. List endpoints for running triangle and scenario simulations (`/triangle`, `/scenario`), retrieving job status, and streaming logs. Describe payload models and optional parameters (e.g., number of Monte Carlo samples, random seed, export flags).
 2.  **Interactive execution guide:** Summarise the steps in `interactive_execution_guide.md` for running simulations manually. Include environment activation, dependency installation, configuration selection, command execution, and log monitoring. Note recommended hardware (CPU cores, memory) and approximate run times for baseline scenarios.
@@ -250,7 +287,7 @@ Chapter 3 details the simulation workflows, automation tools, and continuous in
 4.  **Job management:** Describe how jobs are queued, executed, and persisted. Explain where log files are stored, how to inspect them, and how to cancel or restart a job if needed. Mention any concurrency limitations or thread safety considerations.
 5.  **Notification hooks:** If applicable, discuss integration with continuous integration (CI) systems to notify analysts of job completion or failures. Suggest Slack or email notifications for long‑running runs.
 
-### 3.4 Regression Safeguards and Continuous Integration
+### 3.5 Regression Safeguards and Continuous Integration
 
 1.  **Unit tests:** Outline the key unit tests safeguarding geometry calculations (`test_triangle_formation.py`), maintenance budgeting, command latency, and exporter behaviour. Note specific assertions (e.g., aspect ratio ≤ 1.02, Monte Carlo sample count matches configuration) and how they prevent regression.
 2.  **Integration tests:** Summarise integration tests (`test_simulation_scripts.py`, `test_stk_export.py`) that run complete simulations with default parameters and verify outputs exist and conform to expected schema. Explain how these tests are invoked via CI.
@@ -258,7 +295,7 @@ Chapter 3 details the simulation workflows, automation tools, and continuous in
 4.  **Continuous integration workflow:** Describe how CI pipelines (e.g., GitHub Actions) are configured to run linting, unit tests, integration tests, and simulation smoke tests on pull requests. Note how simulation runs in CI may use reduced sample counts to save time.
 5.  **Compliance verification:** Explain how the CI system checks compliance against mission requirements by comparing simulation outputs to acceptance thresholds. Describe how failures are reported and how analysts should respond.
 
-### 3.5 Literature Review Prompts – Simulation and Tooling
+### 3.6 Literature Review Prompts – Simulation and Tooling
 
 Identify external sources (2019–2025) that inform the simulation pipeline and tooling:
 
@@ -401,14 +438,15 @@ Organise Chapter 4 by walking the reader through the run ledger: first describe
 
 1.  Cross‑reference each mission requirement with the metrics presented in Chapter 4.
 2.  Confirm that all key metrics (window duration, aspect ratio, side lengths, centroid distances, delta‑v budgets, command latency, injection recovery, drag dispersion) are reported for baseline and locked runs.
-3.  Verify that Monte Carlo results include confidence intervals and compliance probabilities.
-4.  Ensure that figures and tables clearly label run identifiers and deterministic vs Monte Carlo distinctions.
-5.  Cite sources for any external formulas or thresholds used in metric calculations (e.g., delta‑v formulas).
-6.  Include commentary on variations between full‑propagation and windowed metrics.
-7.  Check that references to run directories and scenario files match their actual names.
-8.  Note any anomalies or unexpected findings and suggest possible causes or follow‑up analyses.
-9.  Confirm that exploratory runs are clearly distinguished from authoritative runs in both text and visuals.
-10. Ensure that the narrative flow explains how Chapter 4 builds on Chapters 1–3 and sets up validation and recommendations in subsequent chapters.
+3.  Document quantitative payload data quality indicators (spatial resolution, SNR, revisit-driven latency) sourced from the new analytics deliverables, and show how they substantiate statements in Chapter 6 alongside geometric compliance evidence.
+4.  Verify that Monte Carlo results include confidence intervals and compliance probabilities.
+5.  Ensure that figures and tables clearly label run identifiers and deterministic vs Monte Carlo distinctions.
+6.  Cite sources for any external formulas or thresholds used in metric calculations (e.g., delta‑v formulas).
+7.  Include commentary on variations between full‑propagation and windowed metrics.
+8.  Check that references to run directories and scenario files match their actual names.
+9.  Note any anomalies or unexpected findings and suggest possible causes or follow‑up analyses.
+10. Confirm that exploratory runs are clearly distinguished from authoritative runs in both text and visuals.
+11. Ensure that the narrative flow explains how Chapter 4 builds on Chapters 1–3 and sets up validation and recommendations in subsequent chapters.
 
 ### 4.8 Extended Task Breakdown – Chapter 4
 
