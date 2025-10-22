@@ -34,6 +34,7 @@ Conduct a structured literature review that bridges the mission architecture to 
 6.  **Monte Carlo robustness validation:** Identify literature on robust mission design under injection errors and atmospheric uncertainties. Summarise methods for Monte Carlo analysis with respect to along‑track dispersions of ±5 km and inclination errors of ±0.05°, linking to MR‑7 resilience requirements.
 7.  **Comparative mission analogues and design simplifications:** Catalogue prior formation‑flying missions (e.g., TanDEM‑X, GRACE/GRACE‑FO, PRISMA, CanX‑4/5, MMS) and summarise how their navigation sensors, crosslink strategies, and maintenance philosophies informed this project’s modelling choices (point‑mass spacecraft, perfect state knowledge, dual‑plane architecture). Ensure that each analogue is assessed within the broader formation taxonomy above, noting when alternative topologies were favoured and why those lessons still support the selection of a transient three‑satellite triangle for Tehran.
 8.  **Urban target comparatives and Tehran selection:** Review remote‑sensing and formation‑flying missions that prioritised urban targets worldwide (e.g., Mexico City, Istanbul, Los Angeles, Delhi). Extract each city’s geographic coordinates, spatial extent, topographical or atmospheric challenges, and mission objectives. Use these findings to justify the Tehran focus by contrasting its latitude, land area, pollution or seismic monitoring needs, and operational constraints with those precedents, and spell out how these characteristics influenced formation geometry, ground contact planning, and data cadence decisions.
+9.  **Communications throughput and spectrum governance:** Compile literature that quantifies downlink budgets, ground-station scheduling, spectrum coordination practices, and data-throughput constraints for small-satellite formations comparable to this mission. Translate findings into requirements language tied directly to MR-5 (command and communications) or draft a proposed communications requirement for baseline approval. Highlight precedent mitigation strategies (e.g., multi-ground-station handovers, adaptive coding, spectrum-sharing agreements) and explain how they will inform Chapter 3 throughput calculations and Chapter 6 recommendations.
 
 After completing the review, distil the findings into a synthesis subsection that connects external lessons to repository decisions (e.g., reliance on analytical ROE design, assumption of identical buses, use of transient formation windows). Explicitly record the trade study that narrows broader formation typologies down to the adopted three‑satellite transient triangle and summarise the comparative city evidence that culminates in Tehran’s selection. Highlight any simplifications retained for conceptual analysis and note where later chapters will revisit them.
 
@@ -87,6 +88,7 @@ Begin Chapter 1 with a concise mission statement and stakeholder summary. Trans
 11. Comparative mission analogue digest capturing justification statements for geometry choices, modelling assumptions, and operational cadences derived from the literature review.
 12. Formation taxonomy decision brief articulating why the three‑satellite transient triangle is selected after surveying alternate topologies, including cost, control, and sensing considerations.
 13. Urban target benchmarking dossier detailing precedent city studies, geographic descriptors, operational challenges, and the resulting justification for adopting Tehran as the primary target.
+14. Communications throughput literature digest summarising downlink budgets, spectrum coordination precedents, and data-volume constraints mapped to MR-5 or the proposed communications requirement. Document how the surveyed missions tie contact scheduling and throughput governance into compliance evidence for Chapter 3 analyses and Chapter 6 recommendations.
 
 ### 1.8 Chapter 1 Suggested Figures, Tables, and Equations
 
@@ -266,18 +268,27 @@ Identify external sources (2019–2025) that inform the simulation pipeline and 
 4.  **Web services for mission analysis:** Look at examples of mission analysis dashboards or web services that allow remote job submission and monitoring. Compare their architectures to the FastAPI implementation.
 5.  **Regression and CI practices:** Read recent papers or blog posts on best practices for regression testing in scientific software. Distil lessons applicable to the simulation toolchain.
 
-### 3.6 Suggested Figures, Tables, and Equations (Chapter 3)
+### 3.6 Communications Throughput Analysis Tasks
+
+1.  **Daily data volume derivation:** Use `command_windows.csv` from authoritative runs to compute baseline downlink durations per contact and convert them into data volumes using the MR-5 nominal downlink rate or the proposed communications requirement. Extend the calculation to a contingency rate representing degraded throughput (e.g., weather losses or coding fallback) and record totals for each spacecraft and ground station.
+2.  **Contact schedule synthesis:** Combine `command_windows.csv`, scenario summary JSON files, and ground-station configuration notes to produce a daily contact schedule ledger capturing start/stop times, station identifiers, link types, and concurrency conflicts. Cross-check that the schedule remains compatible with `tools/stk_export.py` contact interval exports and STK 11.2 import conventions.
+3.  **Link margin estimation:** Derive link margins for each contact by applying assumed antenna gains, transmitter power, path losses, atmospheric attenuation, and implementation losses drawn from Chapter 1 communications literature. Document baseline and contingency margins alongside compliance thresholds.
+4.  **Assumption register and STK interoperability:** Catalogue modulation, coding, weather, and ground-network availability assumptions made in the throughput analysis. Explicitly state how STK exports (ephemerides and contact intervals) are generated to support cross-validation and note any exporter configuration changes required.
+5.  **Requirement trace logging:** Map the resulting daily data volumes, contact schedules, and link-margin evidence to MR-5 or the proposed communications requirement. Specify how these outputs will populate [Suggested Table 3.2] and inform Chapter 6 recommendations on augmenting ground-segment capacity.
+
+### 3.7 Suggested Figures, Tables, and Equations (Chapter 3)
 
 - **\[Suggested Figure 3.1\]** Flowchart of the scenario pipeline stages with artefact outputs annotated. Each node should display the stage name, script function(s), and resulting file types.
 - **\[Suggested Table 3.1\]** Comparison of deterministic and Monte Carlo metrics extracted by the scenario runner. Include centroid offsets, worst‑vehicle offsets, compliance fractions, and confidence intervals.
 - **\[Suggested Figure 3.2\]** Artefact generation tree for the triangle simulation, mapping outputs to file formats and downstream uses (maintenance, command latency, STK validation). Indicate which outputs feed into later chapters.
 - **\[Suggested Equation 3.1\]** Hill–Clohessy–Wiltshire relationships or other propagation formulas referenced in RAAN optimisation. Provide variables and units.
+- **\[Suggested Table 3.2\]** Throughput scenario matrix summarising baseline and contingency daily data volumes, contact durations, link margins, and ground-station utilisation derived from the communications throughput tasks. Annotate mitigation options for augmenting ground-segment capacity and reference where Chapter 6 future-work recommendations will expand these scenarios.
 
-### 3.7 Narrative Flow Guidance
+### 3.8 Narrative Flow Guidance
 
 Structure Chapter 3 to show how automation enforces reproducibility: start with the pipeline description, segue into solver mechanics, proceed to artefact generation, and conclude with test coverage and CI governance. Use figure and table prompts to illustrate complex flows and summarise key metrics. Conclude by linking simulation outputs to the evidence requirements established in Chapter 1 and the configuration details discussed in Chapter 2.
 
-### 3.8 Evidence Integration Checklist
+### 3.9 Evidence Integration Checklist
 
 1.  Verify that RAAN alignment discussions reference both deterministic and Monte Carlo JSON fields for compliance statements.
 2.  Confirm that suggested figures label actual function names or logging stages from the scripts.
@@ -290,7 +301,7 @@ Structure Chapter 3 to show how automation enforces reproducibility: start with
 9.  Reference any automation scripts used to regenerate runs and highlight their invocation in the CI pipeline.
 10. Verify that random seeds for Monte Carlo campaigns are specified and logged.
 
-### 3.9 Automation Runbook Tasks
+### 3.10 Automation Runbook Tasks
 
 1.  **Command‑line invocations:** Document how to invoke each pipeline stage from the command line (`make scenario`, `python -m sim.scripts.run_scenario`, `python -m sim.scripts.run_triangle`). Provide example commands with typical arguments (e.g., `--scenario config/scenarios/triangle.json --samples 100`).
 2.  **Environment preparation:** List steps for environment setup: create and activate a virtual environment, install dependencies from `requirements.txt`, verify STK licence availability, and confirm dataset retention policies. Explain how to update dependencies without breaking compatibility.
@@ -298,7 +309,7 @@ Structure Chapter 3 to show how automation enforces reproducibility: start with
 4.  **Rerun protocol:** Define criteria triggering reruns (e.g., configuration updates, regression failures). Explain how to update run identifiers, regenerate RAAN solutions, re‑execute triangle simulations, and rerun Monte Carlo sweeps. Reference the authoritative run ledger for precedence and avoid overwriting evidence runs.
 5.  **CI integration:** Describe how CI pipelines should invoke linters, unit tests, integration tests, and simulation smoke runs. Provide guidelines for test sample sizes in CI to balance coverage and runtime. Outline notification pathways for failures and required follow‑up actions.
 
-### 3.10 Artefact Quality Assurance Checklist
+### 3.11 Artefact Quality Assurance Checklist
 
 1.  **Schema validation:** Verify that all JSON summaries conform to the expected schema. Update schema documentation when new metrics are introduced.
 2.  **CSV integrity:** Check CSV headers for completeness and naming consistency. Confirm presence of units and definitions to support downstream analytics.
@@ -311,7 +322,7 @@ Structure Chapter 3 to show how automation enforces reproducibility: start with
 9.  **Version consistency:** Confirm that version numbers in configuration files, scripts, and documentation are consistent across artefacts. Update version identifiers when changes occur.
 10. **Cross‑referencing:** Ensure that each artefact has cross‑references to the configuration, scenario, and run IDs that generated it. Use these cross‑references to populate the global reference index.
 
-### 3.11 Simulation Log Interpretation Prompts
+### 3.12 Simulation Log Interpretation Prompts
 
 1.  **Stage‑specific log entries:** Extract representative log entries for each pipeline stage and explain how they confirm correct execution (e.g., RAAN optimisation convergence, propagation start and end times, Monte Carlo sample counts).
 2.  **Warning and info messages:** Identify messages analysts should monitor for regression detection (e.g., warnings about step size reduction, missed contact windows). Note potential causes and remedies.
@@ -320,7 +331,7 @@ Structure Chapter 3 to show how automation enforces reproducibility: start with
 5.  **Correlation with artefact generation:** Provide guidance on correlating log timestamps with artefact generation times when assembling evidence packages. Recommend including start and end timestamps in artefact metadata.
 6.  **Archival of logs:** Suggest archival practices for preserving critical log files, including compression, checksum generation, and metadata tagging. Clarify retention periods and deletion policies.
 
-### 3.12 GNSS and PNT Constellation Interoperability Literature Review
+### 3.13 GNSS and PNT Constellation Interoperability Literature Review
 
 1.  **Mission case studies:** Survey formation‑flying missions that relied on GNSS or broader positioning constellations for relative navigation (e.g., TanDEM‑X, GRACE/GRACE‑FO, PRISMA, CanX‑4/5). For each, document sensor suites, differential carrier‑phase processing pipelines, crosslink architectures, and demonstrated navigation accuracies. Cite primary references for each mission \[Ref19\] \[Ref20\] \[Ref21\].
 2.  **Beyond‑GPS techniques:** Examine literature on utilising alternative or complementary positioning sources (Galileo, GLONASS, BeiDou, LEO PNT demonstrators, inter‑satellite ranging). Summarise benefits, limitations, and environmental constraints relevant to a Tehran overflight scenario. Include examples of hybrid navigation architectures combining GNSS with laser ranging or inter‑satellite links \[Ref22\].
@@ -328,14 +339,14 @@ Structure Chapter 3 to show how automation enforces reproducibility: start with
 4.  **Design translation:** Conclude the review with a synthesis that explains why the current project assumes perfect state knowledge, point‑mass spacecraft, and simplified communications during conceptual studies. Identify which GNSS‑enabled practices could be emulated in simulation (e.g., carrier‑phase noise injections) and which require future hardware development.
 5.  **Gap assessment:** Flag outstanding research questions such as robustness to GNSS outages over urban targets, applicability of differential drag when GNSS support degrades, and requirements for integrating FastAPI tooling with real‑time navigation data. Note where these topics will reappear (Chapter 4 evidence discussions and Chapter 6 future work).
 
-### 3.13 GNSS Integration Deliverables and Analysis Tasks
+### 3.14 GNSS Integration Deliverables and Analysis Tasks
 
 1.  **Architecture overlay:** Produce diagrams or tables showing how GNSS or PNT satellite data would feed into existing simulation pipelines (`run_scenario.py`, `run_triangle.py`). Highlight required configuration parameters (antenna models, measurement noise) and identify placeholders for future code integration.
 2.  **Data product mapping:** Specify expected artefacts (e.g., GNSS observation logs, relative position time histories, clock bias estimates) and how they would be stored alongside current JSON and CSV outputs. Describe validation steps needed to maintain STK export compatibility.
 3.  **Scenario extensions:** Outline hypothetical simulation runs that inject GNSS measurement errors, loss‑of‑signal events, or multi‑constellation availability maps. Define success metrics (navigation accuracy thresholds, command latency impacts) and reference relevant literature for benchmark values.
 4.  **Stakeholder implications:** Summarise operational impacts such as ground segment staffing, hardware selection, and regulatory considerations for GNSS spectrum use. Link these implications to recommendations and future work sections.
 
-### 3.14 Chapter 3 References
+### 3.15 Chapter 3 References
 
 1.  **TanDEM‑X Autonomous Formation Flying Experiment Report** – Documents dual‑frequency GPS processing and crosslink concepts enabling close formation maintenance \[Ref19\].
 2.  **GRACE‑FO Laser Ranging and GNSS Navigation Summary** – Describes integrated GNSS and laser ranging solutions for tandem gravity missions \[Ref20\].
@@ -516,6 +527,7 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 9.  **Open‑source tool development:** Contribute to or develop open‑source tools for formation‑flying simulation and analysis. Ensure tools are modular, well‑documented, and reproducible.
 10. **Long‑term operational planning:** Develop strategies for operational handover, satellite decommissioning, and debris mitigation at end of life.
 11. **GNSS and PNT interoperability roadmap:** Using the literature synthesis from Chapter 3, outline phased approaches for integrating GNSS (GPS, Galileo, GLONASS, BeiDou, emerging LEO PNT) measurements into future revisions of the simulation pipeline and hardware design. Discuss candidate algorithms (e.g., carrier‑phase double differencing, inter‑satellite ranging augmentation) and identify triggers for transitioning from idealised navigation assumptions to hardware‑in‑the‑loop demonstrations, explicitly citing precedent missions that communicated with positioning satellites to sustain formation coherence.
+12. **Ground-segment capacity augmentation:** Use insights from [Suggested Table 3.2] to propose phased enhancements to ground-station coverage, data-routing infrastructure, and regulatory coordination that protect baseline throughput while offering contingency pathways. Quantify how additional stations, higher-rate modems, or cross-support agreements would shift MR-5 (or the proposed communications requirement) compliance margins and outline validation steps for future STK-compatible studies.
 
 ### 6.5 Chapter 6 References
 
