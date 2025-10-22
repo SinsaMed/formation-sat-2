@@ -37,7 +37,19 @@ Conduct a structured literature review that bridges the mission architecture to 
 
 After completing the review, distil the findings into a synthesis subsection that connects external lessons to repository decisions (e.g., reliance on analytical ROE design, assumption of identical buses, use of transient formation windows). Explicitly record the trade study that narrows broader formation typologies down to the adopted three‑satellite transient triangle and summarise the comparative city evidence that culminates in Tehran’s selection. Highlight any simplifications retained for conceptual analysis and note where later chapters will revisit them.
 
-### 1.3 Repository Artefact Integration Tasks
+### 1.3 Launch and Deployment Considerations
+
+Establish a launch and early deployment evidence base that anchors the constellation design in realistic rideshare conditions. The analysis must integrate industry practices for dispenser sequencing and post-separation phasing so that Monte Carlo assumptions and robustness tasks remain credible.
+
+1.  **Rideshare deployment literature review:** Survey 2019–2025 low Earth orbit rideshare campaigns and launch provider documentation covering dispenser architectures, separation sequencing, and relative phasing for clustered payloads. Highlight how dispenser design constraints influence achievable separation velocities and initial relative geometry, and cite works that document coordination between primary payload operations and secondary formation-building activities.
+2.  **Deployment data extraction:** For each precedent formation mission (e.g., TanDEM-X, Planet’s SuperDove constellations, OneWeb cluster releases, SpaceX Transporter-series deployments), extract documented injection dispersions, RAAN targeting strategies, and timeline milestones from separation through the first phasing manoeuvre. Explicitly map these dispersions to the Monte Carlo assumptions enumerated earlier in Chapter 1 (e.g., along-track ±5 km, inclination ±0.05°) and flag any adjustments required for the robustness verification tasks outlined in Chapter 4.
+3.  **Launch vehicle and dispenser trade table:** Compile candidate launch vehicles and compatible dispenser options capable of accommodating the three-spacecraft stack. For each pairing, record mass margins, available deployment slots, deployment geometry (stack order, dispenser port orientation, relative ejection vectors), separation delta‑v envelopes, rideshare policy constraints, and published injection accuracy statistics. Use this trade to justify which combinations align with the constellation’s RAAN targeting needs and post-separation phasing timeline.
+4.  **Post-separation phasing synthesis:** Outline phasing strategies (e.g., differential drag, finite-burn trims, staged orbit-raising) used in the surveyed missions to achieve desired relative spacing. Link these strategies to prospective command timelines and maintenance windows, explaining how the resulting error budgets will feed Chapter 4 alignment-maintenance analyses.
+5.  **Deliverable integration:** Capture the preceding outputs in \[Suggested Figure 1.3\], \[Suggested Table 1.4\], and \[Suggested Table 1.5\], ensuring that each product records data provenance, STK-export validation considerations, and explicit cross-references to later robustness evaluations.
+
+Conclude this subsection by articulating how realistic launch dispersion data conditions the repository’s Monte Carlo campaigns and by stating any gaps that subsequent simulation work must close.
+
+### 1.4 Repository Artefact Integration Tasks
 
 1.  **Mission requirements traceability:** Tabulate every mission requirement (MR‑1 – MR‑7) from the compliance matrix and note the compliance status and supporting evidence (EV‑1 through EV‑5). Include columns for requirement description, threshold, margin, evidence tag, and associated run directories \[Ref7\].
 2.  **Configuration snapshot:** Summarise the baseline configuration parameters from the primary YAML file, including project metadata (name, version, author), global constants (Earth radius, μ, $`J_{2}`$ ), platform properties (mass, cross‑sectional area, drag coefficient), orbital elements, simulation controls (time step, propagation span), and output directives.
@@ -45,7 +57,7 @@ After completing the review, distil the findings into a synthesis subsection tha
 4.  **Authoritative runs:** Map run identifiers (e.g., `run_20251018_1207Z`, `run_20251020_1900Z_daily_pass_locked`) to their purpose (baseline, locked, exploratory) and summarise the metrics captured (window duration, aspect ratio, centroid distances, delta‑v consumption). Cross‑link to the compliance matrix and note which runs serve as evidence for each requirement.
 5.  **STK compatibility:** State the procedure for exporting ephemerides and ground tracks via the `stk_export.py` script, including the names of the classes used (`StateSample`, `PropagatedStateHistory`, `GroundTrack`, `GroundContactInterval`) and the sanitisation of identifiers to satisfy STK import rules \[Ref8\].
 
-### 1.4 Literature Review Prompt Blocks
+### 1.5 Literature Review Prompt Blocks
 
 To organise the literature review, prepare discrete search blocks with guiding questions. For each block, identify at least five sources and construct a matrix capturing key findings, repository alignment, identified gaps, and a proposed citation tag.
 
@@ -56,34 +68,40 @@ To organise the literature review, prepare discrete search blocks with guiding q
 5.  **Block E – Comparative Mission Case Studies and Design Translation:** Perform an exhaustive review of formation‑flying programmes that parallel the Tehran concept, including radar interferometry pairs, gravity mapping tandems, and technology demonstrators. For each, summarise propulsion systems, relative navigation payloads (GPS, Galileo, differential carrier‑phase), operational cadences, and any transient formation experiments. Translate lessons into concrete design choices for this project—such as adopting point‑mass spacecraft models, prioritising daily repeatability over continuous formations, and selecting equilateral versus near‑isosceles geometry. Document outstanding gaps that motivate bespoke analysis in later chapters.
 6.  **Block F – Urban Target Benchmarking and Tehran Trade Study:** Compile literature on spaceborne monitoring campaigns focused on major metropolitan areas. For each cited project, record the city name, latitude/longitude bounds, land area, dominant hazards or monitoring priorities, and any orbital constraints reported (e.g., revisit frequency, lighting conditions, regulatory limitations). Use this block to synthesise a defensible rationale for prioritising Tehran, explicitly linking its geographic footprint, seismic and air‑quality challenges, and political or regulatory context to the three‑satellite triangular formation choice and ground segment strategy.
 
-### 1.5 Narrative Flow Outline
+### 1.6 Narrative Flow Outline
 
 Begin Chapter 1 with a concise mission statement and stakeholder summary. Transition into the requirement hierarchy, emphasising traceability to stakeholder motivations. Introduce the literature‑review themes and summarise the repository artefacts that motivate each theme. Ensure the narrative explicitly reports how the literature synthesis justifies modelling simplifications and geometry selections, then conclude with a roadmap preview of how subsequent chapters operationalise the mission framing through simulation, analysis, validation, and recommendations.
 
-### 1.6 Chapter 1 Deliverable Checklist
+### 1.7 Chapter 1 Deliverable Checklist
 
 1.  Mission overview narrative aligned with repository intent and stakeholder drivers.
 2.  Literature review synthesis covering geometry, operations, maintenance, and triangular formation applications.
 3.  Compliance traceability table linking mission requirements to evidence tags and run directories.
 4.  Configuration and scenario snapshot tables summarising parameters and metadata.
 5.  Discussion of run identifiers and configuration governance conventions.
-6.  References section enumerating all cited artefacts and external sources.
-7.  A literature‑review matrix with at least five entries per block summarising key findings and gaps.
-8.  Comparative mission analogue digest capturing justification statements for geometry choices, modelling assumptions, and operational cadences derived from the literature review.
-9.  Formation taxonomy decision brief articulating why the three‑satellite transient triangle is selected after surveying alternate topologies, including cost, control, and sensing considerations.
-10. Urban target benchmarking dossier detailing precedent city studies, geographic descriptors, operational challenges, and the resulting justification for adopting Tehran as the primary target.
+6.  Launch and deployment literature review dossier capturing rideshare precedents, dispenser sequencing, and post-separation phasing practices, with explicit cross-references to Chapter 4 robustness tasks.
+7.  Candidate launch vehicle and dispenser trade table logging mass margins, slot availability, separation delta‑v envelopes, injection accuracy, and RAAN targeting suitability (populate \[Suggested Table 1.4\]).
+8.  Post-separation phasing and error-budget register linking deployment timelines, injection dispersions, and Monte Carlo assumptions to the alignment-maintenance activities scheduled for Chapter 4 (populate \[Suggested Figure 1.3\] and \[Suggested Table 1.5\]).
+9.  References section enumerating all cited artefacts and external sources.
+10. A literature‑review matrix with at least five entries per block summarising key findings and gaps.
+11. Comparative mission analogue digest capturing justification statements for geometry choices, modelling assumptions, and operational cadences derived from the literature review.
+12. Formation taxonomy decision brief articulating why the three‑satellite transient triangle is selected after surveying alternate topologies, including cost, control, and sensing considerations.
+13. Urban target benchmarking dossier detailing precedent city studies, geographic descriptors, operational challenges, and the resulting justification for adopting Tehran as the primary target.
 
-### 1.7 Chapter 1 Suggested Figures, Tables, and Equations
+### 1.8 Chapter 1 Suggested Figures, Tables, and Equations
 
 - **\[Suggested Figure 1.1\]** A timeline schematic illustrating project roadmap stages mapped to mission phases (e.g., preliminary design, prototype runs, locked baseline, exploratory analyses).
 - **\[Suggested Figure 1.2\]** A schematic showing the dual‑plane constellation geometry relative to the target latitude and the equilateral formation built at conjunction.
+- **\[Suggested Figure 1.3\]** Launch-to-phasing timeline diagram mapping dispenser release order, RAAN targeting actions, post-separation phasing manoeuvres, and the handover to alignment-maintenance tasks referenced in Chapter 4.
 - **\[Suggested Table 1.1\]** Mission requirement versus compliance status matrix derived from the compliance matrix file, including deterministic and Monte Carlo metrics.
 - **\[Suggested Table 1.2\]** Baseline configuration parameters grouped by subsystem (platform, orbit, simulation). Provide columns for parameter name, value, units, rationale, downstream consumer, and STK dependency.
 - **\[Suggested Table 1.3\]** Comparative urban target attributes summarising precedent missions (city name, latitude/longitude span, land area, dominant hazards, mission goals, cited formation topology) alongside the Tehran case to evidence the target selection rationale.
+- **\[Suggested Table 1.4\]** Candidate launch vehicles and dispenser configurations documenting payload accommodation, mass margins, deployment geometry (stack order, dispenser orientation, ejection vectors), separation sequencing, injection accuracy, RAAN targeting notes, and cited references for each rideshare option.
+- **\[Suggested Table 1.5\]** Post-separation error budget ledger itemising injection dispersions, phasing strategy corrections, residual alignment errors, Monte Carlo assumption linkages, and Chapter 4 robustness cross-references.
 - **\[Suggested Equation 1.1\]** The Hill–Clohessy–Wiltshire relative motion relations used to compute relative orbital element offsets.
 - **\[Suggested Equation 1.2\]** The great‑circle distance formula used for converting angular centroid errors into ground distances.
 
-### 1.8 Chapter 1 References
+### 1.9 Chapter 1 References
 
 1.  **Mission Overview Document** – Contains mission intent statements and stakeholder rationale \[Ref1\].
 2.  **Mission Requirements Document (MRD)** – Defines MR‑1 through MR‑7 and associated thresholds and margins \[Ref2\].
@@ -94,7 +112,7 @@ Begin Chapter 1 with a concise mission statement and stakeholder summary. Trans
 7.  **Compliance Matrix File** – Provides requirement compliance status and evidence tags \[Ref7\].
 8.  **STK Exporter Documentation** – Describes exporter classes and validation procedures \[Ref8\].
 
-### 1.9 Extended Task Breakdown – Chapter 1
+### 1.10 Extended Task Breakdown – Chapter 1
 
 1.  **Mission Synopsis:** Write a 250–300 word mission synopsis referencing the Mission Overview Document and MRD. Include the target latitude, dual‑plane architecture, 90‑second formation window, and stakeholder motivations. Maintain academic tone and cite relevant references.
 2.  **Traceability Table:** Construct a table linking MR‑1 through MR‑7 to stakeholder motivations, thresholds, margins, evidence tags, and run identifiers. Use columns for requirement identifier, description, driver, threshold, margin, evidence tag, and status (compliant/non‑compliant/waiver).
