@@ -566,6 +566,7 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 10. **Long‑term operational planning:** Develop strategies for operational handover, satellite decommissioning, and debris mitigation at end of life.
 11. **GNSS and PNT interoperability roadmap:** Using the literature synthesis from Chapter 3, outline phased approaches for integrating GNSS (GPS, Galileo, GLONASS, BeiDou, emerging LEO PNT) measurements into future revisions of the simulation pipeline and hardware design. Discuss candidate algorithms (e.g., carrier‑phase double differencing, inter‑satellite ranging augmentation) and identify triggers for transitioning from idealised navigation assumptions to hardware‑in‑the‑loop demonstrations, explicitly citing precedent missions that communicated with positioning satellites to sustain formation coherence.
 12. **Ground-segment capacity augmentation:** Use insights from [Suggested Table 3.2] to propose phased enhancements to ground-station coverage, data-routing infrastructure, and regulatory coordination that protect baseline throughput while offering contingency pathways. Quantify how additional stations, higher-rate modems, or cross-support agreements would shift MR-5 (or the proposed communications requirement) compliance margins and outline validation steps for future STK-compatible studies.
+13. **Lifecycle cost and risk posture refinement:** Develop a parametric lifecycle cost model spanning development, launch services, and operations using the NASA Cost Estimating Handbook methodology [Ref28]. Cross-reference operations staffing, command cadence, and contingency manoeuvre demands with the Concept of Operations risk register baseline [Ref27] to expand the risk ledger and prioritise mitigation plans. Present candidate funding or schedule reserves alongside probability–impact assessments in [Suggested Table 6.1], and scope sensitivity analyses quantifying how launch pricing, propellant resupply, or anomaly response cadence perturb overall affordability.
 
 ### 6.5 Chapter 6 References
 
@@ -575,6 +576,8 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 4.  **LISA Mission Overview** – Demonstrates the feasibility of triangular formations in space \[Ref4\].
 5.  **Passive Safety Using Relative Orbital Elements** – Highlights ROE applications to passive safety and robustness \[Ref6\].
 6.  **Additional Literature (2019–2025)** – Sources identified throughout the literature review blocks that inform recommendations and future work \[Ref18\].
+7.  **Concept of Operations Risk Register** – Provides the baseline probability–impact ledger for operational hazards that future analysts must expand within Chapter 6 \[Ref27\].
+8.  **NASA Cost Estimating Handbook (2020)** – Supplies parametric cost-modelling techniques for lifecycle budget projections and sensitivity analyses \[Ref28\].
 
 ### 6.6 Extended Task Breakdown – Chapter 6
 
@@ -588,6 +591,7 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 8.  **Publication preparation:** If the report will be published externally, adjust language to meet journal or conference guidelines. Prepare abstract, keywords, and acknowledgements.
 9.  **Archival:** Archive all scripts, data, and artefacts used in the analysis. Ensure that future researchers can reproduce the study.
 10. **Post‑project reflection:** Document lessons learned during the project, including successes, challenges, and unexpected insights. Share these lessons with the broader organisation to improve future projects.
+11. **Cost and risk evidence package:** Populate [Suggested Table 6.1] with development, launch, and operations cost elements derived from the NASA Cost Estimating Handbook workflow \[Ref28\], and extend the Concept of Operations risk register columns (probability, impact, mitigation owner, trigger) for Chapter 6 reporting \[Ref27\]. Archive a companion sensitivity analysis of key cost and risk drivers—such as launch pricing, propellant reserves, and staffing levels—as [Suggested Figure 6.1] or a dedicated CSV appendix, and summarise mitigation plans tied to the updated risk entries.
 
 ## Chapter 7 – Appendices and Supplementary Material
 
