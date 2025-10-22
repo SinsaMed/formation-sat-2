@@ -566,6 +566,7 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 10. **Long‑term operational planning:** Develop strategies for operational handover, satellite decommissioning, and debris mitigation at end of life.
 11. **GNSS and PNT interoperability roadmap:** Using the literature synthesis from Chapter 3, outline phased approaches for integrating GNSS (GPS, Galileo, GLONASS, BeiDou, emerging LEO PNT) measurements into future revisions of the simulation pipeline and hardware design. Discuss candidate algorithms (e.g., carrier‑phase double differencing, inter‑satellite ranging augmentation) and identify triggers for transitioning from idealised navigation assumptions to hardware‑in‑the‑loop demonstrations, explicitly citing precedent missions that communicated with positioning satellites to sustain formation coherence.
 12. **Ground-segment capacity augmentation:** Use insights from [Suggested Table 3.2] to propose phased enhancements to ground-station coverage, data-routing infrastructure, and regulatory coordination that protect baseline throughput while offering contingency pathways. Quantify how additional stations, higher-rate modems, or cross-support agreements would shift MR-5 (or the proposed communications requirement) compliance margins and outline validation steps for future STK-compatible studies.
+13. **Lifecycle cost and risk analytics expansion:** Establish a cost-and-risk analysis stream that estimates development, launch procurement, operations, and disposal expenditures alongside hazard tracking. Use the operational risk register in `docs/concept_of_operations.md` (Table 1) and the configuration-control notes in `artefacts/conops_baseline/` to seed risk identification, ownership, and mitigation scoring \[Ref27\]. Calibrate parametric lifecycle cost models using the NASA Cost Estimating Handbook and the GAO Cost Estimating and Assessment Guide so that each cost element carries uncertainty bounds and sensitivity factors \[Ref28\] \[Ref29\]. Define deliverables comprising \[Suggested Table 6.1\] (capex/opex breakdown with confidence intervals), \[Suggested Table 6.2\] (risk register updates with mitigation status), and a Monte Carlo sensitivity narrative linking cost exposure to delta-v dispersion and ground-segment augmentation scenarios.
 
 ### 6.5 Chapter 6 References
 
@@ -575,19 +576,23 @@ Chapter 6 distils the findings from literature, simulations, and validation int
 4.  **LISA Mission Overview** – Demonstrates the feasibility of triangular formations in space \[Ref4\].
 5.  **Passive Safety Using Relative Orbital Elements** – Highlights ROE applications to passive safety and robustness \[Ref6\].
 6.  **Additional Literature (2019–2025)** – Sources identified throughout the literature review blocks that inform recommendations and future work \[Ref18\].
+7.  **Tehran Concept of Operations Risk Register** – Baseline hazard catalogue supporting mitigation planning \[Ref27\].
+8.  **NASA Cost Estimating Handbook (CEH) v4.0** – Provides lifecycle cost modelling factors across mission phases \[Ref28\].
+9.  **GAO Cost Estimating and Assessment Guide** – Details risk-adjusted cost estimation and sensitivity analysis best practices \[Ref29\].
 
 ### 6.6 Extended Task Breakdown – Chapter 6
 
 1.  **Conclusion writing:** Draft concise conclusions that summarise the key findings and clearly state whether mission requirements are met. Use evidence from previous chapters.
 2.  **Recommendation drafting:** Translate analysis into actionable recommendations. Ensure recommendations are prioritised, feasible, and linked to mission requirements.
 3.  **Future work roadmap:** Create a roadmap for future research, specifying tasks, responsible parties, and tentative timelines. Indicate dependencies (e.g., requiring additional data or validation).
-4.  **Limitations discussion:** Elaborate on the limitations listed above, explaining how they might be addressed in future work. Provide citations for any external studies that may help overcome these limitations.
-5.  **Stakeholder presentation:** Prepare a briefing summarising the conclusions and recommendations. Tailor the message to different audiences (engineers, managers, scientists) and highlight critical decisions and trade‑offs.
-6.  **Document finalisation:** Ensure all chapters are cross‑referenced correctly. Update the global reference index and appendices. Perform proofreading for grammar, formatting, and consistency.
-7.  **Peer review:** Arrange for peer review of the final report. Capture feedback and integrate changes before final submission.
-8.  **Publication preparation:** If the report will be published externally, adjust language to meet journal or conference guidelines. Prepare abstract, keywords, and acknowledgements.
-9.  **Archival:** Archive all scripts, data, and artefacts used in the analysis. Ensure that future researchers can reproduce the study.
-10. **Post‑project reflection:** Document lessons learned during the project, including successes, challenges, and unexpected insights. Share these lessons with the broader organisation to improve future projects.
+4.  **Cost and risk deliverables:** Assemble \[Suggested Table 6.1\] capturing lifecycle cost breakdowns (capital expenditure, operations, disposal, reserves) with uncertainty bounds, and \[Suggested Table 6.2\] updating the risk register with probability, impact, mitigation, and owner columns. Document sensitivity analyses comparing cost exposure against delta-v dispersion and ground-segment augmentation scenarios, citing the cost and risk sources outlined in §6.4 \[Ref27\] \[Ref28\] \[Ref29\].
+5.  **Limitations discussion:** Elaborate on the limitations listed above, explaining how they might be addressed in future work. Provide citations for any external studies that may help overcome these limitations.
+6.  **Stakeholder presentation:** Prepare a briefing summarising the conclusions and recommendations. Tailor the message to different audiences (engineers, managers, scientists) and highlight critical decisions and trade‑offs.
+7.  **Document finalisation:** Ensure all chapters are cross‑referenced correctly. Update the global reference index and appendices. Perform proofreading for grammar, formatting, and consistency.
+8.  **Peer review:** Arrange for peer review of the final report. Capture feedback and integrate changes before final submission.
+9.  **Publication preparation:** If the report will be published externally, adjust language to meet journal or conference guidelines. Prepare abstract, keywords, and acknowledgements.
+10. **Archival:** Archive all scripts, data, and artefacts used in the analysis. Ensure that future researchers can reproduce the study.
+11. **Post‑project reflection:** Document lessons learned during the project, including successes, challenges, and unexpected insights. Share these lessons with the broader organisation to improve future projects.
 
 ## Chapter 7 – Appendices and Supplementary Material
 
