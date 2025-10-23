@@ -33,6 +33,17 @@ Create a standalone section titled **Evidence Catalogue Overview** immediately a
 - Document any mathematical models (e.g., Monte Carlo propagation, link budgets) and statistical analyses (confidence intervals, compliance probabilities). State assumptions, boundary conditions, and validation status against `tools/stk_export.py`.
 - Adhere to standards referenced in the repository (ISO/IEC 23555-1:2022, ESA-GSOP-OPS-MAN-001) and any additional ASTM/ISO norms uncovered during the literature review. Explain how these standards inform the experimental design and data handling procedures.
 
+## Suggested Tables and Figures Register
+
+Institute a **Suggested Tables and Figures Register** immediately following the Content Generation Guidelines to orchestrate graphical and tabular evidence before drafting each chapter. The register shall:
+
+1. Enumerate, chapter by chapter, every proposed table and figure using canonical numbering (e.g., Suggested Table 2.1, Suggested Figure 3.1) paired with a concise working title and a one-sentence description of the insight it must deliver.
+2. Reference the repository sources, scripts, or artefacts that will underpin each item (for instance, tie the RAAN allocation graphics to `docs/triangle_formation_results.md`, Monte Carlo dispersion plots to `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/`, and communications throughput diagrams to configuration entries in `config/`).
+3. Record the validation or reproduction pathway so the eventual author knows which simulations, notebooks, or exports (including STK 11.2 cross-checks) must be executed to populate the visual.
+4. Flag interdependencies between tables and figures—such as a table of LVLH-relative orbital elements that informs a subsequent formation geometry figure—to maintain consistency across chapters and avoid numbering conflicts during revisions.
+
+Maintain the register as a living checklist: update it after each SERB or CCB review, and ensure every referenced item reappears in the relevant chapter with the mandated numbering, captions, and cross-references.
+
 ## Requirements Traceability Architecture
 
 Introduce a dedicated **Requirements Traceability Architecture** section directly after the Content Generation Guidelines. Instruct the author to produce both (a) a layered MR↔SRD↔EVIDENCE matrix and (b) a supporting traceability diagram that visualises how mission requirements flow into system requirements, verification cases, and stored artefacts. The section must:
@@ -184,6 +195,15 @@ Use the following criteria to assess the completed report:
 - **Critical Analysis:** Discussions evaluate limitations, uncertainties, and alternative approaches, demonstrating mastery of formation-flying scholarship.
 - **Adherence to Standards:** Formatting, referencing, STK interoperability, and data handling comply with repository guidelines and cited standards.
 - **Proper Referencing:** Each chapter specifies which references were extracted and used, culminating in Chapter 5 with a comprehensive, consistently formatted list.
+
+## Glossary and Acronym List Mandate
+
+Append a concluding **Glossary & Acronym List** section after the Chapter 5 references to consolidate mission-specific terminology. Direct the author to:
+
+1. Compile an alphabetised inventory of technical terms, acronyms, and abbreviations encountered throughout the report (e.g., LVLH, ROE, RAAN, TEME, HCW, MR, SRD, STK) with succinct definitions that align with their usage in the preceding chapters.
+2. Cite the provenance for each entry, pointing to canonical literature or repository artefacts where the term is operationalised (for example, link RAAN usage to `docs/triangle_formation_results.md` and STK-related nomenclature to `tools/stk_export.py`).
+3. Note units, coordinate frames, or modelling assumptions associated with each term so reviewers can reconcile glossary entries with the quantitative evidence and simulation scripts.
+4. Update the glossary whenever new terminology appears during SERB/CCB reviews, ensuring the final deliverable’s closing section provides a self-contained reference for multidisciplinary stakeholders.
 
 ## Chapter 5: References
 
