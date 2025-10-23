@@ -1,10 +1,28 @@
 # Mission design project on “Orbital Design and Mission Analysis of a Three-Satellite LEO Constellation for Repeatable, Transient Triangular Formation over Tehran”
 
+## Global Mandates and Preface Template
+
+Open the thesis with a formal **Global Mandates / Preface** that establishes the governing conventions for the entire deliverable. The preface shall:
+
+1. Restate the mission name and discipline exactly as provided while identifying the responsible design authority and review boards (SERB, CCB).
+2. Declare the mandatory structure for every substantive chapter, enforcing the sequence of five subsections: **(a) Objectives and Mandated Outcomes; (b) Inputs and Evidence Baseline; (c) Methods and Modelling Workflow; (d) Results and Validation; (e) Compliance Statement and Forward Actions**. Clarify that no chapter may omit or reorder these subsections without explicit CCB approval.
+3. Summarise universal writing standards: British English spelling, IEEE-style numeric citations, cross-referencing rules, figure/table labelling, and artefact provenance statements.
+4. Introduce the evidence governance concepts—locked runs, exploratory runs, and validation datasets—so the reader understands the compliance vocabulary before entering Chapter 1.
+5. Map the relationship between the Preface mandates and the subsequent chapters (for example, how the chapter subsections align with the evaluation rubric in the concluding sections) so reviewers can trace accountability swiftly.
+
+Use this Preface to orient technical reviewers by explicitly calling out how the remainder of the document will satisfy STK 11.2 compatibility, artefact reproducibility, and requirement traceability obligations.
+
 ## Project Overview
 
 Before drafting the report, restate the mission title exactly as above and confirm that the engineering discipline is **Aerospace Engineering** with a focus on distributed Earth observation formations. Summarise the project goal using `docs/project_overview.md` and `docs/mission_requirements.md`, explaining that the aim is to deliver a repeatable 90 s equilateral imaging opportunity above Tehran while maintaining compliance with MR-1 through MR-7 plus the added communications and payload mandates. Define the problem statement by drawing on `docs/concept_of_operations.md` and `docs/triangle_formation_results.md`, highlighting the challenge of sustaining transient triangular geometry, daily access, and resilient downlink capacity over a complex megacity.
 
 Justify the project’s significance through references to Tehran’s environmental, seismic, and socio-technical pressures as captured in `docs/tehran_daily_pass_scenario.md` and `docs/tehran_triangle_walkthrough.md`. Detail the mission benefits—improved situational awareness, responsive environmental monitoring, and regional risk mitigation—and identify stakeholders who rely on the constellation. Provide a catalogue of “raw materials” that mirrors the repository assets: configuration baselines (`config/project.yaml`, `config/scenarios/tehran_daily_pass.yaml`), simulation scripts (`sim/scripts/run_scenario.py`, `sim/scripts/run_triangle.py`, `run.py`, `run_debug.py`), analysis notebooks or reports under `docs/`, authoritative artefacts (`artefacts/run_20251018_1207Z/` etc.), and validation tooling such as `tools/stk_export.py`. Note the provenance and parameter ranges of each asset so Chapter 2 can treat them as experimental inputs.
+
+Explicitly signal that these artefacts must reappear in a dedicated **Evidence Catalogue Overview** section where ownership, validation maturity, and configuration control metadata are tabulated for SERB/CCB review.
+
+## Evidence Catalogue Overview
+
+Create a standalone section titled **Evidence Catalogue Overview** immediately after the Project Overview. Preface the section with a paragraph explaining how the catalogue underpins technical audit readiness, then construct a table that enumerates every controlled asset. Each row shall contain: *Asset Name*, *Repository Path*, *Purpose/Scope*, *Data Classification* (docs, config, sim, tests, artefacts, tooling), *Validation or Provenance Notes*, *Custodian*, and *Update Cadence*. Close with instructions for requesting updates or derivative analyses while preserving configuration control, referencing `tools/stk_export.py` and Monte Carlo baselines where applicable.
 
 ## Content Generation Guidelines
 
@@ -15,6 +33,38 @@ Justify the project’s significance through references to Tehran’s environmen
 - Document any mathematical models (e.g., Monte Carlo propagation, link budgets) and statistical analyses (confidence intervals, compliance probabilities). State assumptions, boundary conditions, and validation status against `tools/stk_export.py`.
 - Adhere to standards referenced in the repository (ISO/IEC 23555-1:2022, ESA-GSOP-OPS-MAN-001) and any additional ASTM/ISO norms uncovered during the literature review. Explain how these standards inform the experimental design and data handling procedures.
 
+## Requirements Traceability Architecture
+
+Introduce a dedicated **Requirements Traceability Architecture** section directly after the Content Generation Guidelines. Instruct the author to produce both (a) a layered MR↔SRD↔EVIDENCE matrix and (b) a supporting traceability diagram that visualises how mission requirements flow into system requirements, verification cases, and stored artefacts. The section must:
+
+1. Describe the process owners and review cadence (SERB, CCB) that maintain the matrix, including how change requests propagate through the governance chain.
+2. Explain how to annotate each matrix entry with configuration identifiers (e.g., `run_20251018_1207Z`, `tests/test_triangle_formation.py`) and compliance status (Verified, Pending, Deviation).
+3. Provide commentary on how traceability supports compliance reporting, regression testing, and STK 11.2 validation, referencing `docs/compliance_matrix.md` and the authoritative run ledger.
+4. Mandate that any future evidence ingestion follows a documented process: registration in the matrix, cross-check against the Evidence Catalogue, and capture of rationale within Chapter-specific subsections (Objectives→Compliance Statement linkage).
+
+Close the section with instructions for maintaining a change log highlighting when matrix updates trigger SERB/CCB action items.
+
+## Cross-Chapter Linkages and Narrative Continuity
+
+Direct the author to include an explicit **Cross-Chapter Linkages** subsection at the end of every chapter (within the mandated Compliance Statement and Forward Actions component). This subsection shall:
+
+1. Summarise how the outputs of the current chapter feed the Inputs and Evidence Baseline of the subsequent chapter (e.g., Chapter 2’s configuration tables enabling Chapter 3’s simulations, Chapter 3’s Monte Carlo statistics informing Chapter 4’s validation and recommendations).
+2. Reference any dependencies that loop backwards (for example, how Chapter 4’s conclusions justify refinements to Chapter 2 requirements) and note required SERB/CCB follow-up actions.
+3. Identify shared datasets, models, or assumptions to show continuity of evidence (linking to catalogue entries and traceability matrix IDs).
+
+Precede the first such subsection with a short explanation in the Preface clarifying the intended reading pathway (e.g., “Chapter 2 prepares the inputs consumed by Chapter 3; Chapter 4 validates Chapter 3 outputs”), ensuring reviewers can follow the logical progression without cross-referencing external documents.
+
+## Reference Governance and Numbering Controls
+
+Mandate the creation of a **Reference Governance** protocol that enforces consistent citation numbering across all chapters. The protocol shall:
+
+1. Establish a master reference ledger (maintained in Chapter 5) assigning a unique identifier to every source as it first appears; later chapters must reuse the same identifier without renumbering.
+2. Require each chapter to append a short “Chapter References” list that mirrors the master numbering but filters to the citations used in that chapter, ensuring reviewers can verify local completeness without breaking the global sequence.
+3. Define procedures for adding new sources mid-development: update the master ledger, propagate the identifier into relevant chapters, and record the change in the Preface change log so SERB/CCB reviewers can audit citation integrity.
+4. Specify how to cite repository artefacts and tests (e.g., `docs/triangle_formation_results.md`, `tests/test_triangle_formation.py`) using the same numbering system to keep documentary and empirical evidence aligned.
+
+Highlight in the Preface that deviation from the numbering controls is non-compliant unless explicitly authorised by the CCB, and remind authors to reconcile the final Chapter 5 list with chapter-specific extracts before submission.
+
 ## Chapter 1: Theory—Literature Review
 
 Conduct an exhaustive literature review spanning 2020–2025 (supplemented by seminal works where indispensable) to map the evolution of distributed satellite missions. Progress through tandem pairs (e.g., GRACE/GRACE-FO), linear strings, tetrahedral clusters (e.g., MMS), swarms, and responsive cubesat formations. Compare sensing performance, geometric stability, propulsion demand, autonomy requirements, and mission risk for each topology so that the trade-space clearly justifies adopting a **three-satellite, transient equilateral triangle** as the optimum balance between sensing diversity, controllability, and lifecycle cost for this project.[Ref1][Ref8]
@@ -23,7 +73,7 @@ Conduct an exhaustive literature review spanning 2020–2025 (supplemented by se
 
 Adhere to the following referencing rule before compiling sources:
 
-- **Referencing & citation style.** Use numeric citations in order of appearance (IEEE/Vancouver-style) with bracketed numbers `[1]`, `[2]`, etc., and compile the reference list in the same sequence. Acceptable reference types follow the template examples (journal articles, books, agency or company web pages). Prioritise peer-reviewed literature from 2020–2025; include older seminal sources only when unavoidable or notably influential. Update chapter-specific bibliographies as the writing progresses and consolidate them in Chapter 5.
+- **Referencing & citation style.** Use numeric citations in order of first appearance within the entire thesis (IEEE/Vancouver-style) with bracketed numbers `[1]`, `[2]`, etc., drawing identifiers from the master ledger mandated in the Reference Governance section. Acceptable reference types follow the template examples (journal articles, books, agency or company web pages). Prioritise peer-reviewed literature from 2020–2025; include older seminal sources only when unavoidable or notably influential. Update chapter-specific bibliographies as the writing progresses and reconcile them with the Chapter 5 master list without renumbering.
 
 Proceed through these literature review stages to structure the chapter:
 
