@@ -1,133 +1,90 @@
-# Literature Review Mandates
+# Literature Review Mandate
 
-## Introduction
-This document consolidates every literature review and research directive stipulated in `docs/PROJECT_PROMPT.md`, arranging them in the order the thesis must execute them and clarifying the intent and deliverables associated with each investigative strand.[RefP]
+## Purpose
+Provide a self-contained brief that governs all research and literature review activity supporting the mission entitled "Orbital Design and Mission Analysis of a Three-Satellite LEO Constellation for Repeatable, Transient Triangular Formation over Tehran". The mandate ensures every investigative thread produces evidence that justifies methodology, demonstrates novelty, and sustains compliance with mission requirements and oversight boards.
 
-## Repository-Wide Research Expectations
+## Research Governance
 
-### Evidence-Backed Reasoning
-**Purpose:** Anchor all mission arguments in peer-reviewed literature, agency reports, or authoritative repository data so that every conclusion derives from verifiable evidence.[RefP]
-**Expected Outcome:** Each analytical statement in the thesis is accompanied by citations to recognised sources, demonstrating methodological rigour and traceability.[RefP]
+### Evidence Quality and Innovation Controls
+1. Justify every analytical statement with peer-reviewed literature, official agency reports, or authoritative mission data. Combine canonical orbital mechanics references with contemporary (2020–2025) corroborating studies whenever HCW or ROE principles are invoked.
+2. Emphasise how the proposed transient triangular formation advances beyond prior formation-flying missions, contrasting Tehran-specific objectives with generic constellations to foreground innovation.
+3. Identify applicable international standards (e.g., ISO/IEC 23555-1:2022, ESA-GSOP-OPS-MAN-001, relevant ASTM/ISO norms) uncovered during the review and explain how they inform modelling, data handling, and operations.
 
-### Innovation Through Comparative Literature
-**Purpose:** Contextualise the Tehran transient triangle by contrasting it with broader formation-flying scholarship, ensuring the mission’s originality is framed against prior art.[RefP]
-**Expected Outcome:** A narrative that explains how communications throughput expansion, payload processing guidance, and the environmental dossier extend beyond generic formation-flying solutions, supported by comparative citations.[RefP]
+### Citation Governance Protocol
+1. Maintain a master reference ledger with immutable numeric identifiers assigned upon first citation. Subsequent mentions must reuse the same identifier to preserve repository-wide traceability.
+2. Append chapter-specific reference lists that repeat only the sources cited in that chapter while keeping the master numbering intact.
+3. Log every new source addition by updating the master ledger, propagating identifiers into all affected chapters, and recording the change in the formal change log for oversight review.
+4. Apply the same identifier scheme to mission artefacts, simulation runs, and test evidence so documentary and empirical references remain synchronised across the thesis.
 
-### Standards Discovery via Literature Review
-**Purpose:** Identify additional ASTM/ISO norms uncovered during the literature review so that the mission adheres to relevant international standards beyond those already cited.[RefP]
-**Expected Outcome:** A documented set of standards informing experimental design, data handling, and compliance statements throughout the thesis.[RefP]
+### Citation Style and Currency Rules
+1. Use IEEE-style numeric citations `[n]` in order of first appearance. Acceptable sources include peer-reviewed articles, scholarly books, and agency or industry publications.
+2. Prioritise works published between 2020 and 2025; use earlier seminal sources only when indispensable.
+3. Keep a running record distinguishing between references extracted for potential use and those actually cited so downstream traceability into the concluding references chapter remains auditable.
+4. There is no upper bound on the number of references. Expand the bibliography aggressively to capture the full state of the art.
 
-## Reference Governance for Research Integrity
+## Sequential Research Threads
+Conduct the following threads in order. Each entry lists the motivation for the literature review and the expected analytical product.
 
-### Master Reference Ledger
-**Purpose:** Institute a repository-wide ledger that assigns immutable identifiers to every source upon first citation, preventing numbering drift across chapters.[RefP]
-**Expected Outcome:** A Chapter 5 master list that remains consistent as new literature is incorporated, enabling reviewers to audit references efficiently.[RefP]
+### 1. Distributed Constellation Trade Space
+- **Rationale:** Establish why a three-satellite, transient equilateral triangle offers the optimal balance of sensing diversity, controllability, and lifecycle cost compared with tandem pairs, linear strings, tetrahedral clusters, swarms, and responsive cubesat formations.
+- **Expected Outcome:** A trade-space analysis that quantifies sensing performance, geometric stability, propulsion demand, autonomy requirements, and mission risk for each topology, culminating in a justification for the selected architecture.
 
-### Chapter-Level Reference Supplements
-**Purpose:** Provide each chapter with a local references subset that mirrors the master numbering while filtering to the citations used in that chapter.[RefP]
-**Expected Outcome:** Readers can verify chapter completeness without disturbing global citation order, reinforcing traceability between literature and arguments.[RefP]
+### 2. Paradigm Shift to Formation Flying
+- **Rationale:** Document the historical progression from monolithic spacecraft to distributed constellations in order to frame the mission’s novelty.
+- **Expected Outcome:** A narrative demonstrating how formation flying has transformed Earth observation capabilities, highlighting operational and scientific gains that motivate the transient Tehran triangle.
 
-### Source Change Control
-**Purpose:** Define procedures for adding new sources, including ledger updates and Preface change-log entries, so configuration control extends to references.[RefP]
-**Expected Outcome:** Every literature addition or amendment is documented for SERB/CCB oversight, preserving bibliographic integrity.[RefP]
+### 3. Metropolitan Overpass Duration Analysis
+- **Rationale:** Validate the feasibility of achieving at least a 90 s continuous observation window over a megacity.
+- **Expected Outcome:** Statistical models of LEO pass durations over major cities—explicitly including Tehran—that confirm the 90 s requirement. Reproduce the corridor calculation for a 6,890 km semi-major axis orbit travelling at approximately 7.60 km·s⁻¹, showing that maintaining cross-track displacement \(D \leq \sqrt{350^2 - (0.5 \times 90 \times 7.60)^2} \approx 74\,\text{km}\) retains the spacecraft within a 350 km ground-radius corridor.
 
-### Artefact Citation Alignment
-**Purpose:** Enforce consistent citation of repository artefacts and tests using the same numbering system applied to external literature.[RefP]
-**Expected Outcome:** Documentary and empirical evidence remain synchronised, allowing reviewers to cross-reference simulations and literature seamlessly.[RefP]
+### 4. Justification of the LEO Mission Class
+- **Rationale:** Demonstrate that a sun-synchronous LEO at roughly 550 km best serves imaging, communications, and responsiveness goals.
+- **Expected Outcome:** Comparative evidence against alternative altitude regimes, covering atmospheric drag management, revisit frequency, propulsion implications, and sensing performance.
 
-## Chapter 1 Literature Review Workflow
+### 5. Cross-Track Tolerance Derivation
+- **Rationale:** Explain the origin of the ±30 km primary cross-track tolerance and the ±70 km waiver band that safeguard daily target access.
+- **Expected Outcome:** A synthesis of corridor geometry, dwell-time analysis, and precision targeting literature that proves maintaining the formation centroid within ±30 km during the 90 s window guarantees compliance, while ±70 km is acceptable only for exceptional handling. Clarify measurement definitions using great-circle geometry and percentile-based checks.
 
-### Exhaustive Survey of Constellation Architectures (2020–2025)
-**Purpose:** Map the evolution of distributed satellite missions from tandem pairs to responsive swarms, supplemented by seminal works when indispensable.[RefP]
-**Expected Outcome:** A trade-space analysis demonstrating why a three-satellite transient equilateral triangle optimally balances sensing diversity, controllability, and lifecycle cost for Tehran.[RefP]
+### 6. Repeat Ground-Track Governance
+- **Rationale:** Ensure that daily, repeatable passes over Tehran are theoretically defensible under dominant perturbations.
+- **Expected Outcome:** Integrated coverage of repeat ground-track orbit design, \(J_2\)-driven nodal drift management, and inclination/altitude selection techniques. Compare analytical, semi-analytical, and numerical treatments to justify the adopted hybrid analytical–Monte Carlo methodology.
 
-### Stage 1 – Paradigm Shift to Formation Flying
-**Purpose:** Explain the transition from single-satellite missions to multi-spacecraft constellations, highlighting the operational gains that motivate formation flying.[RefP]
-**Expected Outcome:** A literature-grounded justification for adopting formation flying in Earth observation, directly linking historic developments to the Tehran mission goals.[RefP]
+### 7. Core Theoretical Framework Synthesis
+- **Rationale:** Assemble the predictive toolkit for relative motion and perturbation control before applying it in simulations.
+- **Expected Outcome:** Consolidated derivations of Relative Orbital Elements, Hill–Clohessy–Wiltshire dynamics, differential nodal drift, atmospheric drag effects, and solar radiation pressure influences. Include parameter-derivation subsections that:
+  1. Validate the \(6\,\text{km}\) equilateral separation and associated centroid spacing using ROE theory.
+  2. Corroborate the baseline right ascension solutions and access window timing yielded by internal scenario analyses through published RAAN optimisation heuristics.
+  3. Quantify perturbation magnitudes that necessitate \(J_2\) management and drag compensation strategies.
+  4. Compare command latency findings from relevant missions against the twelve-hour turnaround requirement.
 
-### Stage 2 – Metropolitan Overpass Duration Quantification
-**Purpose:** Analyse recent studies on low Earth orbit passes over major cities to validate the 90 s continuous imaging window for Tehran.[RefP]
-**Expected Outcome:** Verified dwell-time statistics, formulae, and corridor constraints proving that the mission can sustain a 90 s coordinated observation without violating cross-track limits.[RefP]
+### 8. Comparative Urban Campaign Analysis
+- **Rationale:** Substantiate the choice of Tehran as a high-value, high-complexity target.
+- **Expected Outcome:** A comparative catalogue of urban observation campaigns (e.g., Mexico City, Istanbul, Los Angeles, Jakarta) covering geography, seismicity, atmospheric conditions, and infrastructure challenges. Use the comparison to articulate why Tehran’s characteristics demand and justify a transient formation strategy.
 
-### Stage 3 – Low Earth Orbit Mission Class Justification
-**Purpose:** Compare constellation missions across altitude regimes to confirm that a low Earth orbit implementation best satisfies Tehran’s imaging, communications, and responsiveness requirements.[RefP]
-**Expected Outcome:** A reasoned selection of LEO driven by literature evidence on drag management, propulsion concepts, and revisit cadence.[RefP]
+### 9. Formation Maintenance Strategy Review
+- **Rationale:** Confirm that the annual \(\Delta v\) budget of ≤15 m/s per spacecraft is feasible.
+- **Expected Outcome:** Survey findings on differential drag control, low-thrust propulsion, inter-satellite ranging, and autonomous guidance that demonstrate achievable maintenance envelopes, navigation accuracy, and fault tolerance. Identify research gaps requiring future adaptive control investigations.
 
-### Stage 4 – Cross-Track Tolerance Reconstruction
-**Purpose:** Combine repository documentation with external sources to explain the derivation of the ±30 km primary cross-track tolerance and the ±70 km waiver band.[RefP]
-**Expected Outcome:** A defensible tolerance framework tied to the 90 s access analysis, clarifying measurement definitions and compliance implications.[RefP]
+### 10. Communications Architecture Baseline
+- **Rationale:** Derive the data throughput necessary to downlink daily observation products and housekeeping telemetry.
+- **Expected Outcome:** Literature-backed link budget analyses covering X-/S-band, optical crosslinks, and inter-satellite networking. Anchor the requirement to the 9.6 Mbps baseline and define scalability bands (25–45 Mbps) to support higher-resolution payloads, ground-station availability, latency constraints, and regulatory considerations.
 
-### Stage 5 – Repeat Ground-Track Governance
-**Purpose:** Consolidate theories on repeat ground-track design, \(J_2\) perturbations, and inclination selection to manage RAAN drift.[RefP]
-**Expected Outcome:** An argument showing how the chosen semi-major axis and inclination support RAAN control, grounded in analytical and numerical studies.[RefP]
+### 11. Coordinated Payload Modalities
+- **Rationale:** Show how the triangular geometry enables unique sensing products.
+- **Expected Outcome:** Assessment of tri-stereo optical, interferometric radar, thermal, and atmospheric sounding modalities, including ground sampling distances, swath widths, signal-to-noise ratios, and raw/compressed data volumes. Translate the findings into guidance for the Level-0 → Level-1B → analysis-ready processing pipeline and the four-hour delivery objective.
 
-### Theoretical Framework Integration
-**Purpose:** Synthesize Relative Orbital Elements, Hill–Clohessy–Wiltshire dynamics, and perturbation management literature to establish the predictive toolkit used later in the thesis.[RefP]
-**Expected Outcome:** A documented theoretical basis validating the repository’s hybrid analytical–Monte Carlo methodology.[RefP]
+### 12. Prior Transient Formation Missions
+- **Rationale:** Benchmark the mission against prior transient or event-based formations to demonstrate advancement.
+- **Expected Outcome:** Catalogue academic and agency efforts addressing transient formations or city-focused constellations, noting modelling assumptions, simplifications, validation approaches, and interoperability requirements. Contrast these with the project’s emphasis on reproducible toolchains and strict configuration control.
 
-### Comparative Urban Campaign Analysis
-**Purpose:** Review city-focused observation campaigns worldwide to justify Tehran as the target metropolis.[RefP]
-**Expected Outcome:** A comparative dataset linking Tehran’s seismicity, air quality, and geography to the need for daily 90 s coordinated passes.[RefP]
+## Downstream Research Integration
+1. Use the literature review outputs to justify all simulation methods and acceptance thresholds. Where thresholds (e.g., <2% metric divergence between analysis tools) lack published support, expand the literature search until a defensible value is established.
+2. Pair quantitative results with published benchmarks when reporting Monte Carlo statistics, robustness findings, or data handling performance so reviewers can gauge relative performance.
+3. Conduct targeted reviews for the Tehran environmental operations dossier, ensuring that geospatial, atmospheric, and socio-technical data originate from reputable datasets and align with operational procedures.
+4. When benchmarking against international missions, open each comparison with a concise literature review that clarifies why each reference mission is relevant and supports the tabulated metrics.
+5. Maintain a living list of emerging technologies—autonomous control, adaptive communications, advanced payload processing—to feed the Future Research Suggestions subsection with at least three literature-backed avenues.
 
-### Formation Maintenance Strategy Review
-**Purpose:** Survey differential drag, propulsion, ranging, and autonomy literature to validate the ≤15 m/s maintenance allocation and identify research gaps.[RefP]
-**Expected Outcome:** Maintenance budgets corroborated by recent missions and a statement of future adaptive control research needs.[RefP]
-
-### Communications Architecture Synthesis
-**Purpose:** Compile research on small-formation communications to derive throughput requirements that clear daily payload backlogs.[RefP]
-**Expected Outcome:** A justified downlink strategy tied to baseline and growth data rates, supported by link budget and regulatory analysis.[RefP]
-
-### Payload Modality Investigation
-**Purpose:** Examine coordinated imaging modalities to connect literature-derived sensor performance with processing workflows.[RefP]
-**Expected Outcome:** Payload data product guidance that supports the Level-0 to analysis-ready pipeline and the four-hour delivery objective.[RefP]
-
-### Parameter Derivation Literature Modules
-**Purpose:** Trace every mission-critical parameter back to external research, covering ROE spacing, RAAN optimisation, perturbation management, and command latency.[RefP]
-**Expected Outcome:** Subsections that validate repository baselines with literature evidence, ensuring later chapters inherit documented assumptions.[RefP]
-
-### Prior Project Catalogue
-**Purpose:** Summarise academic and agency efforts on transient formations to benchmark modelling assumptions and validation practices.[RefP]
-**Expected Outcome:** A rationale for adopting configuration-controlled scenarios, authoritative run ledgers, and reproducible toolchains within this project.[RefP]
-
-### Methodology Integration Statement
-**Purpose:** Articulate how literature threads influence the thesis methodology, culminating in the commitment to a Tehran-specific implementation.[RefP]
-**Expected Outcome:** A concluding map linking literature-derived insights to mission requirements, along with a record of references extracted and used for Chapter 1 traceability.[RefP]
-
-## Research Integration Across Experimental and Analytical Chapters
-
-### Simulation Pipeline Alignment
-**Purpose:** Explain how each stage of the simulation pipeline aligns with literature-derived methodologies to maintain fidelity between theoretical research and implementation.[RefP]
-**Expected Outcome:** Diagrams and descriptions that tie configuration inputs and verification hooks to the supporting literature base.[RefP]
-
-### Robustness Validation Benchmarks
-**Purpose:** Demonstrate that simulation datasets, STK exports, and literature collectively substantiate robustness claims.[RefP]
-**Expected Outcome:** Comparative analyses (e.g., <2% divergence tables) that pair Python metrics with STK confirmation and cite the literature motivating acceptance thresholds.[RefP]
-
-### Threshold Justification Loop
-**Purpose:** Ensure any tolerance lacking support in existing studies triggers an extension of the Chapter 1 literature review before recommendations are finalised.[RefP]
-**Expected Outcome:** Documented justification for all quantitative thresholds or a recorded expansion of the literature base when evidence is insufficient.[RefP]
-
-### Literature-Linked Result Synthesis
-**Purpose:** Conclude analytical chapters by relating results, communications analyses, payload processing guidance, and environmental dossiers back to published studies.[RefP]
-**Expected Outcome:** Discussions that compare findings to existing literature, acknowledge limitations, and log references for Chapter 5 traceability.[RefP]
-
-### Comparative Mission Benchmarking
-**Purpose:** Launch Chapter 4 with a focused literature review of comparator missions and quantify benchmarking metrics derived from those sources.[RefP]
-**Expected Outcome:** A benchmarking table and interpretation that trace each comparison to cited studies, informing strategic recommendations and highlighting areas needing further analysis.[RefP]
-
-### Future Research Suggestions
-**Purpose:** Conduct a fresh literature review on emerging technologies relevant to post-Tehran deployments to chart future research avenues.[RefP]
-**Expected Outcome:** At least three literature-backed research trajectories with outlined analytical steps for subsequent investigations.[RefP]
-
-## Glossary and Bibliographic Completion
-
-### Glossary Provenance
-**Purpose:** Cite canonical literature or repository artefacts for every glossary entry so terminology remains traceable.[RefP]
-**Expected Outcome:** An alphabetised glossary that links definitions, units, and modelling assumptions to authoritative sources.[RefP]
-
-### Bibliography Expansion Mandate
-**Purpose:** Finalise the thesis by executing a comprehensive literature review that expands the bibliography without numerical limits.[RefP]
-**Expected Outcome:** A complete reference list prioritising 2020–2025 peer-reviewed sources, fully aligned with the master ledger and chapter extracts.[RefP]
-
-## References
-[RefP] `docs/PROJECT_PROMPT.md` – Mission design project on “Orbital Design and Mission Analysis of a Three-Satellite LEO Constellation for Repeatable, Transient Triangular Formation over Tehran”.
+## Expected Deliverables
+1. A chapter that integrates all twelve research threads, culminating in the statement that transient equilateral formations maximise sensing value while containing risk and resource consumption for the Tehran mission.
+2. A mapping that traces each literature-derived insight to mission requirements (MR-1 through MR-7 and the communications and payload mandates), demonstrating how evidence flows into subsequent methodological, simulation, and validation chapters.
+3. Comprehensive traceability artefacts showing which sources were collected versus cited, enabling the concluding references chapter to reconcile the master ledger with chapter-level extracts without renumbering.
