@@ -1,10 +1,87 @@
 # Mission design project on “Orbital Design and Mission Analysis of a Three-Satellite LEO Constellation for Repeatable, Transient Triangular Formation over Tehran”
 
+## Global Mandates / Preface
+
+Before drafting any chapter, review the entire repository tree—`docs/`, `config/`, `sim/`, `src/`, `tests/`, and `artefacts/`—so that every instruction issued below is grounded in the actual assets. Confirm that Systems Tool Kit (STK 11.2) interoperability requirements, test harness coverage, and configuration baselines remain unchanged since the last evidence acquisition; log any deviations for Configuration Control Board (CCB) review prior to writing.
+
+- **Chapter framing.** Every major section must adopt the exact heading pattern `## Chapter X – Title`, where `X` is the sequential chapter number used throughout the document. Under each chapter heading, produce the five mandatory subsections listed below, retaining the numeric prefixes so reviewers can trace material unambiguously:
+  1. `### X.1 Objectives and Success Criteria` – restate mission drivers, stakeholder expectations, and the compliance thresholds that the chapter addresses.
+  2. `### X.2 Inputs and Assumptions` – catalogue all configuration files, simulation runs, datasets, and literature sources consumed by the chapter, referencing the Evidence Catalogue table mandated in Section “Evidence Catalogue Overview”.
+  3. `### X.3 Methods and Toolchain` – describe analytical techniques, software modules, and validation workflows (including `tools/stk_export.py` checks) employed to transform the inputs.
+  4. `### X.4 Results and Interpretation` – present quantitative outcomes, sensitivity narratives, and limitations; explicitly identify which artefacts substantiate each claim.
+  5. `### X.5 Compliance and Forward Actions` – interpret how the results satisfy or challenge Mission Requirements (MR) and System Requirements (SRD) items, and specify any follow-on actions to be raised with the SERB/CCB.
+
+- **Narrative discipline.** Within each subsection, follow the pattern *Context → Evidence → Discussion → Conclusions* so that reviewers can reconstruct analytical logic without consulting external notes.
+- **Standards acknowledgement.** Reference applicable standards (ISO/IEC 23555-1:2022, ESA-GSOP-OPS-MAN-001, ASTM or ISO derivatives) when defining methods or evidence acceptance criteria.
+
 ## Project Overview
 
 Before drafting the report, restate the mission title exactly as above and confirm that the engineering discipline is **Aerospace Engineering** with a focus on distributed Earth observation formations. Summarise the project goal using `docs/project_overview.md` and `docs/mission_requirements.md`, explaining that the aim is to deliver a repeatable 90 s equilateral imaging opportunity above Tehran while maintaining compliance with MR-1 through MR-7 plus the added communications and payload mandates. Define the problem statement by drawing on `docs/concept_of_operations.md` and `docs/triangle_formation_results.md`, highlighting the challenge of sustaining transient triangular geometry, daily access, and resilient downlink capacity over a complex megacity.
 
 Justify the project’s significance through references to Tehran’s environmental, seismic, and socio-technical pressures as captured in `docs/tehran_daily_pass_scenario.md` and `docs/tehran_triangle_walkthrough.md`. Detail the mission benefits—improved situational awareness, responsive environmental monitoring, and regional risk mitigation—and identify stakeholders who rely on the constellation. Provide a catalogue of “raw materials” that mirrors the repository assets: configuration baselines (`config/project.yaml`, `config/scenarios/tehran_daily_pass.yaml`), simulation scripts (`sim/scripts/run_scenario.py`, `sim/scripts/run_triangle.py`, `run.py`, `run_debug.py`), analysis notebooks or reports under `docs/`, authoritative artefacts (`artefacts/run_20251018_1207Z/` etc.), and validation tooling such as `tools/stk_export.py`. Note the provenance and parameter ranges of each asset so Chapter 2 can treat them as experimental inputs.
+
+## Evidence Catalogue Overview
+
+Construct and maintain **Table 0 – Repository Evidence Catalogue** before composing Chapter 2. The table must remain configuration-controlled alongside the compliance matrix and should be updated whenever new runs, documents, or test suites are baselined. Use it to brief technical reviewers on where each dataset resides, the governing configuration, and the validation status. Treat the entries below as the current baseline; extend or amend them if the repository evolves.
+
+Table 0 – Repository Evidence Catalogue
+
+| Asset ID | Path | Category | Purpose / Content | Data Type / Format | Validation / Notes |
+|----------|------|----------|-------------------|--------------------|--------------------|
+| DOC-PO | `docs/project_overview.md` | Documentation | Mission context and deliverables synopsis supporting Chapter 1 framing. | Markdown | Reviewed during SERB 2025-Q4 update; cite for Chapter 1 literature scoping. |
+| DOC-MR | `docs/mission_requirements.md` | Documentation | Configuration-controlled mission requirements MR-1…MR-7. | Markdown | Traceable to SRD baseline FS-REQ-001 v1.0. |
+| DOC-SRD | `docs/system_requirements.md` | Documentation | Derived system requirements informing architecture constraints. | Markdown | Synchronise with MR↔SRD mapping in Traceability Architecture section. |
+| DOC-CM | `docs/compliance_matrix.md` | Documentation | Current MR/SRD compliance ledger with evidence references. | Markdown | Update after every SERB/CCB decision. |
+| DOC-CONOPS | `docs/concept_of_operations.md` | Documentation | Operational modes, communications throughput assumptions, and payload workflows. | Markdown | Provides primary inputs for communications analyses. |
+| DOC-TFR | `docs/triangle_formation_results.md` | Documentation | Authoritative triangle maintenance metrics and STK validation narrative. | Markdown | Contains EV-3 interpretation; ensure figures remain reproducible. |
+| CFG-BASE | `config/project.yaml` | Configuration | Global simulation parameters, spacecraft properties, and solver settings. | YAML | Lock prior to each evidence campaign. |
+| CFG-SCEN | `config/scenarios/tehran_daily_pass.yaml` | Configuration | Scenario-specific geometry and schedule for Tehran daily pass runs. | YAML | Used by `sim/scripts/run_scenario.py`; record version in Chapter 2 inputs. |
+| SIM-SCEN | `sim/scripts/run_scenario.py` | Simulation | Deterministic and Monte Carlo scenario generation for daily pass analysis. | Python | Validated through `tests/integration/test_simulation_scripts.py`. |
+| SIM-TRI | `sim/scripts/run_triangle.py` | Simulation | Formation propagation script generating triangle evidence packages. | Python | Emits artefacts consumed by EV-1/EV-3; ensure STK exports pass importer. |
+| TOOL-STK | `tools/stk_export.py` | Tooling | STK 11.2 export interface enforcing interoperability constraints. | Python | Mandatory in every Methods subsection when data leaves Python stack. |
+| APP-RUN | `run.py` | Simulation | FastAPI automation service orchestrating scenario execution. | Python | Reference when documenting automated execution pipelines. |
+| TEST-STK | `tests/test_stk_export.py` | Test | Regression coverage for STK export interface. | Python (pytest) | Cite when asserting interoperability compliance. |
+| TEST-SIM | `tests/integration/test_simulation_scripts.py` | Test | Integration verification for scenario and triangle pipelines. | Python (pytest) | Demonstrates repeatability of Monte Carlo runs. |
+| TEST-DOC | `tests/test_documentation_consistency.py` | Test | Ensures documentation metadata and references remain synchronised. | Python (pytest) | Run before final manuscript submission. |
+| TEST-TRI | `tests/unit/test_triangle_formation.py` | Test | Validates geometry, command latency, and Δv metrics for the triangle formation. | Python (pytest) | Guards MR-5…MR-7 compliance statistics. |
+| ART-TRI | `artefacts/triangle_run/` | Artefact | Baseline triangle simulation package (EV-1) with summary JSON and STK exports. | JSON, CSV, SVG | Confirm checksums before citing. |
+| ART-MAINT | `artefacts/run_20251018_1207Z/` | Artefact | Maintenance and responsiveness study covering MR-5…MR-7 (EV-3). | CSV, JSON, SVG | Includes Monte Carlo catalogues; log STK validation timestamp. |
+| ART-DAILYPASS | `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/` | Artefact | Deterministic + Monte Carlo Tehran daily pass alignment evidence (EV-5). | CSV, JSON, STK exports | Capture RAAN solution provenance in Chapter 3 narrative. |
+| ART-STK | `artefacts/run_20251018_1308Z_tehran_daily_pass/` | Artefact | STK 11.2 import package verifying daily pass geometry (EV-4). | `.e`, `.sat`, `.gt`, `.int` | Note ingestion outcomes in Compliance subsections. |
+
+Augment the catalogue with any new datasets (e.g., communications analyses, cost models) and cross-reference the corresponding MR/SRD identifiers. Use the catalogue as the authoritative index when completing `### X.2 Inputs and Assumptions` across all chapters.
+
+## Requirements Traceability Architecture
+
+Introduce a dedicated **Traceability Diagram + Compliance Commentary** block immediately after presenting Table 0 and before commencing Chapter 2. This block must:
+
+- Depict the MR↔SRD↔Evidence relationships using a diagrammatic form (Mermaid, TikZ, or SVG) that explicitly maps each Mission Requirement (`docs/mission_requirements.md`) to its derived System Requirements (`docs/system_requirements.md`) and to the authoritative evidence tags maintained in `docs/compliance_matrix.md` and `_authoritative_runs.md`. Include automation hooks (e.g., `tests/test_stk_export.py`, `tests/integration/test_simulation_scripts.py`) as terminal nodes so reviewers can see which regression tests protect each link.
+- Present **Table T.1 – Traceability Summary** with columns `MR ID`, `SRD IDs`, `Evidence Tags (EV-x)`, `Primary Artefact Path`, `Validation Status`, and `Change Control Notes`. Populate the table using artefacts such as `artefacts/run_20251018_1207Z/`, `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/`, and `artefacts/run_20251018_1308Z_tehran_daily_pass/`, ensuring every row records the latest SERB decision date and whether the Configuration Control Board has ratified the evidence package.
+- Provide a narrative paragraph describing the governance chain: how analysts propose updates, how SERB validates provenance and statistical sufficiency, how CCB adjudicates configuration deltas, and how the Verification and Validation Plan checkpoints (V&V-1 requirements definition, V&V-2 analytical validation, V&V-3 STK confirmation) trigger updates to the compliance matrix and Table 0.
+
+Revisit the diagram and commentary whenever new evidence is generated or requirements change. Archive superseded diagrams under `docs/figures/history/` with ISO-8601 filenames so reviewers can audit the evolution of the traceability model.
+
+## Cross-Chapter Linkages
+
+Embed explicit transition statements so the analytical narrative flows coherently across chapters:
+
+1. **Chapter 1 → Chapter 2.** Close Chapter 1 by enumerating the parameter rationales (e.g., RAAN targeting logic, centroid spacing tolerances, communications throughput thresholds) that Chapter 2 must instantiate in configuration tables and simulation setups.
+2. **Chapter 2 → Chapter 3.** Open Chapter 3 with a synopsis of the assets catalogued and executed in Chapter 2, citing Table 2.1 (configuration baselines), Table 2.3 (traceability matrix), and any Monte Carlo campaign logs. Confirm that the datasets listed in Table 0 transition directly into Chapter 3 Stage 1 evidence selection.
+3. **Chapter 3 → Chapter 4.** Introduce Chapter 4 by summarising the key findings from Chapter 3—geometry compliance, maintenance budgets, communications throughput, environmental dossier outcomes—and state which conclusions will be stress-tested through benchmarking and recommendations.
+4. **Feedback loop to Chapter 5.** When compiling Chapter 5, describe how the global reference ledger underpins each chapter’s arguments and identify any evidence gaps earmarked for future work.
+
+Use these transition notes within the opening and closing paragraphs of the mandated subsections (`### X.1` and `### X.5`) so reviewers can trace the logical hand-off between chapters without ambiguity.
+
+## Reference Management Protocol
+
+Maintain a repository-wide reference ledger that guarantees unique numbering across all chapters:
+
+- **Global numbering.** Continue the numeric sequence established in Chapter 5. When adding a new source, append it to Chapter 5 and assign the next available integer; do not restart numbering within individual chapters.
+- **Chapter-specific ledgers.** After completing the five mandatory subsections for each chapter, append a heading `### X.R Chapter X Reference Ledger` listing only the references cited in that chapter but preserving the global numbers (e.g., Chapter 1 cites [Ref1], [Ref3]; Chapter 2 cites [Ref2], [Ref4], [Ref14]).
+- **Change control.** Whenever references are added, removed, or renumbered, update `tests/test_documentation_consistency.py` expectations and rerun the test suite to ensure automated checks remain aligned. Record the change in the compliance commentary so SERB and CCB can trace literature dependencies.
+- **Cross-referencing.** When a reference supports multiple chapters, cite it with the same identifier and provide parenthetical context indicating the originating chapter (e.g., `[Ref4 – Ch2, Ch3]`) in the Chapter 5 master list to aid reviewers.
+
+Document the numbering decisions in the project log and ensure that any appendices, annexes, or supplementary memos adopt the same global reference sequence.
 
 ## Content Generation Guidelines
 
