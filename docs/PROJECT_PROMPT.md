@@ -228,3 +228,5 @@ Append a concluding **Glossary & Acronym List** section after the Chapter 5 refe
 - [Ref19] `run.py` – FastAPI automation service for mission scenario execution.
 - [Ref20] `.github/workflows/ci.yml` – Continuous integration pipeline invoking linting, testing, and simulation targets.
 - [Ref21] `Makefile` – Local automation targets mirroring the CI workflow.
+
+Ref21 is unequivocally not the final reference. In accordance with the Chapter 1 directives, execute a thorough literature review so the bibliography is expanded and completed. There is no limit on the number of references: the more granular the search, the better. Prioritise peer-reviewed articles from 2020 to 2025 and observe the referencing rules articulated at the beginning of this prompt while adding every relevant source.
