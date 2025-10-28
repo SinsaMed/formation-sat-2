@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import comtypes
 import comtypes.client
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -138,7 +142,14 @@ def _load_facilities(root, facilities: list[FacilityArtefact]) -> None:
 
     for facility in facilities:
         facility_path = _format_object_path("Facility", facility.name)
-        root.ExecuteCommand(f"VO {facility_path} ShowAzElMask Off")
+        try:
+            root.ExecuteCommand(f"VO {facility_path} ShowAzElMask Off")
+        except comtypes.COMError as exc:  # pragma: no cover - STK integration
+            LOGGER.warning(
+                "Could not disable the azimuth/elevation mask for facility '%s': %s",
+                facility.name,
+                exc,
+            )
         root.ExecuteCommand(f"VO {facility_path} ShowAxes Off")
 
 
