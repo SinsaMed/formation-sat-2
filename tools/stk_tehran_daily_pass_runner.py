@@ -4,11 +4,30 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import comtypes
 import comtypes.client
+
+
+@dataclass(frozen=True)
+class FacilityArtefact:
+    """Container for exported facility metadata."""
+
+    path: Path
+    name: str
+    alias: str
+
+
+def _format_object_path(object_type: str, identifier: str) -> str:
+    """Return a Connect object path, quoting the identifier when needed."""
+
+    escaped = identifier.replace("\"", r"\"")
+    if any(char.isspace() for char in escaped) or any(char in escaped for char in "\\/"):
+        escaped = f'"{escaped}"'
+    return f"*/{object_type}/{escaped}"
 
 
 def _get_stk_application():
@@ -49,7 +68,12 @@ def _extract_facility_name(facility_file: Path) -> str:
     return facility_file.stem.replace("Facility_", "")
 
 
-def _configure_scene(root, summary: dict[str, object], satellite: str, facilities: list[str]) -> None:
+def _configure_scene(
+    root,
+    summary: dict[str, object],
+    satellite_name: str,
+    facilities: list[FacilityArtefact],
+) -> None:
     """Set the animation timeline, camera framing, and graphics overlays."""
 
     configuration = summary.get("configuration_summary", {})
@@ -65,45 +89,57 @@ def _configure_scene(root, summary: dict[str, object], satellite: str, facilitie
             f"{stop_epoch.strftime('%d %b %Y %H:%M:%S.%f')[:-3]}"
         )
         root.ExecuteCommand("Animate * Reset")
-    root.ExecuteCommand(f"Graphics */Satellite/{satellite} Attitude Update Off")
-    root.ExecuteCommand(f"Graphics */Satellite/{satellite} Pass3D Show On")
-    root.ExecuteCommand(f"Graphics */Satellite/{satellite} GroundTrack Show On")
-    root.ExecuteCommand(f"VO */Satellite/{satellite} Lighting Sunlight On")
+    satellite_path = _format_object_path("Satellite", satellite_name)
+    root.ExecuteCommand(f"Graphics {satellite_path} Attitude Update Off")
+    root.ExecuteCommand(f"Graphics {satellite_path} Pass3D Show On")
+    root.ExecuteCommand(f"Graphics {satellite_path} GroundTrack Show On")
+    root.ExecuteCommand(f"VO {satellite_path} Lighting Sunlight On")
 
     if facilities:
         facility = facilities[0]
+        facility_path = _format_object_path("Facility", facility.name)
         root.ExecuteCommand(
-            f"VO * ViewFromTo Normal */Facility/{facility} */Satellite/{satellite} Fixed"
+            f"VO * ViewFromTo Normal {facility_path} {satellite_path} Fixed"
         )
-        root.ExecuteCommand(f"VO */Satellite/{satellite} ShowTrailingLeadVectors GroundTrack Both 3600")
+        root.ExecuteCommand(
+            f"VO {satellite_path} ShowTrailingLeadVectors GroundTrack Both 3600"
+        )
 
 
-def _import_auxiliary_products(root, export_dir: Path, satellite: str, facilities: list[str]) -> None:
+def _import_auxiliary_products(
+    root,
+    export_dir: Path,
+    satellite_name: str,
+    satellite_alias: str,
+    facilities: list[FacilityArtefact],
+) -> None:
     """Load ground-track and contact interval files into the active scenario."""
 
-    ground_track = export_dir / f"{satellite}_groundtrack.gt"
+    satellite_path = _format_object_path("Satellite", satellite_name)
+    ground_track = export_dir / f"{satellite_alias}_groundtrack.gt"
     if ground_track.exists():
         root.ExecuteCommand(
-            f"ImportDataFile */Satellite/{satellite} GroundTrack \"{ground_track}\""
+            f"ImportDataFile {satellite_path} GroundTrack \"{ground_track}\""
         )
 
     for facility in facilities:
-        interval_file = export_dir / f"Contacts_{facility}.int"
+        interval_file = export_dir / f"Contacts_{facility.alias}.int"
         if interval_file.exists():
             root.ExecuteCommand(
-                f"ImportDataFile */Satellite/{satellite} IntervalList \"{interval_file}\""
+                f"ImportDataFile {satellite_path} IntervalList \"{interval_file}\""
             )
 
 
-def _load_facilities(root, export_dir: Path, facilities: list[str]) -> None:
+def _load_facilities(root, facilities: list[FacilityArtefact]) -> None:
     """Ensure facility geometry is present in the scenario."""
 
-    for facility_file in export_dir.glob("Facility_*.fac"):
-        root.ExecuteCommand(f"Load / */Facility \"{facility_file}\"")
+    for facility in facilities:
+        root.ExecuteCommand(f"Load / */Facility \"{facility.path}\"")
 
     for facility in facilities:
-        root.ExecuteCommand(f"VO */Facility/{facility} ShowAzElMask Off")
-        root.ExecuteCommand(f"VO */Facility/{facility} ShowAxes Off")
+        facility_path = _format_object_path("Facility", facility.name)
+        root.ExecuteCommand(f"VO {facility_path} ShowAzElMask Off")
+        root.ExecuteCommand(f"VO {facility_path} ShowAxes Off")
 
 
 def parse_args() -> argparse.Namespace:
@@ -137,17 +173,26 @@ def main() -> int:
     satellite_files = sorted(export_dir.glob("*.sat"))
     if not satellite_files:
         raise FileNotFoundError("No satellite definition (*.sat) found in export directory.")
-    satellite_name = _extract_satellite_name(satellite_files[0])
+    satellite_file = satellite_files[0]
+    satellite_name = _extract_satellite_name(satellite_file)
+    satellite_alias = satellite_file.stem
 
     facility_files = sorted(export_dir.glob("Facility_*.fac"))
-    facilities = [_extract_facility_name(path) for path in facility_files]
+    facilities = [
+        FacilityArtefact(
+            path=facility_file,
+            name=_extract_facility_name(facility_file),
+            alias=facility_file.stem.replace("Facility_", ""),
+        )
+        for facility_file in facility_files
+    ]
 
     application = _get_stk_application()
     root = application.Personality2
 
     _load_scenario(root, scenario_file)
-    _load_facilities(root, export_dir, facilities)
-    _import_auxiliary_products(root, export_dir, satellite_name, facilities)
+    _load_facilities(root, facilities)
+    _import_auxiliary_products(root, export_dir, satellite_name, satellite_alias, facilities)
     _configure_scene(root, summary, satellite_name, facilities)
 
     application.Visible = True
