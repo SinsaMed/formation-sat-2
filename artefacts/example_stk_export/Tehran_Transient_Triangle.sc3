@@ -108,7 +108,7 @@ VO_V110
             CentralBody              Earth
             DisplayMode              Normal
             StereoProjectionMode     Automatic
-            ProjectionDistance       6966732.047785
+            ProjectionDistance       8895520.577152
             EyeSeparationFactor      0.020000
             WireframeMode            No
             CameraLightAntiSun       No
@@ -461,7 +461,7 @@ EndCentralBody
             GridVertTextAlign        Border
             IsShowingPickAnnotation  Yes
             UsePickAnnoPosition      No
-            PickAnnoPosition         10 65
+            PickAnnoPosition         618 730
             PickAttachX              Min
             PickAttachY              Min
             PickAnnoFontSize         1
@@ -726,9 +726,9 @@ EndCentralBody
                 UseLayer                Yes
                 FromName                "Earth"
                 FromRegPosAttView       "Point"
-                FromPosition            3687920.274957616347819567  201125.164263892656890675  -5907126.893802916631102562
-                FromOffset              3687920.274957616347819567  201125.164263892656890675  -5907126.893802916631102562
-                FromOffsetLLR           -1.012020978902851587  0.054482230917930377  6966732.047784910537302494
+                FromPosition            1230711.202748468844220042  3150373.576414686627686024  8227440.829504529945552349
+                FromOffset              1230711.202748468844220042  3150373.576414686627686024  8227440.829504529945552349
+                FromOffsetLLR           1.180764765240289060  1.198371297560215876  8895520.577152336016297340
                 ToName                  "Earth"
                 ToRegPosAttView         "Point"
                 ToPosition              0.000000000000000000  0.000000000000000000  0.000000000000000000
@@ -736,9 +736,9 @@ EndCentralBody
                 ToOffsetLLR             0.000000000000000000  0.000000000000000000  0.000000000000000000
                 ConstantDistanceType    None
                 ConstantDistanceValue   1.000000
-                UpVector                0.846646881141181695  0.046172905146380776  0.530148207093312118
-                ViewRad                 6966732.047784910537302494
-                ViewQuat                0.0238245 -0.4845117 -0.0132019 -0.8743606
+                UpVector                -0.336547183665504346  -0.861493218123633109  0.380217606501597527
+                ViewRad                 8895520.577152334153652191
+                ViewQuat                0.4685057 0.4597026 0.3139502 -0.6860111
                 ViewCoordSystem         From
                 ViewFromToMode          FromTo
                 ViewToCBIMtx            1.000000000000000000 0.000000000000000000 0.000000000000000000 0.000000000000000000 1.000000000000000000 0.000000000000000000  0.000000000000000000 0.000000000000000000 1.000000000000000000
@@ -752,7 +752,7 @@ EndCentralBody
                 MinAngleToUpAxis        0.0087266
                 InitUpAxisUp            Yes
                 TempUpAxisUp            Yes
-                CrossAxis               0.0544553 -0.9985162 0.0000000
+                CrossAxis               0.9314477 -0.3638753 0.0000000
                 DefaultOffset           35079753.5000000
                 BaseDefaultOffset       6378137.0000000
             End View
@@ -767,7 +767,7 @@ EndCentralBody
     End SceneWindow
     Begin View
         ViewName                HomeView
-        ViewTime                25923035.000000
+        ViewTime                -12411000.000000
         ViewUpdateDelta         10.000000
         CentralBody             Earth
         Begin ViewCrdnAxes
