@@ -29,6 +29,7 @@ from constellation.frames import rotation_matrix_rtn_to_eci
 from constellation.orbit import (
     EARTH_EQUATORIAL_RADIUS_M,
     EARTH_ROTATION_RATE,
+    cartesian_to_classical,
     geodetic_coordinates,
     haversine_distance,
     inertial_to_ecef,
@@ -72,6 +73,24 @@ PLANE_ASSIGNMENTS = {
 }
 
 LOGGER = logging.getLogger(__name__)
+
+CLASSICAL_ELEMENT_FIELDS = (
+    "semi_major_axis_km",
+    "eccentricity",
+    "inclination_deg",
+    "raan_deg",
+    "argument_of_perigee_deg",
+    "mean_anomaly_deg",
+)
+
+CLASSICAL_ELEMENT_UNITS = {
+    "semi_major_axis_km": "km",
+    "eccentricity": "",
+    "inclination_deg": "deg",
+    "raan_deg": "deg",
+    "argument_of_perigee_deg": "deg",
+    "mean_anomaly_deg": "deg",
+}
 
 
 DEFAULT_MONTE_CARLO = {
@@ -642,6 +661,9 @@ def _propagate_deterministic(
     times: list[datetime] = []
     cross_track_series: dict[str, list[float]] = {state.identifier: [] for state in states}
     altitude_series: dict[str, list[float]] = {state.identifier: [] for state in states}
+    orbital_elements_series: dict[str, dict[str, list[float]]] = {
+        state.identifier: {field: [] for field in CLASSICAL_ELEMENT_FIELDS} for state in states
+    }
     metrics = _initial_metric_structure(states, target_lat, target_lon)
     plane_metrics = _plane_intersection_metrics(states, target_lat, target_lon)
     relative_stats = {"max_abs": 0.0, "min_abs": math.inf, "time_of_min": None, "series": []}
@@ -651,6 +673,21 @@ def _propagate_deterministic(
 
     while epoch <= settings.stop_time + timedelta(seconds=1e-6):
         times.append(epoch)
+        for state in states:
+            elements = cartesian_to_classical(state.position_m, state.velocity_mps)
+            per_satellite = orbital_elements_series[state.identifier]
+            per_satellite["semi_major_axis_km"].append(elements.semi_major_axis / 1_000.0)
+            per_satellite["eccentricity"].append(elements.eccentricity)
+            per_satellite["inclination_deg"].append(
+                _normalise_angle_degrees(elements.inclination)
+            )
+            per_satellite["raan_deg"].append(_normalise_angle_degrees(elements.raan))
+            per_satellite["argument_of_perigee_deg"].append(
+                _normalise_angle_degrees(elements.arg_perigee)
+            )
+            per_satellite["mean_anomaly_deg"].append(
+                _normalise_angle_degrees(elements.mean_anomaly)
+            )
         _record_metrics(
             states,
             epoch,
@@ -859,6 +896,13 @@ def _propagate_deterministic(
         "waiver": float(waiver_limit),
     }
     deterministic_metrics["cross_track_evaluation"] = metrics["evaluation"]
+    deterministic_metrics["orbital_elements"] = {
+        "time_series": {
+            "fields": CLASSICAL_ELEMENT_FIELDS,
+            "units": CLASSICAL_ELEMENT_UNITS,
+            "artefact_key": "deterministic_orbital_elements_csv",
+        }
+    }
 
     series = {
         "samples": [
@@ -870,6 +914,18 @@ def _propagate_deterministic(
         ],
         "altitudes": {
             identifier: altitude_series[identifier] for identifier in altitude_series
+        },
+        "orbital_elements": {
+            "times": list(times),
+            "per_satellite": {
+                identifier: {
+                    field: list(values)
+                    for field, values in per_satellite.items()
+                }
+                for identifier, per_satellite in orbital_elements_series.items()
+            },
+            "fields": CLASSICAL_ELEMENT_FIELDS,
+            "units": CLASSICAL_ELEMENT_UNITS,
         },
     }
 
@@ -914,6 +970,18 @@ def _initial_metric_structure(
             "worst_vehicle_abs_cross_track_km": math.inf,
         },
     }
+
+
+def _normalise_angle_degrees(angle_rad: float) -> float:
+    """Convert radians to wrapped degrees in the [0, 360) interval."""
+
+    value = math.degrees(angle_rad)
+    if not math.isfinite(value):
+        return float("nan")
+    wrapped = math.fmod(value, 360.0)
+    if wrapped < 0.0:
+        wrapped += 360.0
+    return wrapped
 
 
 def _plane_intersection_metrics(
@@ -1527,11 +1595,14 @@ def _write_outputs(
     deterministic_path = output_directory / "deterministic_cross_track.csv"
     relative_path = output_directory / "relative_cross_track.csv"
     summary_path = output_directory / "deterministic_summary.json"
+    orbital_path = output_directory / "deterministic_orbital_elements.csv"
     monte_carlo_path = output_directory / "monte_carlo_cross_track.csv"
     monte_carlo_summary_path = output_directory / "monte_carlo_summary.json"
     settings_path = output_directory / "solver_settings.json"
 
     _write_cross_track_csv(deterministic_path, series)
+    orbital_series = series.get("orbital_elements") if isinstance(series, Mapping) else {}
+    _write_orbital_elements_csv(orbital_path, orbital_series)
 
     relative_summary = deterministic_metrics.get("relative_cross_track")
     if isinstance(relative_summary, Mapping):
@@ -1581,8 +1652,15 @@ def _write_outputs(
     }
     settings_path.write_text(json.dumps(settings_payload, indent=2), encoding="utf-8")
 
+    orbital_metrics = deterministic_metrics.get("orbital_elements")
+    if isinstance(orbital_metrics, Mapping):
+        time_series_meta = orbital_metrics.get("time_series")
+        if isinstance(time_series_meta, Mapping):
+            time_series_meta["artefact"] = str(orbital_path)
+
     return {
         "deterministic_cross_track_csv": str(deterministic_path),
+        "deterministic_orbital_elements_csv": str(orbital_path),
         "deterministic_summary_json": str(summary_path),
         "monte_carlo_cross_track_csv": str(monte_carlo_path),
         "relative_cross_track_csv": str(relative_path),
@@ -1608,6 +1686,45 @@ def _write_cross_track_csv(path: Path, series: Mapping[str, object]) -> None:
         for identifier in vehicle_ids:
             row.append(f"{cross_track.get(identifier, 0.0):.6f}")
         lines.append(",".join(row))
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_orbital_elements_csv(path: Path, series: Mapping[str, object]) -> None:
+    """Persist orbital-element histories to *path*."""
+
+    header = "time_iso,satellite_id," + ",".join(CLASSICAL_ELEMENT_FIELDS)
+    if not isinstance(series, Mapping) or not series:
+        path.write_text(header + "\n", encoding="utf-8")
+        return
+
+    times = list(series.get("times", []))
+    per_satellite = series.get("per_satellite")
+    if not isinstance(per_satellite, Mapping) or not times:
+        path.write_text(header + "\n", encoding="utf-8")
+        return
+
+    lines = [header]
+    for index, timestamp in enumerate(times):
+        if isinstance(timestamp, datetime):
+            stamp = timestamp.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        else:
+            stamp = str(timestamp)
+        for identifier in sorted(per_satellite):
+            elements = per_satellite.get(identifier)
+            if not isinstance(elements, Mapping):
+                continue
+            row = [stamp, str(identifier)]
+            for field in CLASSICAL_ELEMENT_FIELDS:
+                values = elements.get(field)
+                value = float("nan")
+                if isinstance(values, Sequence) and index < len(values):
+                    try:
+                        value = float(values[index])  # type: ignore[arg-type]
+                    except (TypeError, ValueError):
+                        value = float("nan")
+                row.append(f"{value:.9g}" if math.isfinite(value) else "")
+            lines.append(",".join(row))
 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

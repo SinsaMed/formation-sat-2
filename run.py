@@ -1568,6 +1568,8 @@ def _render_interface() -> str:
       const triangle = metrics.triangle || {{}};
       const ground = metrics.ground_track || {{}};
       const orbital = metrics.orbital_elements || {{}};
+      const perSatellite = orbital.per_satellite || {{}};
+      const orbitalCount = Object.keys(perSatellite).length || Object.keys(orbital).length;
 
       const triangleCard = document.createElement('div');
       triangleCard.className = 'summary-card';
@@ -1579,7 +1581,10 @@ def _render_interface() -> str:
 
       const orbitalCard = document.createElement('div');
       orbitalCard.className = 'summary-card';
-      orbitalCard.innerHTML = `<strong>صفحه‌هاى مداری</strong><br/>فضاپیماها: ${{Object.keys(orbital).length}} مورد`;
+      const timeSeries = orbital.time_series || {{}};
+      const hasTimeSeries = Boolean(timeSeries && (timeSeries.artefact_key || timeSeries.artefact || timeSeries.per_satellite_files));
+      orbitalCard.innerHTML = `<strong>صفحه‌هاى مداری</strong><br/>فضاپیماها: ${{orbitalCount}} مورد` +
+        `<br/>سری زمانی عناصر: ${{hasTimeSeries ? 'دردسترس' : 'ناموجود'}}`;
 
       cards.appendChild(triangleCard);
       cards.appendChild(groundCard);

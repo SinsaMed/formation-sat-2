@@ -34,10 +34,29 @@ def test_triangle_formation_meets_requirements() -> None:
     assert max(distances_within_window) <= tolerance
 
     orbital = metrics["orbital_elements"]
-    assert set(orbital) == {"SAT-1", "SAT-2", "SAT-3"}
-    plane_counts = Counter(entry["assigned_plane"] for entry in orbital.values())
+    per_satellite = orbital["per_satellite"]
+    assert set(per_satellite) == {"SAT-1", "SAT-2", "SAT-3"}
+    plane_counts = Counter(entry["assigned_plane"] for entry in per_satellite.values())
     assert plane_counts["Plane A"] == 2
     assert plane_counts["Plane B"] == 1
+
+    time_series = orbital["time_series"]
+    assert set(time_series["fields"]) == {
+        "semi_major_axis_km",
+        "eccentricity",
+        "inclination_deg",
+        "raan_deg",
+        "argument_of_perigee_deg",
+        "mean_anomaly_deg",
+    }
+    assert time_series["artefact_key"] == "orbital_elements_csv"
+
+    classical = result.classical_elements
+    assert set(classical) == {"SAT-1", "SAT-2", "SAT-3"}
+    sample_count = len(result.times)
+    for series in classical.values():
+        for values in series.values():
+            assert len(values) == sample_count
 
     maintenance = metrics["maintenance"]
     budget = maintenance["assumptions"]["delta_v_budget_mps"]

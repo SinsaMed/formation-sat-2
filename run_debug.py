@@ -35,6 +35,15 @@ logging.getLogger().addHandler(_STREAM_HANDLER)
 LOGGER = logging.getLogger("run_debug")
 
 
+CLASSICAL_ELEMENT_FIELDS = (
+    "semi_major_axis_km",
+    "eccentricity",
+    "inclination_deg",
+    "raan_deg",
+    "argument_of_perigee_deg",
+    "mean_anomaly_deg",
+)
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the command-line argument parser."""
 
@@ -138,6 +147,17 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         result.longitudes_rad,
         None,
     )
+    orbital_csv = _write_orbital_elements_csv(
+        output_directory / "orbital_elements.csv",
+        times,
+        result.classical_elements,
+    )
+    csv_paths["orbital_elements"] = orbital_csv
+    per_satellite_paths = _write_orbital_elements_per_satellite(
+        output_directory / "orbital_elements",
+        times,
+        result.classical_elements,
+    )
 
     formation_window = _extract_mapping(result.metrics, "formation_window")
     ground_track = _extract_mapping(result.metrics, "ground_track")
@@ -163,7 +183,12 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         f"  • velocities_mps CSV: {csv_paths['velocities_mps']}",
         f"  • latitudes_rad CSV: {csv_paths['latitudes_rad']}",
         f"  • longitudes_rad CSV: {csv_paths['longitudes_rad']}",
+        f"  • orbital_elements CSV: {csv_paths['orbital_elements']}",
     ]
+    if per_satellite_paths:
+        summary.append("  • per-satellite orbital elements:")
+        for sat_id, path in sorted(per_satellite_paths.items()):
+            summary.append(f"      - {sat_id}: {path}")
 
     window_label = "formation window"
     if start_time and end_time:
@@ -258,6 +283,62 @@ def _write_mapping_csv(
                     row.append(_format_number(sample))
             writer.writerow(row)
     return path
+
+
+def _write_orbital_elements_csv(
+    path: Path,
+    times: Sequence[datetime],
+    series: Mapping[str, Mapping[str, Sequence[float]]],
+) -> Path:
+    """Serialise orbital-element histories into a consolidated CSV."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        header = ["time_utc", "satellite_id", *CLASSICAL_ELEMENT_FIELDS]
+        writer.writerow(header)
+        for index, epoch in enumerate(times):
+            timestamp = _format_time(epoch)
+            for sat_id in sorted(series):
+                elements = series.get(sat_id) or {}
+                row = [timestamp, sat_id]
+                for field in CLASSICAL_ELEMENT_FIELDS:
+                    values = elements.get(field)
+                    try:
+                        sample = values[index]  # type: ignore[index]
+                    except (TypeError, IndexError):
+                        sample = float("nan")
+                    row.append(_format_number(sample))
+                writer.writerow(row)
+    return path
+
+
+def _write_orbital_elements_per_satellite(
+    directory: Path,
+    times: Sequence[datetime],
+    series: Mapping[str, Mapping[str, Sequence[float]]],
+) -> Mapping[str, Path]:
+    """Write per-spacecraft orbital-element CSVs and return their paths."""
+
+    directory.mkdir(parents=True, exist_ok=True)
+    paths: dict[str, Path] = {}
+    for sat_id, elements in series.items():
+        path = directory / f"{sat_id.lower().replace(' ', '_')}_orbital_elements.csv"
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["time_utc", *CLASSICAL_ELEMENT_FIELDS])
+            for index, epoch in enumerate(times):
+                row = [_format_time(epoch)]
+                for field in CLASSICAL_ELEMENT_FIELDS:
+                    values = elements.get(field)
+                    try:
+                        sample = values[index]  # type: ignore[index]
+                    except (TypeError, IndexError):
+                        sample = float("nan")
+                    row.append(_format_number(sample))
+                writer.writerow(row)
+        paths[sat_id] = path
+    return paths
 
 
 def _format_time(value: datetime) -> str:
