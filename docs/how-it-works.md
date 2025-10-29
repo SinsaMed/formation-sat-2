@@ -25,6 +25,17 @@ The curated triangle summary confirms the geometric and operational margins that
 - Orbital elements for each spacecraft demonstrating the Plane A/Plane B split, with SAT-3 offset in argument of perigee to occupy the second plane.
 - Maintenance, command, injection recovery, and drag dispersion analytics showing ≤0.057 m/s corrective manoeuvres and 100% success rates under the recorded assumptions.[Ref4]
 
+### 3.4 Parameter Derivation Workflow
+The “ideal” triangle numbers result from coupling the dedicated formation simulator with the daily-pass alignment pipeline so that geometric choices are ratified by full-orbit propagation rather than heuristic tuning. The following workflow, executed prior to locking run `run_20251020_1900Z_tehran_daily_pass_locked`, generates the published configuration:
+
+1. **Construct LVLH offsets.** `simulate_triangle_formation` converts the six-kilometre side length specified in `tehran_triangle.json` into local-vertical/local-horizontal offsets using `_formation_offsets`, guaranteeing an equilateral layout in the rotating frame before any orbital effects are added.[Ref3][Ref11]
+2. **Propagate the equilateral reference.** The simulator steps each spacecraft about the reference orbit, rotating the offsets into Earth-centred inertial coordinates with `_lvlh_frame` and computing triangle metrics, centroid positions, and ground ranges across the 180 s window. The resulting JSON artefact confirms that the geometry satisfies the aspect-ratio tolerance and ground-distance envelope, giving confidence that the LVLH blueprint is viable once stitched into the main pipeline.[Ref11]
+3. **Seed the daily-pass formation.** The scenario runner ingests the Tehran daily-pass configuration, which embeds the equilateral geometry via the default formation offsets (`FSAT-LDR`, `FSAT-DP1`, `FSAT-DP2`) and declares the ±30 km/±70 km cross-track limits that drive the optimiser.[Ref5][Ref10]
+4. **Search the RAAN.** `_resolve_raan_alignment` performs a coarse sweep followed by iterative refinement around the best candidate. Every sample calls `_evaluate_raan_candidate`, which clones the scenario, enforces the trial RAAN, and invokes the \(J_2\)+drag propagator so that centroid and worst-spacecraft cross-track errors at the 07:40:10Z midpoint are evaluated against the limits.[Ref5][Ref10]
+5. **Assess deterministic behaviour.** `_propagate_deterministic` integrates the three vehicles with the equilateral offsets, logging min/max cross-track distances, altitude spans, and plane normals. The mid-pass sample that minimises the timing difference from 07:40:10Z supplies the compliance snapshot later reported in `deterministic_summary.json`.[Ref7][Ref10]
+6. **Quantify dispersion robustness.** `_run_monte_carlo` executes 1,000 dispersions (seed 4242) perturbing semi-major axis, inclination, and drag coefficient; the aggregator records centroid and worst-vehicle \(p_{95}\) figures that validate the triangle’s tolerance to injection and drag uncertainties.[Ref8][Ref10]
+7. **Lock the optimal node.** When a candidate improves on the baseline centroid magnitude, the optimiser records the RAAN (350.788504°) and associated metrics. The final summary fixes this value in the configuration, and the locked artefacts document the matched deterministic (12.1428 km centroid, 27.7595 km worst spacecraft) and Monte Carlo (23.914 km centroid mean, 39.761 km worst-spacecraft \(p_{95}\)) statistics that make the solution authoritative.[Ref6][Ref7][Ref8]
+
 ## 4. Scenario Pipeline Logic
 The scenario runner `sim/scripts/run_scenario.py` executes a deterministic sequence:
 1. Load the scenario configuration from `config/scenarios` or an override file.
@@ -78,3 +89,5 @@ The authoritative run ledger confirms that only `run_20251020_1900Z_tehran_daily
 - [Ref7] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/deterministic_summary.json`.
 - [Ref8] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/monte_carlo_summary.json`.
 - [Ref9] `docs/_authoritative_runs.md`.
+- [Ref10] `sim/scripts/perturbation_analysis.py`.
+- [Ref11] `sim/formation/triangle.py`.
