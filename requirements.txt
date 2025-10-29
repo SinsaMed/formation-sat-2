@@ -12,6 +12,7 @@ jplephem>=2.20
 matplotlib>=3.7
 pandas>=2.2
 plotly>=5.15
+cartopy>=0.22
 
 # Development and continuous-integration tooling
 pytest>=8

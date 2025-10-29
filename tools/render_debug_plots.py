@@ -10,8 +10,9 @@ representation is stored as a standalone HTML document powered by Plotly.
 from __future__ import annotations
 
 import argparse
-import math
 import json
+import logging
+import math
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
@@ -21,6 +22,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 from matplotlib.lines import Line2D
+
+try:  # pragma: no cover - optional dependency
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+except Exception:  # pragma: no cover - optional dependency
+    ccrs = None
+    cfeature = None
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 CLASSICAL_ELEMENT_FIELDS = (
@@ -40,6 +51,18 @@ CLASSICAL_ELEMENT_LABELS = {
     "argument_of_perigee_deg": "Argument of perigee (deg)",
     "mean_anomaly_deg": "Mean anomaly (deg)",
 }
+
+
+TEHRAN_LATITUDE_DEG = 35.6892
+TEHRAN_LONGITUDE_DEG = 51.3890
+
+
+def _wrap_longitudes_around_tehran(longitudes_rad: np.ndarray) -> np.ndarray:
+    """Normalise longitudes around Tehran to avoid map discontinuities."""
+
+    unwrapped = np.rad2deg(np.unwrap(longitudes_rad))
+    centred = ((unwrapped - TEHRAN_LONGITUDE_DEG + 180.0) % 360.0) - 180.0
+    return centred + TEHRAN_LONGITUDE_DEG
 
 
 def _load_lat_lon(run_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -197,23 +220,106 @@ def _plot_longitude(times: pd.Series, longitudes: pd.DataFrame, output_dir: Path
     return output_path
 
 
-def _plot_ground_track(latitudes: pd.DataFrame, longitudes: pd.DataFrame, output_dir: Path) -> Path:
-    fig, ax = plt.subplots(figsize=(8, 8))
-    for satellite in latitudes.columns:
-        if satellite == "time_utc":
-            continue
+def _plot_ground_track(
+    latitudes: pd.DataFrame, longitudes: pd.DataFrame, output_dir: Path
+) -> Path:
+    columns = [column for column in latitudes.columns if column != "time_utc"]
+    output_path = output_dir / "ground_track_tehran_map.svg"
+
+    if ccrs is None:
+        LOGGER.warning(
+            "Cartopy is unavailable; generating planar ground-track plot instead."
+        )
+        fig, ax = plt.subplots(figsize=(8, 8))
+        for satellite in columns:
+            lat_deg = np.rad2deg(latitudes[satellite].to_numpy())
+            lon_wrapped = _wrap_longitudes_around_tehran(
+                longitudes[satellite].to_numpy()
+            )
+            ax.plot(lon_wrapped, lat_deg, label=satellite)
+
+        ax.scatter(
+            [TEHRAN_LONGITUDE_DEG],
+            [TEHRAN_LATITUDE_DEG],
+            color="red",
+            marker="*",
+            s=120,
+            label="Tehran",
+        )
+        ax.set_title("Ground track projection over Tehran")
+        ax.set_xlabel("Longitude (degrees)")
+        ax.set_ylabel("Latitude (degrees)")
+        ax.legend(loc="best")
+        ax.set_aspect("equal", adjustable="datalim")
+        ax.grid(True, linestyle=":", linewidth=0.5)
+        fig.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        return output_path
+
+    projection = ccrs.PlateCarree()
+    fig = plt.figure(figsize=(10, 8))
+    ax = plt.axes(projection=projection)
+    extent = (
+        TEHRAN_LONGITUDE_DEG - 20.0,
+        TEHRAN_LONGITUDE_DEG + 20.0,
+        TEHRAN_LATITUDE_DEG - 12.0,
+        TEHRAN_LATITUDE_DEG + 12.0,
+    )
+    ax.set_extent(extent, crs=projection)
+
+    ax.coastlines(resolution="110m", linewidth=0.6, zorder=1)
+    if cfeature is not None:  # pragma: no branch - follows cartopy import
+        ax.add_feature(cfeature.BORDERS, linewidth=0.4, edgecolor="grey", zorder=1)
+        ax.add_feature(cfeature.LAND, facecolor="#f5f5f5", zorder=0)
+        ax.add_feature(cfeature.OCEAN, facecolor="#dce9f5", zorder=0)
+
+    gridlines = ax.gridlines(
+        draw_labels=True,
+        linestyle=":",
+        linewidth=0.4,
+        color="grey",
+        x_inline=False,
+        y_inline=False,
+    )
+    gridlines.top_labels = False
+    gridlines.right_labels = False
+
+    for satellite in columns:
         lat_deg = np.rad2deg(latitudes[satellite].to_numpy())
-        lon_deg = np.rad2deg(longitudes[satellite].to_numpy())
-        ax.plot(lon_deg, lat_deg, label=satellite)
+        lon_wrapped = _wrap_longitudes_around_tehran(
+            longitudes[satellite].to_numpy()
+        )
+        ax.plot(
+            lon_wrapped,
+            lat_deg,
+            transform=ccrs.Geodetic(),
+            label=satellite,
+            linewidth=1.5,
+        )
 
-    ax.set_title("Ground track projection over Tehran")
-    ax.set_xlabel("Longitude (degrees)")
-    ax.set_ylabel("Latitude (degrees)")
-    ax.legend(loc="best")
-    ax.set_aspect("equal", adjustable="datalim")
-    ax.grid(True, linestyle=":", linewidth=0.5)
+    ax.scatter(
+        [TEHRAN_LONGITUDE_DEG],
+        [TEHRAN_LATITUDE_DEG],
+        color="red",
+        marker="*",
+        s=120,
+        transform=projection,
+        zorder=5,
+        label="Tehran",
+    )
+    ax.text(
+        TEHRAN_LONGITUDE_DEG + 0.5,
+        TEHRAN_LATITUDE_DEG + 0.5,
+        "Tehran",
+        transform=projection,
+        fontsize=10,
+        fontweight="bold",
+        zorder=5,
+    )
 
-    output_path = output_dir / "ground_track.svg"
+    ax.set_title("Ground tracks over Tehran in regional context")
+    ax.legend(loc="upper right")
+
     fig.savefig(output_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return output_path
