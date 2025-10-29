@@ -2,9 +2,9 @@
 
 This utility reads the CSV exports produced by ``run_debug.py`` for the
 Tehran triangle scenario and renders time-series charts alongside an
-interactive three-dimensional formation view. The charts are emitted as
-SVG files to preserve reviewability in version control, whilst the 3D
-representation is stored as a standalone HTML document powered by Plotly.
+interactive three-dimensional formation view. The canonical three-dimensional
+representation is emitted as an SVG for archival review, whilst an HTML scene
+remains available for exploratory analysis via Plotly.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # Required for 3D projection
 
 try:  # pragma: no cover - optional dependency
     import cartopy.crs as ccrs
@@ -422,7 +423,82 @@ def _plot_orbital_elements_formation_window(
     return output_path
 
 
-def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: Path) -> Path:
+def _set_3d_equal_aspect(ax: plt.Axes, points: np.ndarray) -> None:
+    """Set equal aspect ratios for three-dimensional axes."""
+
+    ranges = points.max(axis=0) - points.min(axis=0)
+    max_range = ranges.max() / 2.0
+    centres = (points.max(axis=0) + points.min(axis=0)) / 2.0
+
+    if max_range == 0.0:
+        max_range = 1.0
+
+    x_centre, y_centre, z_centre = centres
+    ax.set_xlim(x_centre - max_range, x_centre + max_range)
+    ax.set_ylim(y_centre - max_range, y_centre + max_range)
+    ax.set_zlim(z_centre - max_range, z_centre + max_range)
+
+    if hasattr(ax, "set_box_aspect"):
+        ax.set_box_aspect((1, 1, 1))
+
+
+def _render_formation_svg(
+    positions: pd.DataFrame,
+    satellites: list[str],
+    earth_radius: float,
+    output_path: Path,
+) -> None:
+    """Create a static SVG visualisation of the formation using Matplotlib."""
+
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, projection="3d")
+
+    theta = np.linspace(0, 2 * math.pi, 120)
+    phi = np.linspace(0, math.pi, 60)
+    theta_grid, phi_grid = np.meshgrid(theta, phi)
+    earth_x = earth_radius * np.sin(phi_grid) * np.cos(theta_grid)
+    earth_y = earth_radius * np.sin(phi_grid) * np.sin(theta_grid)
+    earth_z = earth_radius * np.cos(phi_grid)
+    ax.plot_surface(
+        earth_x,
+        earth_y,
+        earth_z,
+        rstride=1,
+        cstride=1,
+        linewidth=0,
+        antialiased=True,
+        alpha=0.25,
+        color="#1f78b4",
+        edgecolor="none",
+    )
+
+    point_clouds = [
+        np.column_stack((earth_x.ravel(), earth_y.ravel(), earth_z.ravel()))
+    ]
+
+    for satellite in satellites:
+        x = positions[f"{satellite}_x_m"].to_numpy()
+        y = positions[f"{satellite}_y_m"].to_numpy()
+        z = positions[f"{satellite}_z_m"].to_numpy()
+        ax.plot(x, y, z, label=satellite, linewidth=2.0)
+        point_clouds.append(np.column_stack((x, y, z)))
+
+    stacked_points = np.vstack(point_clouds)
+    _set_3d_equal_aspect(ax, stacked_points)
+
+    ax.set_title("Tehran triangle formation in Earth-centred coordinates")
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_zlabel("z (m)")
+    ax.view_init(elev=20.0, azim=45.0)
+    ax.legend(loc="upper left")
+
+    fig.tight_layout()
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: Path) -> dict[str, Path]:
     satellites = _extract_satellite_labels(positions.columns)
     traces: List[go.Scatter3d] = []
     if times.dt.tz is not None:
@@ -483,12 +559,16 @@ def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: 
     )
 
     figure = go.Figure(data=[earth_surface, *traces], layout=layout)
-    output_path = output_dir / "formation_3d.html"
-    pio.write_html(figure, file=output_path, include_plotlyjs="cdn", auto_play=False)
-    return output_path
+    html_path = output_dir / "formation_3d.html"
+    pio.write_html(figure, file=html_path, include_plotlyjs="cdn", auto_play=False)
+
+    svg_path = output_dir / "formation_3d.svg"
+    _render_formation_svg(positions, satellites, earth_radius, svg_path)
+
+    return {"svg": svg_path, "html": html_path}
 
 
-def generate_visualisations(run_directory: Path) -> dict[str, Path]:
+def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, Path]]:
     latitudes, longitudes = _load_lat_lon(run_directory)
     positions = _load_positions(run_directory)
     orbital_elements = _load_orbital_elements(run_directory)
@@ -497,7 +577,7 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path]:
     output_dir = _ensure_output_directory(run_directory)
 
     time_index = latitudes["time_utc"]
-    outputs = {
+    outputs: dict[str, Path | dict[str, Path]] = {
         "latitude": _plot_latitude(time_index, latitudes, output_dir),
         "longitude": _plot_longitude(time_index, longitudes, output_dir),
         "ground_track": _plot_ground_track(latitudes, longitudes, output_dir),
@@ -514,7 +594,7 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Render SVG charts and a 3D HTML plot for a debug run directory."
+        description="Render SVG charts, a canonical 3D SVG, and an HTML Plotly scene for a debug run directory."
     )
     parser.add_argument(
         "run_directory",
@@ -528,8 +608,19 @@ def main() -> None:
         raise FileNotFoundError(f"Run directory {run_directory} does not exist.")
 
     outputs = generate_visualisations(run_directory)
-    for label, path in outputs.items():
-        print(f"Generated {label} visualisation at {path}")
+    for label, artefact in outputs.items():
+        if isinstance(artefact, dict):
+            canonical = artefact.get("svg")
+            if canonical is not None:
+                print(
+                    f"Generated {label} visualisation at {canonical} (canonical SVG)"
+                )
+            for fmt, path in artefact.items():
+                if fmt == "svg":
+                    continue
+                print(f"Generated {label} visualisation at {path} ({fmt})")
+        else:
+            print(f"Generated {label} visualisation at {artefact}")
 
 
 if __name__ == "__main__":
