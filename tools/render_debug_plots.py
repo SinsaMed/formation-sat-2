@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import argparse
 import math
+import json
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -79,6 +80,34 @@ def _load_orbital_elements(run_dir: Path) -> pd.DataFrame:
         pd.to_numeric, errors="coerce"
     )
     return dataframe
+
+
+def _load_formation_window(run_dir: Path) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    summary_path = run_dir / "triangle_summary.json"
+    if not summary_path.exists():
+        raise FileNotFoundError(
+            "Expected triangle_summary.json within the run directory to derive formation window."
+        )
+
+    with summary_path.open("r", encoding="utf-8") as handle:
+        summary = json.load(handle)
+
+    try:
+        window = summary["metrics"]["formation_window"]
+        start = pd.to_datetime(window["start"], utc=True)
+        end = pd.to_datetime(window["end"], utc=True)
+    except (KeyError, TypeError) as exc:  # pragma: no cover - defensive
+        raise KeyError(
+            "triangle_summary.json is missing metrics.formation_window start/end entries."
+        ) from exc
+
+    if pd.isna(start) or pd.isna(end):
+        raise ValueError("Formation window timestamps could not be parsed into datetimes.")
+
+    if start >= end:
+        raise ValueError("Formation window start time must precede the end time.")
+
+    return start, end
 
 
 def _reshape_orbital_elements(
@@ -224,6 +253,69 @@ def _plot_orbital_elements(
     return output_path
 
 
+def _plot_orbital_elements_formation_window(
+    pivots: dict[str, pd.DataFrame],
+    formation_start: pd.Timestamp,
+    formation_end: pd.Timestamp,
+    output_dir: Path,
+) -> Path:
+    fig, axes = plt.subplots(
+        len(CLASSICAL_ELEMENT_FIELDS), 1, sharex=True, figsize=(12, 18)
+    )
+    if not isinstance(axes, np.ndarray):  # pragma: no cover - defensive
+        axes = np.array([axes])
+
+    line_handles: list[Line2D] = []
+    legend_labels: list[str] = []
+
+    for index, field in enumerate(CLASSICAL_ELEMENT_FIELDS):
+        axis = axes[index]
+        pivot = pivots[field]
+        if pivot.index.tz is None:
+            start_cmp = formation_start.tz_convert("UTC").tz_localize(None)
+            end_cmp = formation_end.tz_convert("UTC").tz_localize(None)
+        else:
+            start_cmp = formation_start.tz_convert("UTC")
+            end_cmp = formation_end.tz_convert("UTC")
+
+        window_slice = pivot.loc[(pivot.index >= start_cmp) & (pivot.index <= end_cmp)]
+        if window_slice.empty:
+            raise ValueError(
+                "Orbital elements time series do not contain samples within the formation window."
+            )
+
+        for column in window_slice.columns:
+            line, = axis.plot(window_slice.index, window_slice[column], label=column)
+            if column not in legend_labels:
+                legend_labels.append(column)
+                line_handles.append(line)
+        axis.set_ylabel(CLASSICAL_ELEMENT_LABELS[field])
+        axis.grid(True, linestyle=":", linewidth=0.5)
+
+    axes[-1].set_xlabel("Time (UTC)")
+    start_label = formation_start.tz_convert("UTC").strftime("%Y-%m-%d %H:%M:%SZ")
+    end_label = formation_end.tz_convert("UTC").strftime("%Y-%m-%d %H:%M:%SZ")
+    fig.suptitle(
+        "Classical orbital elements during formation window\n"
+        f"{start_label} to {end_label}"
+    )
+    fig.legend(line_handles, legend_labels, loc="upper center", ncol=len(legend_labels))
+    fig.autofmt_xdate()
+    fig.tight_layout(rect=(0.0, 0.05, 1.0, 0.92))
+    fig.text(
+        0.5,
+        0.01,
+        f"Formation window applied: {start_label} – {end_label} (UTC)",
+        ha="center",
+        va="bottom",
+    )
+
+    output_path = output_dir / "orbital_elements_formation_window.svg"
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
 def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: Path) -> Path:
     satellites = _extract_satellite_labels(positions.columns)
     traces: List[go.Scatter3d] = []
@@ -294,6 +386,7 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path]:
     latitudes, longitudes = _load_lat_lon(run_directory)
     positions = _load_positions(run_directory)
     orbital_elements = _load_orbital_elements(run_directory)
+    formation_start, formation_end = _load_formation_window(run_directory)
     orbital_pivots = _reshape_orbital_elements(orbital_elements)
     output_dir = _ensure_output_directory(run_directory)
 
@@ -305,6 +398,9 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path]:
         "formation_3d": _render_3d_formation(time_index, positions, output_dir),
         "orbital_elements_timeseries": _plot_orbital_elements(
             orbital_pivots, output_dir
+        ),
+        "orbital_elements_formation_window": _plot_orbital_elements_formation_window(
+            orbital_pivots, formation_start, formation_end, output_dir
         ),
     }
     return outputs

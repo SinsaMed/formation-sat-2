@@ -31,6 +31,8 @@ Table 1 – Key formation metrics
 ## Orbital Element Reconstruction
 The midpoint of the validated access window was sampled to recover classical orbital elements for each spacecraft using the new `cartesian_to_classical` routine. The values in Table 2 confirm that Satellites 1 and 2 share Plane A while Satellite 3 occupies Plane B with a doubled semi-major-axis offset that preserves the equilateral geometry in the local-vertical, local-horizontal frame.[Ref1]
 
+The debug plotting workflow now archives a focused diagnostic at `artefacts/debug/20250930T171815Z/plots/orbital_elements_formation_window.svg`, filtering the orbital-element time series to the \(2026\text{-}03\text{-}21T09{:}31{:}12Z\) to \(2026\text{-}03\text{-}21T09{:}32{:}48Z\) interval declared in `triangle_summary.json`. The chart mirrors the Systems Tool Kit (STK 11.2) compatible ephemerides exported through `tools/stk_export.py`, so reviewers can interrogate the same trajectory segment in both the SVG record and STK without encountering format limitations.
+
 Table 2 – Classical orbital elements at 2026-03-21T09:32:00Z
 
 | Satellite | Assigned plane | Semi-major axis (km) | Eccentricity | Inclination (deg) | RAAN (deg) | Argument of perigee (deg) | Mean anomaly (deg) |
