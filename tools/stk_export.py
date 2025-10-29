@@ -163,9 +163,12 @@ class SimulationResults:
 
 
 def _format_epoch(epoch: datetime) -> str:
-    """Format datetimes following the `dd MMM yyyy HH:MM:SS.ffffff` convention."""
+    """Format datetimes using the STK 11.2 nanosecond precision layout."""
 
-    return epoch.strftime("%d %b %Y %H:%M:%S.%f")[:-3]
+    base = epoch.strftime("%d %b %Y %H:%M:%S")
+    fractional_microseconds = epoch.strftime("%f")
+    fractional_nanoseconds = int(fractional_microseconds) * 1000
+    return f"{base}.{fractional_nanoseconds:09d}"
 
 
 def _offset_seconds(start: datetime, epoch: datetime) -> float:
@@ -430,27 +433,25 @@ def _write_ephemerides(
         ephemeris_path = output_dir / f"{history.satellite_id}.e"
         with ephemeris_path.open("w", encoding="utf-8") as stream:
             stream.write("stk.v.11.0\n")
+            stream.write("WrittenBy    formation-sat-exporter\n\n")
             stream.write("BEGIN Ephemeris\n")
-            stream.write(f"NumberOfEphemerisPoints {positions.shape[0]}\n")
-            stream.write(f"ScenarioEpoch {_format_epoch(scenario_metadata.start_epoch)}\n")
-            stream.write("InterpolationMethod Lagrange\n")
-            stream.write("InterpolationOrder 7\n")
-            stream.write(f"CentralBody {scenario_metadata.central_body}\n")
-            stream.write(f"CoordinateSystem {scenario_metadata.coordinate_frame}\n")
-            stream.write("DistanceUnit Kilometers\n")
-            stream.write("BEGIN EphemerisTimePosVel\n")
+            stream.write(f"    NumberOfEphemerisPoints {positions.shape[0]}\n")
+            stream.write(f"    ScenarioEpoch {_format_epoch(scenario_metadata.start_epoch)}\n")
+            stream.write("    InterpolationMethod     Lagrange\n")
+            stream.write("    InterpolationOrder      7\n")
+            stream.write(f"    CentralBody             {scenario_metadata.central_body}\n")
+            stream.write(f"    CoordinateSystem        {scenario_metadata.coordinate_frame}\n")
+            stream.write("    DistanceUnit            Kilometers\n")
+            stream.write("\n")
+            stream.write("    BEGIN EphemerisTimePosVel\n")
             for t, pos, vel in zip(times, positions, velocities):
-                line = "{time:.6f} {px:.9f} {py:.9f} {pz:.9f} {vx:.9f} {vy:.9f} {vz:.9f}\n".format(
-                    time=t,
-                    px=pos[0],
-                    py=pos[1],
-                    pz=pos[2],
-                    vx=vel[0],
-                    vy=vel[1],
-                    vz=vel[2],
+                line = (
+                    f"        {t:.9f} "
+                    f"{pos[0]: .14e} {pos[1]: .14e} {pos[2]: .14e} "
+                    f"{vel[0]: .14e} {vel[1]: .14e} {vel[2]: .14e}\n"
                 )
                 stream.write(line)
-            stream.write("END EphemerisTimePosVel\n")
+            stream.write("    END EphemerisTimePosVel\n")
             stream.write("END Ephemeris\n")
 
 
@@ -464,13 +465,15 @@ def _write_satellite_objects(
         ephemeris_filename = f"{history.satellite_id}.e"
         with satellite_path.open("w", encoding="utf-8") as stream:
             stream.write("stk.v.11.0\n")
-            stream.write("BEGIN Satellite\n")
-            stream.write(f"Name {history.satellite_id}\n")
-            stream.write(f"CentralBody {scenario_metadata.central_body}\n")
-            stream.write("BEGIN Ephemeris\n")
-            stream.write("   Type External\n")
-            stream.write(f"   File \"{ephemeris_filename}\"\n")
-            stream.write("END Ephemeris\n")
+            stream.write("WrittenBy    formation-sat-exporter\n\n")
+            stream.write("BEGIN Satellite\n\n")
+            stream.write(f"    Name            {history.satellite_id}\n")
+            stream.write(f"    CentralBody     {scenario_metadata.central_body}\n")
+            stream.write("\n")
+            stream.write("    BEGIN Ephemeris\n")
+            stream.write("        Type    External\n")
+            stream.write(f"        File    \"{ephemeris_filename}\"\n")
+            stream.write("    END Ephemeris\n")
             stream.write("END Satellite\n")
 
 
@@ -492,21 +495,23 @@ def _write_ground_tracks(
         track_path = output_dir / f"{track.satellite_id}_groundtrack.gt"
         with track_path.open("w", encoding="utf-8") as stream:
             stream.write("stk.v.11.0\n")
+            stream.write("WrittenBy    formation-sat-exporter\n\n")
             stream.write("BEGIN GroundTrack\n")
-            stream.write(f"SatelliteId {track.satellite_id}\n")
-            stream.write(f"CoordinateSystem {scenario_metadata.coordinate_frame}\n")
-            stream.write(f"NumberOfPoints {len(points)}\n")
-            stream.write("BEGIN Points\n")
+            stream.write(f"    SatelliteId         {track.satellite_id}\n")
+            stream.write(f"    CoordinateSystem    {scenario_metadata.coordinate_frame}\n")
+            stream.write(f"    NumberOfPoints      {len(points)}\n")
+            stream.write("\n")
+            stream.write("    BEGIN Points\n")
             for time_offset, point in zip(times, points):
                 stream.write(
-                    "{time:.6f} {lat:.6f} {lon:.6f} {alt:.3f}\n".format(
+                    "        {time:.9f} {lat:.9f} {lon:.9f} {alt:.6f}\n".format(
                         time=time_offset,
                         lat=point.latitude_deg,
                         lon=point.longitude_deg,
                         alt=point.altitude_km,
                     )
                 )
-            stream.write("END Points\n")
+            stream.write("    END Points\n")
             stream.write("END GroundTrack\n")
 
 
@@ -519,14 +524,16 @@ def _write_facilities(
         facility_path = output_dir / f"Facility_{facility.name}.fac"
         with facility_path.open("w", encoding="utf-8") as stream:
             stream.write("stk.v.11.0\n")
-            stream.write("BEGIN Facility\n")
-            stream.write(f"Name {facility.name}\n")
-            stream.write(f"CentralBody {scenario_metadata.central_body}\n")
-            stream.write("BEGIN Location\n")
-            stream.write(f"Latitude {facility.latitude_deg:.6f}\n")
-            stream.write(f"Longitude {facility.longitude_deg:.6f}\n")
-            stream.write(f"Altitude {facility.altitude_km:.3f}\n")
-            stream.write("END Location\n")
+            stream.write("WrittenBy    formation-sat-exporter\n\n")
+            stream.write("BEGIN Facility\n\n")
+            stream.write(f"    Name            {facility.name}\n")
+            stream.write(f"    CentralBody     {scenario_metadata.central_body}\n")
+            stream.write("\n")
+            stream.write("    BEGIN Location\n")
+            stream.write(f"        Latitude    {facility.latitude_deg:.9f}\n")
+            stream.write(f"        Longitude   {facility.longitude_deg:.9f}\n")
+            stream.write(f"        Altitude    {facility.altitude_km:.6f}\n")
+            stream.write("    END Location\n")
             stream.write("END Facility\n")
 
 
@@ -541,15 +548,17 @@ def _write_ground_contacts(sim_results: SimulationResults, output_dir: Path) -> 
         contacts_path = output_dir / f"Contacts_{facility_name}.int"
         with contacts_path.open("w", encoding="utf-8") as stream:
             stream.write("stk.v.11.0\n")
+            stream.write("WrittenBy    formation-sat-exporter\n\n")
             stream.write("BEGIN IntervalList\n")
-            stream.write(f"Name {facility_name}_Contacts\n")
-            stream.write(f"NumberOfIntervals {len(intervals_sorted)}\n")
+            stream.write(f"    Name                {facility_name}_Contacts\n")
+            stream.write(f"    NumberOfIntervals   {len(intervals_sorted)}\n")
+            stream.write("\n")
             for interval in intervals_sorted:
-                stream.write("BEGIN Interval\n")
-                stream.write(f"   Asset {interval.satellite_id}\n")
-                stream.write(f"   StartTime {_format_epoch(interval.start)}\n")
-                stream.write(f"   StopTime {_format_epoch(interval.end)}\n")
-                stream.write("END Interval\n")
+                stream.write("    BEGIN Interval\n")
+                stream.write(f"        Asset       {interval.satellite_id}\n")
+                stream.write(f"        StartTime   {_format_epoch(interval.start)}\n")
+                stream.write(f"        StopTime    {_format_epoch(interval.end)}\n")
+                stream.write("    END Interval\n")
             stream.write("END IntervalList\n")
 
 
@@ -560,16 +569,18 @@ def _write_events(sim_results: SimulationResults, output_dir: Path) -> None:
     events_path = output_dir / "formation_events.evt"
     with events_path.open("w", encoding="utf-8") as stream:
         stream.write("stk.v.11.0\n")
+        stream.write("WrittenBy    formation-sat-exporter\n\n")
         stream.write("BEGIN EventSet\n")
-        stream.write(f"NumberOfEvents {len(events)}\n")
+        stream.write(f"    NumberOfEvents {len(events)}\n")
+        stream.write("\n")
         for event in events:
-            stream.write("BEGIN Event\n")
-            stream.write(f"   Name {event.name}\n")
-            stream.write(f"   Time {_format_epoch(event.epoch)}\n")
-            stream.write(f"   Description {event.description}\n")
+            stream.write("    BEGIN Event\n")
+            stream.write(f"        Name         {event.name}\n")
+            stream.write(f"        Time         {_format_epoch(event.epoch)}\n")
+            stream.write(f"        Description  {event.description}\n")
             if event.delta_v_mps is not None:
-                stream.write(f"   DeltaV {event.delta_v_mps:.3f}\n")
-            stream.write("END Event\n")
+                stream.write(f"        DeltaV       {event.delta_v_mps:.6f}\n")
+            stream.write("    END Event\n")
         stream.write("END EventSet\n")
 
 
@@ -581,36 +592,53 @@ def _write_scenario_file(
 ) -> None:
     scenario_path = output_dir / f"{scenario_metadata.scenario_name}.sc"
     with scenario_path.open("w", encoding="utf-8") as stream:
-        stream.write("stk.v.11.0\n")
-        stream.write("BEGIN Scenario\n")
-        stream.write(f"Name {scenario_metadata.scenario_name}\n")
-        stream.write(f"CentralBody {scenario_metadata.central_body}\n")
-        stream.write("BEGIN TimePeriod\n")
-        stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
-        stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
-        stream.write("END TimePeriod\n")
-        stream.write("BEGIN AnalysisTimePeriod\n")
-        stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
-        stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
-        stream.write("END AnalysisTimePeriod\n")
         animation_step = (
             scenario_metadata.animation_step_seconds
             if scenario_metadata.animation_step_seconds is not None
             else 1.0
         )
+
+        stream.write("stk.v.11.0\n")
+        stream.write("WrittenBy    formation-sat-exporter\n\n")
+        stream.write("BEGIN Scenario\n")
+        stream.write(f"    Name            {scenario_metadata.scenario_name}\n")
+        stream.write("\n")
+        stream.write("BEGIN Epoch\n\n")
+        stream.write(f"    Epoch           {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write("\n")
+        stream.write("END Epoch\n")
+        stream.write("\n")
+        stream.write("BEGIN Interval\n\n")
+        stream.write(f"    Start           {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write(f"    Stop            {_format_epoch(stop_epoch)}\n")
+        stream.write("\n")
+        stream.write("END Interval\n")
+        stream.write("\n")
+        stream.write("BEGIN CentralBody\n\n")
+        stream.write(f"    PrimaryBody     {scenario_metadata.central_body}\n")
+        stream.write("\n")
+        stream.write("END CentralBody\n")
+        stream.write("\n")
+        stream.write("BEGIN AnalysisTimePeriod\n")
+        stream.write(f"    StartTime       {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write(f"    StopTime        {_format_epoch(stop_epoch)}\n")
+        stream.write("END AnalysisTimePeriod\n")
+        stream.write("\n")
         stream.write("BEGIN Animation\n")
-        stream.write(f"   StartTime {_format_epoch(scenario_metadata.start_epoch)}\n")
-        stream.write(f"   StopTime {_format_epoch(stop_epoch)}\n")
-        stream.write(f"   AnimationStep {animation_step:.3f}\n")
+        stream.write(f"    StartTime       {_format_epoch(scenario_metadata.start_epoch)}\n")
+        stream.write(f"    StopTime        {_format_epoch(stop_epoch)}\n")
+        stream.write(f"    AnimationStep   {animation_step:.6f}\n")
         stream.write("END Animation\n")
+        stream.write("\n")
         stream.write("BEGIN Assets\n")
         for history in sim_results.state_histories:
-            stream.write(f"   Satellite {history.satellite_id}.sat\n")
+            stream.write(f"    Satellite       {history.satellite_id}.sat\n")
         for facility in sim_results.facilities:
-            stream.write(f"   Facility Facility_{facility.name}.fac\n")
+            stream.write(f"    Facility        Facility_{facility.name}.fac\n")
         stream.write("END Assets\n")
         if sim_results.events:
+            stream.write("\n")
             stream.write("BEGIN EventFiles\n")
-            stream.write("   formation_events.evt\n")
+            stream.write("    formation_events.evt\n")
             stream.write("END EventFiles\n")
         stream.write("END Scenario\n")
