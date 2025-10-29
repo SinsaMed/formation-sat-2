@@ -15,6 +15,15 @@ import pandas as pd
 SECONDS_PER_DAY = 86_400.0
 SECONDS_PER_YEAR = SECONDS_PER_DAY * 365.25
 
+CLASSICAL_ELEMENT_FIELDS = (
+    "semi_major_axis_km",
+    "eccentricity",
+    "inclination_deg",
+    "raan_deg",
+    "argument_of_perigee_deg",
+    "mean_anomaly_deg",
+)
+
 from constellation.geometry import triangle_area, triangle_aspect_ratio, triangle_side_lengths
 from constellation.orbit import (
     EARTH_EQUATORIAL_RADIUS_M,
@@ -47,6 +56,7 @@ class TriangleFormationResult:
     times: Sequence[datetime]
     positions_m: Mapping[str, np.ndarray]
     velocities_mps: Mapping[str, np.ndarray]
+    classical_elements: Mapping[str, Mapping[str, np.ndarray]]
     latitudes_rad: Mapping[str, np.ndarray]
     longitudes_rad: Mapping[str, np.ndarray]
     altitudes_m: Mapping[str, np.ndarray]
@@ -71,6 +81,22 @@ class TriangleFormationResult:
             "satellite_ids": satellite_ids,
             "positions_m": {
                 sat_id: self.positions_m[sat_id].tolist() for sat_id in satellite_ids
+            },
+            "classical_element_fields": list(CLASSICAL_ELEMENT_FIELDS),
+            "classical_element_units": {
+                "semi_major_axis_km": "km",
+                "eccentricity": "",
+                "inclination_deg": "deg",
+                "raan_deg": "deg",
+                "argument_of_perigee_deg": "deg",
+                "mean_anomaly_deg": "deg",
+            },
+            "classical_elements": {
+                sat_id: {
+                    element: self.classical_elements[sat_id][element].tolist()
+                    for element in self.classical_elements[sat_id]
+                }
+                for sat_id in satellite_ids
             },
             "latitudes_rad": {
                 sat_id: self.latitudes_rad[sat_id].tolist() for sat_id in satellite_ids
@@ -256,6 +282,8 @@ def simulate_triangle_formation(
         sat_id: _differentiate(positions[sat_id], time_step_s) for sat_id in satellite_ids
     }
 
+    classical_series = _compute_classical_elements_series(positions, velocities)
+
     finite_mask = np.isfinite(min_command_distance)
     min_command_distance_km = np.where(
         finite_mask, min_command_distance / 1_000.0, np.inf
@@ -270,10 +298,10 @@ def simulate_triangle_formation(
         orbital_elements[sat_id] = {
             "semi_major_axis_km": elements.semi_major_axis / 1_000.0,
             "eccentricity": elements.eccentricity,
-            "inclination_deg": math.degrees(elements.inclination),
-            "raan_deg": math.degrees(elements.raan),
-            "argument_of_perigee_deg": math.degrees(elements.arg_perigee),
-            "mean_anomaly_deg": math.degrees(elements.mean_anomaly),
+            "inclination_deg": _normalise_degrees(elements.inclination),
+            "raan_deg": _normalise_degrees(elements.raan),
+            "argument_of_perigee_deg": _normalise_degrees(elements.arg_perigee),
+            "mean_anomaly_deg": _normalise_degrees(elements.mean_anomaly),
             "assigned_plane": plane_allocations.get(sat_id),
         }
 
@@ -319,7 +347,23 @@ def simulate_triangle_formation(
         "triangle": triangle_stats,
         "ground_track": ground_stats,
         "formation_window": window,
-        "orbital_elements": orbital_elements,
+        "orbital_elements": {
+            "per_satellite": orbital_elements,
+            "plane_assignments": plane_allocations,
+            "time_series": {
+                "fields": CLASSICAL_ELEMENT_FIELDS,
+                "units": {
+                    "semi_major_axis_km": "km",
+                    "eccentricity": "",
+                    "inclination_deg": "deg",
+                    "raan_deg": "deg",
+                    "argument_of_perigee_deg": "deg",
+                    "mean_anomaly_deg": "deg",
+                },
+                "artefact_key": "orbital_elements_csv",
+                "per_satellite_directory_key": "orbital_elements_directory",
+            },
+        },
         "maintenance": maintenance,
         "command_latency": command_latency,
         "injection_recovery": injection_recovery,
@@ -334,12 +378,15 @@ def simulate_triangle_formation(
         "injection_recovery_csv": None,
         "injection_recovery_plot": None,
         "drag_dispersion_csv": None,
+        "orbital_elements_csv": None,
+        "orbital_elements_directory": None,
     }
 
     result = TriangleFormationResult(
         times=times,
         positions_m=positions,
         velocities_mps=velocities,
+        classical_elements=classical_series,
         latitudes_rad=latitudes,
         longitudes_rad=longitudes,
         altitudes_m=altitudes,
@@ -435,6 +482,22 @@ def simulate_triangle_formation(
         if plot_path.exists():
             artefacts["injection_recovery_plot"] = str(plot_path)
 
+        orbital_path = output_path / "orbital_elements.csv"
+        _write_orbital_elements_csv(orbital_path, times, classical_series)
+        artefacts["orbital_elements_csv"] = str(orbital_path)
+        metrics["orbital_elements"]["time_series"]["artefact"] = str(orbital_path)
+        orbital_sat_dir = output_path / "orbital_elements"
+        orbital_sat_dir.mkdir(parents=True, exist_ok=True)
+        per_sat_paths = _write_orbital_elements_per_spacecraft(
+            orbital_sat_dir, times, classical_series
+        )
+        if per_sat_paths:
+            artefacts["orbital_elements_directory"] = str(orbital_sat_dir)
+            metrics["orbital_elements"]["time_series"]["per_satellite_files"] = {
+                sat_id: str(path)
+                for sat_id, path in sorted(per_sat_paths.items(), key=lambda item: item[0])
+            }
+
         stk_dir = output_path / "stk"
         _export_to_stk(
             result,
@@ -506,6 +569,115 @@ def _differentiate(samples: np.ndarray, step: float) -> np.ndarray:
         else:
             derivatives[index] = (samples[index] - samples[index - 1]) / step
     return derivatives
+
+
+def _compute_classical_elements_series(
+    positions: Mapping[str, np.ndarray],
+    velocities: Mapping[str, np.ndarray],
+) -> Mapping[str, Mapping[str, np.ndarray]]:
+    """Evaluate classical orbital elements for each spacecraft over time."""
+
+    if not positions:
+        return {}
+
+    sample_count = next(iter(positions.values())).shape[0]
+    series: dict[str, dict[str, np.ndarray]] = {}
+    for sat_id, position_history in positions.items():
+        per_satellite = {
+            name: np.zeros(sample_count, dtype=float) for name in CLASSICAL_ELEMENT_FIELDS
+        }
+        series[sat_id] = per_satellite
+        velocity_history = velocities.get(sat_id)
+        if velocity_history is None:
+            continue
+        for index in range(sample_count):
+            elements = cartesian_to_classical(
+                position_history[index], velocity_history[index]
+            )
+            per_satellite["semi_major_axis_km"][index] = elements.semi_major_axis / 1_000.0
+            per_satellite["eccentricity"][index] = elements.eccentricity
+            per_satellite["inclination_deg"][index] = _normalise_degrees(
+                elements.inclination
+            )
+            per_satellite["raan_deg"][index] = _normalise_degrees(elements.raan)
+            per_satellite["argument_of_perigee_deg"][index] = _normalise_degrees(
+                elements.arg_perigee
+            )
+            per_satellite["mean_anomaly_deg"][index] = _normalise_degrees(
+                elements.mean_anomaly
+            )
+
+    return series
+
+
+def _normalise_degrees(angle_rad: float) -> float:
+    """Convert *angle_rad* to degrees on the [0, 360) interval."""
+
+    value = math.degrees(angle_rad)
+    if not math.isfinite(value):
+        return float("nan")
+    wrapped = math.fmod(value, 360.0)
+    if wrapped < 0.0:
+        wrapped += 360.0
+    return wrapped
+
+
+def _write_orbital_elements_csv(
+    path: Path, times: Sequence[datetime], series: Mapping[str, Mapping[str, np.ndarray]]
+) -> None:
+    """Write a consolidated orbital-element history to *path*."""
+
+    records: list[dict[str, object]] = []
+    satellite_ids = sorted(series)
+    for index, epoch in enumerate(times):
+        timestamp = epoch.isoformat().replace("+00:00", "Z")
+        for sat_id in satellite_ids:
+            elements = series.get(sat_id)
+            if not elements:
+                continue
+            record = {"time_utc": timestamp, "satellite_id": sat_id}
+            for field in CLASSICAL_ELEMENT_FIELDS:
+                values = elements.get(field)
+                if values is None or index >= len(values):
+                    record[field] = float("nan")
+                else:
+                    record[field] = float(values[index])
+            records.append(record)
+
+    dataframe = pd.DataFrame.from_records(records)
+    if dataframe.empty:
+        columns = ["time_utc", "satellite_id", *CLASSICAL_ELEMENT_FIELDS]
+        dataframe = pd.DataFrame(columns=columns)
+    dataframe.to_csv(path, index=False)
+
+
+def _write_orbital_elements_per_spacecraft(
+    directory: Path,
+    times: Sequence[datetime],
+    series: Mapping[str, Mapping[str, np.ndarray]],
+) -> Mapping[str, Path]:
+    """Persist individual per-spacecraft orbital-element CSVs."""
+
+    paths: dict[str, Path] = {}
+    for sat_id, elements in series.items():
+        records: list[dict[str, object]] = []
+        for index, epoch in enumerate(times):
+            record = {"time_utc": epoch.isoformat().replace("+00:00", "Z")}
+            for field in CLASSICAL_ELEMENT_FIELDS:
+                values = elements.get(field)
+                if values is None or index >= len(values):
+                    record[field] = float("nan")
+                else:
+                    record[field] = float(values[index])
+            records.append(record)
+        dataframe = pd.DataFrame.from_records(records)
+        if dataframe.empty:
+            dataframe = pd.DataFrame(columns=["time_utc", *CLASSICAL_ELEMENT_FIELDS])
+        filename = f"{sat_id.lower().replace(' ', '_')}_orbital_elements.csv"
+        path = directory / filename
+        dataframe.to_csv(path, index=False)
+        paths[sat_id] = path
+    return paths
 
 
 def _summarise_triangle_metrics(areas: np.ndarray, aspects: np.ndarray, sides: np.ndarray) -> Mapping[str, float]:
