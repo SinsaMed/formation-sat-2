@@ -19,6 +19,26 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
+from matplotlib.lines import Line2D
+
+
+CLASSICAL_ELEMENT_FIELDS = (
+    "semi_major_axis_km",
+    "eccentricity",
+    "inclination_deg",
+    "raan_deg",
+    "argument_of_perigee_deg",
+    "mean_anomaly_deg",
+)
+
+CLASSICAL_ELEMENT_LABELS = {
+    "semi_major_axis_km": "Semi-major axis (km)",
+    "eccentricity": "Eccentricity (–)",
+    "inclination_deg": "Inclination (deg)",
+    "raan_deg": "RAAN (deg)",
+    "argument_of_perigee_deg": "Argument of perigee (deg)",
+    "mean_anomaly_deg": "Mean anomaly (deg)",
+}
 
 
 def _load_lat_lon(run_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -40,6 +60,53 @@ def _load_positions(run_dir: Path) -> pd.DataFrame:
         raise FileNotFoundError("Expected positions_m.csv within the run directory.")
 
     return pd.read_csv(pos_path, parse_dates=["time_utc"])
+
+
+def _load_orbital_elements(run_dir: Path) -> pd.DataFrame:
+    orbital_path = run_dir / "orbital_elements.csv"
+    if not orbital_path.exists():
+        raise FileNotFoundError(
+            "Expected orbital_elements.csv within the run directory."
+        )
+
+    dataframe = pd.read_csv(orbital_path, parse_dates=["time_utc"])
+    value_columns = [
+        column
+        for column in dataframe.columns
+        if column not in {"time_utc", "satellite_id"}
+    ]
+    dataframe[value_columns] = dataframe[value_columns].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    return dataframe
+
+
+def _reshape_orbital_elements(
+    dataframe: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    """Pivot the orbital elements into per-satellite time series."""
+
+    if dataframe.empty:
+        raise ValueError("Orbital elements CSV is empty.")
+
+    missing_columns = [
+        field for field in CLASSICAL_ELEMENT_FIELDS if field not in dataframe.columns
+    ]
+    if missing_columns:
+        raise ValueError(
+            "Orbital elements CSV is missing columns: " + ", ".join(missing_columns)
+        )
+
+    dataframe = dataframe.sort_values("time_utc").copy()
+    satellites = sorted(dataframe["satellite_id"].unique())
+    pivots: dict[str, pd.DataFrame] = {}
+    for field in CLASSICAL_ELEMENT_FIELDS:
+        pivot = dataframe.pivot(
+            index="time_utc", columns="satellite_id", values=field
+        )
+        pivot = pivot.reindex(columns=satellites)
+        pivots[field] = pivot
+    return pivots
 
 
 def _extract_satellite_labels(columns: Iterable[str]) -> List[str]:
@@ -123,6 +190,40 @@ def _plot_ground_track(latitudes: pd.DataFrame, longitudes: pd.DataFrame, output
     return output_path
 
 
+def _plot_orbital_elements(
+    pivots: dict[str, pd.DataFrame], output_dir: Path
+) -> Path:
+    fig, axes = plt.subplots(
+        len(CLASSICAL_ELEMENT_FIELDS), 1, sharex=True, figsize=(12, 18)
+    )
+    if not isinstance(axes, np.ndarray):  # pragma: no cover - defensive
+        axes = np.array([axes])
+
+    line_handles: list[Line2D] = []
+    legend_labels: list[str] = []
+    for index, field in enumerate(CLASSICAL_ELEMENT_FIELDS):
+        axis = axes[index]
+        pivot = pivots[field]
+        for column in pivot.columns:
+            line, = axis.plot(pivot.index, pivot[column], label=column)
+            if column not in legend_labels:
+                legend_labels.append(column)
+                line_handles.append(line)
+        axis.set_ylabel(CLASSICAL_ELEMENT_LABELS[field])
+        axis.grid(True, linestyle=":", linewidth=0.5)
+
+    axes[-1].set_xlabel("Time (UTC)")
+    fig.suptitle("Classical orbital elements per satellite")
+    fig.legend(line_handles, legend_labels, loc="upper center", ncol=len(legend_labels))
+    fig.autofmt_xdate()
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.95))
+
+    output_path = output_dir / "orbital_elements_timeseries.svg"
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
 def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: Path) -> Path:
     satellites = _extract_satellite_labels(positions.columns)
     traces: List[go.Scatter3d] = []
@@ -192,6 +293,8 @@ def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: 
 def generate_visualisations(run_directory: Path) -> dict[str, Path]:
     latitudes, longitudes = _load_lat_lon(run_directory)
     positions = _load_positions(run_directory)
+    orbital_elements = _load_orbital_elements(run_directory)
+    orbital_pivots = _reshape_orbital_elements(orbital_elements)
     output_dir = _ensure_output_directory(run_directory)
 
     time_index = latitudes["time_utc"]
@@ -200,6 +303,9 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path]:
         "longitude": _plot_longitude(time_index, longitudes, output_dir),
         "ground_track": _plot_ground_track(latitudes, longitudes, output_dir),
         "formation_3d": _render_3d_formation(time_index, positions, output_dir),
+        "orbital_elements_timeseries": _plot_orbital_elements(
+            orbital_pivots, output_dir
+        ),
     }
     return outputs
 
