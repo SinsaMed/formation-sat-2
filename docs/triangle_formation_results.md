@@ -28,6 +28,8 @@ Table 1 – Key formation metrics
 | Maximum ground distance to Tehran (validated 96 s window) | \(343.62\,\text{km}\) |
 | Maximum ground distance to Tehran (full propagation) | \(641.89\,\text{km}\) |
 
+The debug export accompanying each simulation run now includes `triangle_geometry.csv`, capturing per-second area, aspect ratio, and side-length diagnostics, and the derived `triangle_geometry_timeseries.svg` plot. The automated figure overlays the ±5 per cent side-length requirement and the 1.02 aspect ratio ceiling mandated by the verification plan, demonstrating that every sample across the ninety-six-second window remains inside the authorised tolerance bands.[Ref2][Ref4]
+
 ## Orbital Element Reconstruction
 The midpoint of the validated access window was sampled to recover classical orbital elements for each spacecraft using the new `cartesian_to_classical` routine. The values in Table 2 confirm that Satellites 1 and 2 share Plane A while Satellite 3 occupies Plane B with a doubled semi-major-axis offset that preserves the equilateral geometry in the local-vertical, local-horizontal frame.[Ref1]
 
@@ -59,3 +61,4 @@ Table 3 – MR-5 to MR-7 maintenance and responsiveness metrics
 - [Ref1] D'Amico, S., et al., "Relative Orbital Elements for Spacecraft Formation-Flying," *Journal of Guidance, Control, and Dynamics*, 2005.
 - [Ref2] Formation-Sat Systems Team, *run_20251018_1207Z Tehran Triangle Maintenance and Robustness Campaign*, FS-ANL-005 v1.0, 2025.
 - [Ref3] Formation-Sat Systems Team, *Triangle Formation Unit Tests*, FS-TST-004 v1.1, 2025.
+- [Ref4] Formation-Sat Systems Team, *Verification Plan*, FS-PLN-003 v1.2, 2025.

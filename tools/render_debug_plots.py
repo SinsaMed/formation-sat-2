@@ -14,7 +14,7 @@ import json
 import logging
 import math
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -56,6 +56,8 @@ CLASSICAL_ELEMENT_LABELS = {
 
 TEHRAN_LATITUDE_DEG = 35.6892
 TEHRAN_LONGITUDE_DEG = 51.3890
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _wrap_longitudes_around_tehran(longitudes_rad: np.ndarray) -> np.ndarray:
@@ -106,6 +108,23 @@ def _load_orbital_elements(run_dir: Path) -> pd.DataFrame:
     return dataframe
 
 
+def _load_triangle_geometry(run_dir: Path) -> pd.DataFrame:
+    geometry_path = run_dir / "triangle_geometry.csv"
+    if not geometry_path.exists():
+        raise FileNotFoundError(
+            "Expected triangle_geometry.csv within the run directory."
+        )
+
+    dataframe = pd.read_csv(geometry_path, parse_dates=["time_utc"])
+    numeric_columns = [
+        column for column in dataframe.columns if column != "time_utc"
+    ]
+    dataframe[numeric_columns] = dataframe[numeric_columns].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    return dataframe
+
+
 def _load_formation_window(run_dir: Path) -> Tuple[pd.Timestamp, pd.Timestamp]:
     summary_path = run_dir / "triangle_summary.json"
     if not summary_path.exists():
@@ -132,6 +151,97 @@ def _load_formation_window(run_dir: Path) -> Tuple[pd.Timestamp, pd.Timestamp]:
         raise ValueError("Formation window start time must precede the end time.")
 
     return start, end
+
+
+def _resolve_configuration_path(run_dir: Path) -> Optional[Path]:
+    metadata_path = run_dir / "run_metadata.json"
+    if metadata_path.exists():
+        try:
+            with metadata_path.open("r", encoding="utf-8") as handle:
+                metadata = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            LOGGER.warning("Failed to parse %s: %s", metadata_path, exc)
+        else:
+            scenario_path = metadata.get("scenario_path")
+            if isinstance(scenario_path, str):
+                candidate = Path(scenario_path)
+                if not candidate.is_absolute():
+                    candidate = PROJECT_ROOT / candidate
+                if candidate.exists():
+                    return candidate
+                LOGGER.warning(
+                    "Scenario path %s from %s does not exist.",
+                    candidate,
+                    metadata_path,
+                )
+
+    default_path = PROJECT_ROOT / "config" / "scenarios" / "tehran_triangle.json"
+    if default_path.exists():
+        return default_path
+    return None
+
+
+def _load_geometry_tolerances(run_dir: Path) -> dict[str, float]:
+    tolerances = {
+        "nominal_side_m": float("nan"),
+        "side_fraction": 0.05,
+        "aspect_ratio_limit": 1.02,
+    }
+
+    config_path = _resolve_configuration_path(run_dir)
+    if config_path is None:
+        LOGGER.warning(
+            "Falling back to default triangle tolerances; configuration file not located."
+        )
+        return tolerances
+
+    try:
+        with config_path.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        LOGGER.warning("Failed to parse formation configuration %s: %s", config_path, exc)
+        return tolerances
+
+    formation = config.get("formation", {})
+    if isinstance(formation, dict):
+        side_length = formation.get("side_length_m")
+        if side_length is not None:
+            try:
+                tolerances["nominal_side_m"] = float(side_length)
+            except (TypeError, ValueError):
+                LOGGER.warning(
+                    "side_length_m in %s is not numeric; retaining default.",
+                    config_path,
+                )
+
+        fraction_value = formation.get("side_length_tolerance_fraction")
+        if fraction_value is None:
+            percent_value = formation.get("side_length_tolerance_percent")
+            if percent_value is not None:
+                try:
+                    fraction_value = float(percent_value) / 100.0
+                except (TypeError, ValueError):
+                    fraction_value = None
+        if fraction_value is not None:
+            try:
+                tolerances["side_fraction"] = float(fraction_value)
+            except (TypeError, ValueError):
+                LOGGER.warning(
+                    "Side-length tolerance in %s is invalid; retaining default.",
+                    config_path,
+                )
+
+        aspect_limit = formation.get("aspect_ratio_tolerance")
+        if aspect_limit is not None:
+            try:
+                tolerances["aspect_ratio_limit"] = float(aspect_limit)
+            except (TypeError, ValueError):
+                LOGGER.warning(
+                    "Aspect ratio tolerance in %s is invalid; retaining default.",
+                    config_path,
+                )
+
+    return tolerances
 
 
 def _reshape_orbital_elements(
@@ -423,6 +533,117 @@ def _plot_orbital_elements_formation_window(
     return output_path
 
 
+def _plot_triangle_geometry(
+    geometry: pd.DataFrame, tolerances: dict[str, float], output_dir: Path
+) -> Path:
+    geometry = geometry.sort_values("time_utc")
+    times = geometry["time_utc"]
+    area = geometry["triangle_area_m2"]
+    aspect = geometry["triangle_aspect_ratio"]
+    side_columns = [
+        column for column in geometry.columns if column.startswith("side_length_")
+    ]
+    if not side_columns:
+        LOGGER.warning(
+            "triangle_geometry.csv is missing side_length_* columns; side length traces will be omitted."
+        )
+
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(12, 12))
+    nominal_side = tolerances.get("nominal_side_m", float("nan"))
+    side_fraction = tolerances.get("side_fraction", 0.05)
+    aspect_limit = tolerances.get("aspect_ratio_limit", 1.02)
+
+    axes[0].plot(times, area, color="#2166ac", linewidth=1.8, label="Triangle area")
+    axes[0].set_ylabel("Area (m²)")
+    if math.isfinite(nominal_side):
+        nominal_area = (math.sqrt(3.0) / 4.0) * nominal_side ** 2
+        lower_area = nominal_area * (1.0 - side_fraction) ** 2
+        upper_area = nominal_area * (1.0 + side_fraction) ** 2
+        axes[0].fill_between(
+            times,
+            lower_area,
+            upper_area,
+            color="#fddbc7",
+            alpha=0.4,
+            label=f"±{side_fraction * 100:.1f} % side-length envelope",
+        )
+        axes[0].axhline(
+            nominal_area,
+            color="#b2182b",
+            linestyle="--",
+            linewidth=1.0,
+            label="Nominal area",
+        )
+    axes[0].legend(loc="upper right")
+
+    axes[1].plot(times, aspect, color="#238b45", linewidth=1.8, label="Aspect ratio")
+    axes[1].set_ylabel("Aspect ratio (–)")
+    axes[1].fill_between(
+        times,
+        1.0,
+        aspect_limit,
+        color="#d0d1e6",
+        alpha=0.4,
+        label=f"Aspect ratio ≤ {aspect_limit:.2f}",
+    )
+    axes[1].axhline(
+        aspect_limit,
+        color="#6a51a3",
+        linestyle="--",
+        linewidth=1.0,
+        label="Aspect ratio tolerance",
+    )
+    axes[1].axhline(
+        1.0,
+        color="#005a32",
+        linestyle=":",
+        linewidth=1.0,
+        label="Equilateral ideal",
+    )
+    axes[1].legend(loc="upper right")
+
+    for column in side_columns:
+        label = (
+            column.replace("side_length_", "Side ")
+            .replace("_m", " (m)")
+            .replace("_", " ")
+        )
+        axes[2].plot(times, geometry[column], linewidth=1.5, label=label)
+    if math.isfinite(nominal_side):
+        lower_side = nominal_side * (1.0 - side_fraction)
+        upper_side = nominal_side * (1.0 + side_fraction)
+        axes[2].fill_between(
+            times,
+            lower_side,
+            upper_side,
+            color="#c7e9c0",
+            alpha=0.4,
+            label=f"±{side_fraction * 100:.1f} % side-length band",
+        )
+        axes[2].axhline(
+            nominal_side,
+            color="#31a354",
+            linestyle="--",
+            linewidth=1.0,
+            label="Nominal side length",
+        )
+    axes[2].set_ylabel("Side length (m)")
+    axes[2].set_xlabel("Time (UTC)")
+    axes[2].legend(loc="upper right")
+
+    for axis in axes:
+        axis.grid(True, linestyle=":", linewidth=0.5)
+
+    fig.suptitle("Triangle geometry diagnostics over time")
+    fig.autofmt_xdate()
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.95))
+
+    output_path = output_dir / "triangle_geometry_timeseries.svg"
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
 def _set_3d_equal_aspect(ax: plt.Axes, points: np.ndarray) -> None:
     """Set equal aspect ratios for three-dimensional axes."""
 
@@ -572,8 +793,10 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
     latitudes, longitudes = _load_lat_lon(run_directory)
     positions = _load_positions(run_directory)
     orbital_elements = _load_orbital_elements(run_directory)
+    triangle_geometry = _load_triangle_geometry(run_directory)
     formation_start, formation_end = _load_formation_window(run_directory)
     orbital_pivots = _reshape_orbital_elements(orbital_elements)
+    tolerances = _load_geometry_tolerances(run_directory)
     output_dir = _ensure_output_directory(run_directory)
 
     time_index = latitudes["time_utc"]
@@ -587,6 +810,9 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
         ),
         "orbital_elements_formation_window": _plot_orbital_elements_formation_window(
             orbital_pivots, formation_start, formation_end, output_dir
+        ),
+        "triangle_geometry_timeseries": _plot_triangle_geometry(
+            triangle_geometry, tolerances, output_dir
         ),
     }
     return outputs
