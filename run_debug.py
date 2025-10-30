@@ -147,6 +147,13 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         result.longitudes_rad,
         None,
     )
+    csv_paths["triangle_geometry"] = _write_triangle_geometry_csv(
+        output_directory / "triangle_geometry.csv",
+        times,
+        result.triangle_area_m2,
+        result.triangle_aspect_ratio,
+        result.triangle_sides_m,
+    )
     orbital_csv = _write_orbital_elements_csv(
         output_directory / "orbital_elements.csv",
         times,
@@ -183,6 +190,7 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         f"  • velocities_mps CSV: {csv_paths['velocities_mps']}",
         f"  • latitudes_rad CSV: {csv_paths['latitudes_rad']}",
         f"  • longitudes_rad CSV: {csv_paths['longitudes_rad']}",
+        f"  • triangle_geometry CSV: {csv_paths['triangle_geometry']}",
         f"  • orbital_elements CSV: {csv_paths['orbital_elements']}",
     ]
     if per_satellite_paths:
@@ -281,6 +289,45 @@ def _write_mapping_csv(
                         row.append(_format_number(sample[component_index]))
                 else:
                     row.append(_format_number(sample))
+            writer.writerow(row)
+    return path
+
+
+def _write_triangle_geometry_csv(
+    path: Path,
+    times: Sequence[datetime],
+    areas_m2: Sequence[float],
+    aspects: Sequence[float],
+    sides_m: Sequence[Sequence[float]],
+) -> Path:
+    """Export triangle geometry diagnostics to CSV."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "time_utc",
+                "triangle_area_m2",
+                "triangle_aspect_ratio",
+                "side_length_1_m",
+                "side_length_2_m",
+                "side_length_3_m",
+            ]
+        )
+        for index, epoch in enumerate(times):
+            row = [
+                _format_time(epoch),
+                _format_number(areas_m2[index]),
+                _format_number(aspects[index]),
+            ]
+            side_samples = sides_m[index]
+            for component in range(3):
+                try:
+                    value = side_samples[component]
+                except (IndexError, TypeError):
+                    value = float("nan")
+                row.append(_format_number(value))
             writer.writerow(row)
     return path
 
