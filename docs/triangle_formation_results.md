@@ -30,6 +30,8 @@ Table 1 – Key formation metrics
 
 The debug export accompanying each simulation run now includes `triangle_geometry.csv`, capturing per-second area, aspect ratio, and side-length diagnostics, and the derived `triangle_geometry_timeseries.svg` plot. The automated figure overlays the ±5 per cent side-length requirement and the 1.02 aspect ratio ceiling mandated by the verification plan, demonstrating that every sample across the ninety-six-second window remains inside the authorised tolerance bands.[Ref2][Ref4]
 
+To evidence simultaneous compliance with the \(350\,\text{km}\) ground-distance envelope and the \(2{,}200\,\text{km}\) command contact range, the artefact set now emits `ground_ranges.csv` together with the `ground_command_ranges.svg` diagnostic. The plot overlays both tolerance levels in kilometres and annotates any excursions, enabling reviewers to confirm that the Tehran target remains inside the ground track allowance while uplink opportunities continue to fall within the command antenna geometry.[Ref2]
+
 ## Orbital Element Reconstruction
 The midpoint of the validated access window was sampled to recover classical orbital elements for each spacecraft using the new `cartesian_to_classical` routine. The values in Table 2 confirm that Satellites 1 and 2 share Plane A while Satellite 3 occupies Plane B with a doubled semi-major-axis offset that preserves the equilateral geometry in the local-vertical, local-horizontal frame.[Ref1]
 
