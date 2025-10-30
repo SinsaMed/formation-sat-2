@@ -147,6 +147,13 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         result.longitudes_rad,
         None,
     )
+    csv_paths["altitudes_m"] = _write_mapping_csv(
+        output_directory / "altitudes_m.csv",
+        times,
+        satellite_ids,
+        result.altitudes_m,
+        None,
+    )
     csv_paths["triangle_geometry"] = _write_triangle_geometry_csv(
         output_directory / "triangle_geometry.csv",
         times,
@@ -196,6 +203,7 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         f"  • velocities_mps CSV: {csv_paths['velocities_mps']}",
         f"  • latitudes_rad CSV: {csv_paths['latitudes_rad']}",
         f"  • longitudes_rad CSV: {csv_paths['longitudes_rad']}",
+        f"  • altitudes_m CSV: {csv_paths['altitudes_m']}",
         f"  • triangle_geometry CSV: {csv_paths['triangle_geometry']}",
         f"  • ground_ranges CSV: {csv_paths['ground_ranges']}",
         f"  • orbital_elements CSV: {csv_paths['orbital_elements']}",

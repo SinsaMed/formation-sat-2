@@ -56,6 +56,7 @@ CLASSICAL_ELEMENT_LABELS = {
 
 TEHRAN_LATITUDE_DEG = 35.6892
 TEHRAN_LONGITUDE_DEG = 51.3890
+EARTH_MEAN_RADIUS_KM = 6371.0
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -79,6 +80,24 @@ def _load_lat_lon(run_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     lat_df = pd.read_csv(lat_path, parse_dates=["time_utc"])
     lon_df = pd.read_csv(lon_path, parse_dates=["time_utc"])
     return lat_df, lon_df
+
+
+def _load_altitudes(run_dir: Path) -> pd.DataFrame:
+    altitude_path = run_dir / "altitudes_m.csv"
+    if not altitude_path.exists():
+        raise FileNotFoundError(
+            "Expected altitudes_m.csv within the run directory."
+        )
+
+    dataframe = pd.read_csv(altitude_path, parse_dates=["time_utc"])
+    value_columns = [
+        column for column in dataframe.columns if column != "time_utc"
+    ]
+    if value_columns:
+        dataframe[value_columns] = dataframe[value_columns].apply(
+            pd.to_numeric, errors="coerce"
+        )
+    return dataframe
 
 
 def _load_positions(run_dir: Path) -> pd.DataFrame:
@@ -196,6 +215,38 @@ def _resolve_configuration_path(run_dir: Path) -> Optional[Path]:
     if default_path.exists():
         return default_path
     return None
+
+
+def _load_design_altitude_km(run_dir: Path) -> float:
+    config_path = _resolve_configuration_path(run_dir)
+    if config_path is None:
+        LOGGER.warning(
+            "Design altitude unavailable; formation configuration file not located."
+        )
+        return float("nan")
+
+    try:
+        with config_path.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        LOGGER.warning("Failed to parse formation configuration %s: %s", config_path, exc)
+        return float("nan")
+
+    try:
+        reference = config["reference_orbit"]
+        semi_major_axis = float(reference["semi_major_axis_km"])
+    except (KeyError, TypeError, ValueError) as exc:
+        LOGGER.warning(
+            "reference_orbit.semi_major_axis_km missing or invalid in %s: %s",
+            config_path,
+            exc,
+        )
+        return float("nan")
+
+    design_altitude = semi_major_axis - EARTH_MEAN_RADIUS_KM
+    if not math.isfinite(design_altitude):
+        return float("nan")
+    return design_altitude
 
 
 def _load_geometry_tolerances(run_dir: Path) -> dict[str, float]:
@@ -392,6 +443,63 @@ def _plot_longitude(times: pd.Series, longitudes: pd.DataFrame, output_dir: Path
     fig.autofmt_xdate()
 
     output_path = output_dir / "longitude_timeseries.svg"
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def _plot_altitudes(
+    altitudes: pd.DataFrame,
+    design_altitude_km: float,
+    output_dir: Path,
+) -> Path:
+    if altitudes.empty:
+        raise ValueError("altitudes_m.csv is empty.")
+
+    dataframe = altitudes.sort_values("time_utc").copy()
+    value_columns = [
+        column for column in dataframe.columns if column != "time_utc"
+    ]
+    if not value_columns:
+        raise ValueError("altitudes_m.csv is missing satellite altitude columns.")
+
+    dataframe[value_columns] = (
+        dataframe[value_columns].apply(pd.to_numeric, errors="coerce") / 1_000.0
+    )
+
+    times = dataframe["time_utc"]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for column in value_columns:
+        ax.plot(times, dataframe[column], label=column)
+
+    centroid = dataframe[value_columns].mean(axis=1)
+    if not centroid.isna().all():
+        ax.plot(
+            times,
+            centroid,
+            label="Centroid altitude",
+            color="#4d4d4d",
+            linestyle="--",
+            linewidth=2.0,
+        )
+
+    if math.isfinite(design_altitude_km):
+        ax.axhline(
+            design_altitude_km,
+            color="#b2182b",
+            linestyle=":",
+            linewidth=1.5,
+            label=f"Design altitude ({design_altitude_km:.1f} km)",
+        )
+
+    ax.set_title("Altitude evolution for Tehran triangle formation")
+    ax.set_xlabel("Time (UTC)")
+    ax.set_ylabel("Altitude (km)")
+    ax.legend(loc="best")
+    ax.grid(True, linestyle=":", linewidth=0.5)
+    fig.autofmt_xdate()
+
+    output_path = output_dir / "altitude_timeseries.svg"
     fig.savefig(output_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return output_path
@@ -964,6 +1072,7 @@ def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: 
 
 def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, Path]]:
     latitudes, longitudes = _load_lat_lon(run_directory)
+    altitudes = _load_altitudes(run_directory)
     positions = _load_positions(run_directory)
     orbital_elements = _load_orbital_elements(run_directory)
     triangle_geometry = _load_triangle_geometry(run_directory)
@@ -972,12 +1081,16 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
     orbital_pivots = _reshape_orbital_elements(orbital_elements)
     tolerances = _load_geometry_tolerances(run_directory)
     range_limits = _load_ground_command_limits(run_directory)
+    design_altitude_km = _load_design_altitude_km(run_directory)
     output_dir = _ensure_output_directory(run_directory)
 
     time_index = latitudes["time_utc"]
     outputs: dict[str, Path | dict[str, Path]] = {
         "latitude": _plot_latitude(time_index, latitudes, output_dir),
         "longitude": _plot_longitude(time_index, longitudes, output_dir),
+        "altitude_timeseries": _plot_altitudes(
+            altitudes, design_altitude_km, output_dir
+        ),
         "ground_track": _plot_ground_track(latitudes, longitudes, output_dir),
         "ground_command_ranges": _plot_ground_command_ranges(
             ground_ranges, range_limits, output_dir
