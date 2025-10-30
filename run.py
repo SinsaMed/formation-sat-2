@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,159 @@ RUN_LOG_PATH = WEB_ARTEFACT_DIR / "run_log.jsonl"
 DEBUG_LOG_PATH = PROJECT_ROOT / "debug.txt"
 DEFAULT_TRIANGLE_SCENARIO = "tehran_triangle"
 DEFAULT_PIPELINE_SCENARIO = "tehran_daily_pass"
+
+
+def _load_json(path: Path) -> Mapping[str, Any]:
+    """Return JSON content from *path* if available."""
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+
+
+def _load_gravitational_parameter() -> float:
+    """Extract the Earth's gravitational parameter from the project configuration."""
+
+    project_path = PROJECT_ROOT / "config" / "project.yaml"
+    try:
+        content = project_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return 398_600.4418 * 1e9
+    match = re.search(r"gravitational_parameter_km3_s2:\s*([0-9.+-eE]+)", content)
+    if not match:
+        return 398_600.4418 * 1e9
+    value_km3 = float(match.group(1))
+    return value_km3 * 1e9
+
+
+def _persian_digits(value: str) -> str:
+    """Convert western digits in *value* to Persian numerals."""
+
+    mapping = {
+        "0": "۰",
+        "1": "۱",
+        "2": "۲",
+        "3": "۳",
+        "4": "۴",
+        "5": "۵",
+        "6": "۶",
+        "7": "۷",
+        "8": "۸",
+        "9": "۹",
+        ".": "٫",
+    }
+    return "".join(mapping.get(char, char) for char in value)
+
+
+def _format_duration_label(days: float) -> str:
+    """Return a human-readable label for *days* expressed in Persian."""
+
+    if abs(days - round(days)) < 1e-6:
+        text = str(int(round(days)))
+    else:
+        text = f"{days:.1f}"
+    return f"{_persian_digits(text)} روز"
+
+
+def _describe_duration_source(identifier: str) -> str:
+    """Provide contextual text for duration origins."""
+
+    mapping = {
+        "repeat_ground_track": "برگرفته از دوره تکرار زمینی سناریوى عبور روزانه.",
+        "planning_horizon": "مطابق افق برنامه‌ریزى سناریوى تهران در فایل پیکربندى.",
+        "manoeuvre_cadence": "هم‌راستا با دوره مانور نگهداشت تعریف‌شده در project.yaml.",
+    }
+    return mapping.get(identifier, "")
+
+
+def _derive_duration_options() -> List[Mapping[str, object]]:
+    """Aggregate representative scenario durations from repository configurations."""
+
+    options: List[tuple[float, str]] = []
+
+    daily_pass = _load_json(SCENARIO_DIR / "tehran_daily_pass.json")
+    repeat_cycle = (
+        daily_pass.get("orbital_elements", {})
+        .get("repeat_ground_track", {})
+        .get("repeat_cycle_days")
+    )
+    if isinstance(repeat_cycle, (int, float)):
+        options.append((float(repeat_cycle), "repeat_ground_track"))
+
+    planning = daily_pass.get("timing", {}).get("planning_horizon", {})
+    start = planning.get("start_utc")
+    stop = planning.get("stop_utc")
+    if isinstance(start, str) and isinstance(stop, str):
+        try:
+            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+            stop_dt = datetime.fromisoformat(stop.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+        else:
+            horizon_days = (stop_dt - start_dt).total_seconds() / 86_400.0
+            if horizon_days > 0.1:
+                options.append((float(horizon_days), "planning_horizon"))
+
+    project_text = ""
+    try:
+        project_text = (PROJECT_ROOT / "config" / "project.yaml").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        project_text = ""
+    match = re.search(r"manoeuvre_cadence_days:\s*([0-9.+-eE]+)", project_text)
+    if match:
+        try:
+            options.append((float(match.group(1)), "manoeuvre_cadence"))
+        except ValueError:
+            pass
+
+    unique: Dict[float, Mapping[str, object]] = {}
+    for value, source in options:
+        if value <= 0.0:
+            continue
+        key = round(value, 6)
+        if key not in unique:
+            unique[key] = {"days": value, "source": source}
+
+    labelled: List[Mapping[str, object]] = []
+    for key in sorted(unique):
+        entry = unique[key]
+        days = entry["days"]
+        source = str(entry["source"])
+        labelled.append(
+            {
+                "days": days,
+                "label": _format_duration_label(days),
+                "source": source,
+                "explanation": _describe_duration_source(source),
+            }
+        )
+    return labelled
+
+
+def _extract_city_option(triangle_config: Mapping[str, Any]) -> Mapping[str, object]:
+    """Return the default city entry derived from the triangle scenario."""
+
+    formation = triangle_config.get("formation", {}) if isinstance(triangle_config, Mapping) else {}
+    target = formation.get("target", {}) if isinstance(formation, Mapping) else {}
+    latitude = float(target.get("latitude_deg", 35.6892))
+    longitude = float(target.get("longitude_deg", 51.3890))
+    return {
+        "id": "tehran",
+        "label": "تهران",
+        "latitude_deg": latitude,
+        "longitude_deg": longitude,
+    }
+
+
+EARTH_GRAVITATIONAL_PARAMETER_M3_S2 = _load_gravitational_parameter()
+TRIANGLE_BASE_CONFIGURATION = _load_json(SCENARIO_DIR / f"{DEFAULT_TRIANGLE_SCENARIO}.json")
+SCENARIO_DURATION_OPTIONS = _derive_duration_options()
+DEFAULT_CITY_OPTION = _extract_city_option(TRIANGLE_BASE_CONFIGURATION)
 
 app = FastAPI(title="Formation SAT Run Service")
 router = APIRouter(prefix="/runs")
@@ -684,1555 +838,973 @@ def _web_runs_url(path: Path) -> Optional[str]:
     return f"/web_runs/{relative.as_posix()}"
 
 
+
 def _render_interface() -> str:
     """Return the HTML template for the single-page application."""
 
+    base_config_json = json.dumps(TRIANGLE_BASE_CONFIGURATION, ensure_ascii=False)
+    duration_options_json = json.dumps(SCENARIO_DURATION_OPTIONS, ensure_ascii=False)
+    city_json = json.dumps(DEFAULT_CITY_OPTION, ensure_ascii=False)
+    development_text = "این وب‌اپلیکیشن در حال توسعه است و تکمیل آن ادامه دارد."
+
     return f"""<!DOCTYPE html>
-<html lang=\"fa\">
+<html lang="fa">
 <head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>سامانه اجرای Formation SAT</title>
-  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />
-  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin />
-  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap\" rel=\"stylesheet\" />
-  <script src=\"https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js\" defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>سامانه کنترل فورمیشن ماهواره‌ای</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" defer></script>
   <style>
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: radial-gradient(circle at top, #123a5c, #020b1a 70%);
-      color: #f5f7fa;
       min-height: 100vh;
+      font-family: 'Vazirmatn', 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #102641, #020b1a 65%);
+      color: #ecf5ff;
       direction: rtl;
     }}
-    h1, h2 {{
-      font-weight: 600;
+    h1, h2, h3 {{
       margin: 0 0 0.75rem 0;
-    }}
-    h3 {{
       font-weight: 600;
-      margin: 1rem 0 0.5rem 0;
     }}
     p {{
+      margin: 0 0 0.65rem 0;
       line-height: 1.6;
-      margin: 0 0 0.5rem 0;
     }}
     a {{ color: #7fd0ff; text-decoration: none; }}
     a:hover {{ text-decoration: underline; }}
     .layout {{
       display: grid;
-      grid-template-columns: minmax(260px, 320px) minmax(260px, 320px) 1fr;
-      gap: 1.5rem;
+      grid-template-columns: minmax(220px, 20%) 1fr 1fr;
+      gap: 1.25rem;
       padding: 1.5rem;
-      height: 100vh;
+      min-height: calc(100vh - 60px);
+    }}
+    .sidebar {{
+      background: rgba(8, 23, 43, 0.85);
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      border-radius: 18px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      backdrop-filter: blur(12px);
+      grid-row: 1 / span 2;
+    }}
+    .sidebar h1 {{
+      font-size: 1.4rem;
+      letter-spacing: 0.01em;
+    }}
+    .sidebar nav {{
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }}
+    .nav-item {{
+      border: 1px solid rgba(126, 185, 255, 0.2);
+      background: rgba(18, 52, 86, 0.7);
+      color: #f2f6ff;
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s ease, border 0.2s ease;
+      font-weight: 600;
+    }}
+    .nav-item:hover {{ background: rgba(31, 92, 148, 0.75); }}
+    .nav-item.active {{
+      border-color: rgba(126, 185, 255, 0.75);
+      background: linear-gradient(135deg, rgba(73, 140, 255, 0.85), rgba(142, 81, 255, 0.85));
+    }}
+    .sidebar-info {{
+      background: rgba(12, 32, 58, 0.7);
+      border-radius: 14px;
+      padding: 1rem;
+      border: 1px solid rgba(126, 185, 255, 0.2);
+    }}
+    .sidebar-info ul {{
+      padding: 0;
+      margin: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: #c7ddff;
     }}
     .panel {{
-      background: rgba(4, 20, 38, 0.78);
-      border: 1px solid rgba(126, 185, 255, 0.2);
-      border-radius: 16px;
-      padding: 1.25rem;
+      background: rgba(7, 20, 38, 0.82);
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      border-radius: 18px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
       overflow-y: auto;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 40px rgba(0, 20, 40, 0.35);
+    }}
+    .hidden {{ display: none !important; }}
+    form {{
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }}
     label {{
-      display: block;
-      font-size: 0.9rem;
-      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #dce9ff;
     }}
-    input, select, textarea {{
-      width: 100%;
-      padding: 0.5rem 0.75rem;
-      border-radius: 10px;
-      border: 1px solid rgba(140, 190, 255, 0.25);
-      background: rgba(5, 18, 33, 0.8);
-      color: #f5f7fa;
-      margin-bottom: 0.8rem;
+    select, button {{
+      padding: 0.6rem 0.8rem;
+      border-radius: 12px;
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      background: rgba(10, 35, 62, 0.9);
+      color: #f4f7ff;
+      font-size: 0.95rem;
     }}
-    textarea {{
-      min-height: 110px;
-      resize: vertical;
+    select:focus {{
+      outline: none;
+      border-color: rgba(126, 185, 255, 0.65);
+      box-shadow: 0 0 0 2px rgba(126, 185, 255, 0.2);
     }}
     button {{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      padding: 0.6rem 1.1rem;
-      border-radius: 999px;
-      border: none;
-      background: linear-gradient(135deg, #29a3ff, #8247ff);
-      color: #ffffff;
-      font-weight: 600;
       cursor: pointer;
-      margin-top: 0.4rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #2ca8ff, #8247ff);
+      border: none;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }}
-    button:hover {{
+    button:hover:not(:disabled) {{
       transform: translateY(-1px);
-      box-shadow: 0 10px 25px rgba(41, 163, 255, 0.35);
+      box-shadow: 0 12px 28px rgba(41, 163, 255, 0.35);
     }}
     button:disabled {{
       background: #31445f;
       cursor: not-allowed;
       box-shadow: none;
+      opacity: 0.7;
     }}
-    ul.history {{
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }}
-    .history-item {{
-      padding: 0.85rem 1rem;
-      border-radius: 14px;
-      border: 1px solid rgba(126, 185, 255, 0.15);
-      background: rgba(9, 27, 48, 0.65);
-      cursor: pointer;
-      transition: border 0.2s ease, transform 0.2s ease;
-    }}
-    .history-item.active {{
-      border-color: rgba(126, 185, 255, 0.8);
-      transform: translateY(-2px);
-    }}
-    .history-item:hover {{
-      border-color: rgba(126, 185, 255, 0.35);
-    }}
-    .badge {{
-      display: inline-flex;
-      align-items: center;
-      padding: 0.1rem 0.55rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      margin-left: 0.35rem;
-      background: rgba(126, 185, 255, 0.18);
-      color: #bcdcff;
-    }}
-    .summary-grid {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.75rem;
+    .status {{
       margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      background: rgba(15, 39, 68, 0.75);
+      border: 1px solid rgba(126, 185, 255, 0.2);
+      min-height: 3.2rem;
+      display: flex;
+      align-items: center;
+      color: #cde5ff;
+    }}
+    .status.error {{
+      border-color: rgba(255, 120, 120, 0.6);
+      background: rgba(80, 22, 32, 0.75);
+      color: #ffdede;
+    }}
+    .summary {{
+      margin-top: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
     }}
     .summary-card {{
-      padding: 0.9rem 1rem;
-      border-radius: 12px;
-      border: 1px solid rgba(126, 185, 255, 0.25);
-      background: rgba(7, 24, 44, 0.8);
-    }}
-    .charts {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.25rem;
-      margin-top: 1.5rem;
-    }}
-    .charts figure {{
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }}
-    .charts img {{
-      width: 100%;
       border-radius: 14px;
-      border: 1px solid rgba(126, 185, 255, 0.25);
-      background: rgba(4, 20, 38, 0.6);
-    }}
-    canvas {{
-      border-radius: 16px;
+      padding: 1rem;
+      background: rgba(12, 32, 58, 0.8);
       border: 1px solid rgba(126, 185, 255, 0.2);
-      width: 100%;
-      background: rgba(3, 17, 33, 0.6);
     }}
-    #three-d-view {{
-      position: relative;
-      border-radius: 16px;
-      border: 1px solid rgba(126, 185, 255, 0.25);
-      background: radial-gradient(circle at 30% 30%, rgba(15, 46, 78, 0.72), rgba(4, 15, 29, 0.9));
-      overflow: hidden;
-    }}
-    #three-d-view canvas {{
-      border-radius: 16px;
+    .summary-card span {{
       display: block;
+      margin-bottom: 0.35rem;
+      color: #9fc4ff;
+      font-size: 0.85rem;
     }}
-    .three-placeholder {{
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.9rem;
-      color: #bcdcff;
-      background: linear-gradient(135deg, rgba(4, 16, 32, 0.75), rgba(2, 10, 22, 0.65));
-    }}
-    .three-proximity {{
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      padding: 0.4rem 0.75rem;
-      border-radius: 999px;
-      background: rgba(12, 38, 64, 0.75);
-      border: 1px solid rgba(126, 185, 255, 0.25);
-      color: #e8f2ff;
-      font-size: 0.75rem;
-      white-space: pre-line;
-      direction: rtl;
-    }}
-    .artefact-list {{
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
-    }}
-    .artefact-entry {{
-      border: 1px solid rgba(126, 185, 255, 0.18);
-      border-radius: 12px;
-      padding: 0.75rem 0.9rem;
-      background: rgba(9, 27, 48, 0.58);
+    .summary-card strong {{
+      font-size: 1.05rem;
+      color: #ffffff;
     }}
     table {{
       width: 100%;
       border-collapse: collapse;
-      margin-top: 0.6rem;
-      font-size: 0.85rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
     }}
     th, td {{
-      border: 1px solid rgba(126, 185, 255, 0.1);
-      padding: 0.4rem 0.5rem;
+      border: 1px solid rgba(126, 185, 255, 0.15);
+      padding: 0.5rem 0.6rem;
       text-align: center;
     }}
     th {{
-      background: rgba(15, 39, 68, 0.9);
+      background: rgba(18, 47, 84, 0.9);
+      color: #e3efff;
     }}
-    pre {{
-      background: rgba(5, 18, 33, 0.8);
-      border-radius: 12px;
-      padding: 0.75rem;
-      border: 1px solid rgba(126, 185, 255, 0.2);
-      max-height: 260px;
-      overflow-y: auto;
-      direction: ltr;
+    .visual-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.2rem;
     }}
-    .status-message {{
-      margin-top: 0.5rem;
-      font-size: 0.85rem;
-      color: #9ed3ff;
-    }}
-    .mode-toggle {{
+    figure {{
+      margin: 0;
       display: flex;
+      flex-direction: column;
       gap: 0.75rem;
-      margin: 0.75rem 0;
-      font-size: 0.85rem;
     }}
-    .mode-toggle label {{
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      background: rgba(9, 27, 48, 0.55);
-      border: 1px solid rgba(126, 185, 255, 0.2);
-      border-radius: 999px;
-      padding: 0.35rem 0.75rem;
-      cursor: pointer;
+    figcaption {{
+      font-weight: 600;
+      color: #d0e4ff;
     }}
-    .mode-toggle input {{
-      accent-color: #29a3ff;
-    }}
-    .job-table {{
+    .three-d-container {{
+      position: relative;
       width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.75rem;
-      font-size: 0.85rem;
-    }}
-    .job-table th, .job-table td {{
-      border: 1px solid rgba(126, 185, 255, 0.12);
-      padding: 0.45rem 0.55rem;
-      text-align: center;
-    }}
-    .job-table tbody tr:hover {{
-      background: rgba(12, 38, 64, 0.55);
-    }}
-    .job-table tbody tr.active {{
-      border-right: 3px solid rgba(130, 200, 255, 0.8);
-      background: rgba(15, 46, 78, 0.65);
-    }}
-    .job-actions {{
-      display: flex;
-      gap: 0.4rem;
-      justify-content: center;
-      flex-wrap: wrap;
-    }}
-    .job-actions button {{
-      padding: 0.35rem 0.75rem;
-      border-radius: 8px;
-      border: none;
-      background: rgba(47, 148, 255, 0.18);
-      color: #d5eaff;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }}
-    .job-actions button:disabled {{
-      opacity: 0.5;
-      cursor: not-allowed;
-    }}
-    .job-status {{
-      background: rgba(126, 185, 255, 0.18);
-      color: #bcdcff;
-    }}
-    .job-status-running {{
-      background: rgba(47, 201, 111, 0.22);
-      color: #9af5c7;
-    }}
-    .job-status-completed {{
-      background: rgba(47, 201, 111, 0.22);
-      color: #9af5c7;
-    }}
-    .job-status-failed {{
-      background: rgba(255, 102, 102, 0.2);
-      color: #ffc7c7;
-    }}
-    .job-status-cancelled {{
-      background: rgba(255, 194, 102, 0.2);
-      color: #ffe0a6;
-    }}
-    .log-tabs {{
-      display: inline-flex;
-      gap: 0.6rem;
-      margin-top: 0.75rem;
-    }}
-    .log-tabs button {{
-      background: rgba(9, 27, 48, 0.6);
-      border: 1px solid rgba(126, 185, 255, 0.2);
-      border-radius: 999px;
-      color: #d0e6ff;
-      padding: 0.35rem 0.9rem;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }}
-    .log-tabs button.active {{
-      background: linear-gradient(135deg, #29a3ff, #8247ff);
-      color: #ffffff;
-      border-color: transparent;
-    }}
-    .log-actions {{
+      height: 360px;
+      border-radius: 18px;
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      background: radial-gradient(circle at 25% 25%, rgba(13, 41, 72, 0.85), rgba(4, 16, 34, 0.9));
+      overflow: hidden;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin: 0.75rem 0;
-      flex-wrap: wrap;
+      justify-content: center;
     }}
-    .stream-status {{
-      padding: 0.25rem 0.7rem;
-      border-radius: 999px;
-      background: rgba(126, 185, 255, 0.18);
-      font-size: 0.75rem;
-      color: #bcdcff;
+    .placeholder {{
+      color: #a9c7ff;
+      font-size: 0.95rem;
     }}
-    .log-view {{
-      display: none;
-      background: rgba(5, 18, 33, 0.8);
-      border-radius: 12px;
-      padding: 0.75rem;
+    canvas {{
+      border-radius: 18px;
+      background: rgba(5, 18, 33, 0.85);
       border: 1px solid rgba(126, 185, 255, 0.2);
-      max-height: 300px;
-      overflow-y: auto;
-      direction: ltr;
-      font-family: 'Fira Code', 'Courier New', monospace;
-      white-space: pre-wrap;
-      line-height: 1.4;
     }}
-    .log-view.active {{
-      display: block;
+    #ground-track {{
+      width: 100%;
+      height: auto;
     }}
-    @media (max-width: 1200px) {{
+    #element-chart {{
+      width: 100%;
+      height: auto;
+    }}
+    .settings-status {{
+      margin-top: 1.2rem;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      background: rgba(15, 39, 68, 0.8);
+      border: 1px solid rgba(126, 185, 255, 0.25);
+      color: #d8ecff;
+      min-height: 2.5rem;
+    }}
+    .development-banner {{
+      text-align: center;
+      padding: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      background: rgba(12, 32, 58, 0.85);
+      border-top: 1px solid rgba(126, 185, 255, 0.25);
+      color: #9fc4ff;
+    }}
+    @media (max-width: 1100px) {{
       .layout {{
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        height: auto;
+        grid-template-columns: 1fr;
       }}
-      body {{
-        padding-bottom: 2rem;
+      .sidebar {{
+        grid-row: auto;
+      }}
+      #settings-view {{
+        grid-column: auto;
       }}
     }}
   </style>
 </head>
 <body>
-  <main class=\"layout\">
-    <section id=\"controls\" class=\"panel\">
-      <h1>کنترل اجرا</h1>
-      <p>سناریو یا تنظیمات درون‌خطی را انتخاب کنید و سپس شبیه‌سازی را اجرا نمایید. نتایج کامل در ستون سمت راست نمایش داده می‌شوند.</p>
-      <form id=\"triangle-form\">
-        <h2>شبیه‌سازی مثلث</h2>
-        <label for=\"triangle-scenario\">شناسه سناریو ذخیره‌شده</label>
-        <select id=\"triangle-scenario\" name=\"scenario\"></select>
-        <label for=\"triangle-config\">پیکربندی درون‌خطی (JSON اختیاری)</label>
-        <textarea id=\"triangle-config\" placeholder=\"{{}}\"></textarea>
-        <label for=\"triangle-assumptions\">فرضیات (با ویرگول جدا کنید)</label>
-        <input id=\"triangle-assumptions\" placeholder=\"A1, A2\" />
-        <label for=\"triangle-seed\">seed تصادفى</label>
-        <input id=\"triangle-seed\" type=\"number\" min=\"0\" step=\"1\" />
-        <button type=\"submit\">اجرای مثلث</button>
+  <main class="layout">
+    <aside class="sidebar">
+      <div>
+        <h1>سامانه فورمیشن ماهواره‌ای</h1>
+        <p>اجرای تعاملى سناریوهای تشکیل آرایش برای تهران</p>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="home">خانه</button>
+        <button class="nav-item" data-view="settings">تنظیمات</button>
+      </nav>
+      <section class="sidebar-info">
+        <h2>اطلاعات پیکربندى</h2>
+        <p>مدت سناریو از فایل‌های پیکربندى موجود در مخزن استخراج شده است.</p>
+        <ul id="duration-notes"></ul>
+      </section>
+    </aside>
+    <section id="home-controls" class="panel">
+      <h2>اجرای سناریوى شکل‌دهى</h2>
+      <form id="scenario-form">
+        <label for="duration-select">مدت اجرای سناریو</label>
+        <select id="duration-select"></select>
+        <p class="field-hint" id="duration-hint"></p>
+        <button type="submit" id="run-button">اجرای سناریو</button>
       </form>
-      <form id=\"scenario-form\" style=\"margin-top:1.5rem;\">
-        <h2>اجرای سناریوى عمومی</h2>
-        <label for=\"scenario-id\">شناسه سناریو ذخیره‌شده</label>
-        <select id=\"scenario-id\" name=\"scenario\"></select>
-        <label for=\"scenario-config\">پیکربندی درون‌خطی (JSON اختیاری)</label>
-        <textarea id=\"scenario-config\" placeholder=\"{{}}\"></textarea>
-        <label for=\"scenario-metrics\">اولویت متریک‌ها (با ویرگول جدا کنید)</label>
-        <input id=\"scenario-metrics\" placeholder=\"metric_a, metric_b\" />
-        <label for=\"scenario-assumptions\">فرضیات</label>
-        <input id=\"scenario-assumptions\" placeholder=\"Assumption 1\" />
-        <label for=\"scenario-seed\">seed تصادفى</label>
-        <input id=\"scenario-seed\" type=\"number\" min=\"0\" step=\"1\" />
-        <button type=\"submit\">اجرای سناریو</button>
-      </form>
-      <form id=\"debug-form\" style=\"margin-top:1.5rem;\">
-        <h2>اجرای حالت دیباگ</h2>
-        <div class=\"mode-toggle\">
-          <label>
-            <input type=\"radio\" name=\"debug-mode\" value=\"triangle\" checked />
-            مثلث تهران
-          </label>
-            <label>
-            <input type=\"radio\" name=\"debug-mode\" value=\"scenario\" />
-            سناریو عمومی
-          </label>
-        </div>
-        <div id=\"debug-triangle-options\">
-          <label for=\"debug-triangle-config\">مسیر پیکربندی مثلث (اختیاری)</label>
-          <input id=\"debug-triangle-config\" placeholder=\"config/scenarios/tehran_triangle.json\" />
-        </div>
-        <div id=\"debug-scenario-options\" style=\"display:none;\">
-          <label for=\"debug-scenario-id\">شناسه سناریو</label>
-          <select id=\"debug-scenario-id\"></select>
-        </div>
-        <label for=\"debug-output-root\">شاخه ذخیره‌سازی خروجی (اختیاری)</label>
-        <input id=\"debug-output-root\" placeholder=\"artefacts/debug\" />
-        <button type=\"submit\">آغاز اجرای دیباگ</button>
-      </form>
-      <div class=\"status-message\" id=\"status-message\"></div>
-      <button id=\"refresh-history\" style=\"margin-top:1rem;\">به‌روزرسانی تاریخچه</button>
-    </section>
-    <section id=\"history-panel\" class=\"panel\">
-      <h1>تاریخچه اجراها</h1>
-      <ul class=\"history\" id=\"run-history\"></ul>
-      <section style=\"margin-top:1.5rem;\">
-        <h2>فرآیندهای دیباگ</h2>
-        <table class=\"job-table\" id=\"debug-job-table\">
+      <div class="status" id="status-message">برای آغاز، مدت سناریو را انتخاب کنید.</div>
+      <section class="summary" id="run-summary"></section>
+      <section class="table-wrapper">
+        <h3>پارامترهای مداری ماهواره‌ها</h3>
+        <table id="orbital-table">
           <thead>
             <tr>
-              <th>شناسه</th>
-              <th>وضعیت</th>
-              <th>آغاز</th>
-              <th>پایان</th>
-              <th>کنترل</th>
+              <th>ماهواره</th>
+              <th>نیم‌محور بزرگ (km)</th>
+              <th>اگزا‌نتریسیته</th>
+              <th>میل مدار (°)</th>
+              <th>گره صعودى راست (°)</th>
+              <th>آرگومان حضیض (°)</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </section>
     </section>
-    <section id=\"output-panel\" class=\"panel\">
-      <h1>نمایش خروجی و نمودارها</h1>
-      <div id=\"run-summary\"></div>
-      <div id=\"window-info\"></div>
-      <div class=\"artefact-list\" id=\"artefact-links\"></div>
-      <section class=\"charts\">
+    <section id="home-visual" class="panel">
+      <h2>نمایش مسیر و تحلیل‌ها</h2>
+      <div class="visual-grid">
         <figure>
-          <figcaption>مدت‌زمان پنجره‌ها</figcaption>
-          <img id=\"window-plot\" alt=\"نمودار مدت‌زمان پنجره‌ها\" />
-          <a id=\"window-csv\" target=\"_blank\">دریافت CSV پنجره‌ها</a>
+          <figcaption>نمای سه‌بعدى مدار و موقعیت تهران</figcaption>
+          <div id="three-d-view" class="three-d-container">
+            <span class="placeholder">پس از اجراى سناریو، مدل سه‌بعدى نمایش داده مى‌شود.</span>
+          </div>
         </figure>
         <figure>
-          <figcaption>مساحت مثلث</figcaption>
-          <img id=\"triangle-plot\" alt=\"نمودار مساحت مثلث\" />
-          <a id=\"triangle-csv\" target=\"_blank\">دریافت CSV مثلث</a>
+          <figcaption>گراوند ترک متمرکز بر تهران</figcaption>
+          <canvas id="ground-track" width="720" height="420"></canvas>
         </figure>
-      </section>
-      <div id=\"metrics-tables\"></div>
-      <h2 style=\"margin-top:1.5rem;\">مسیر زمینی</h2>
-      <canvas id=\"ground-track\" width=\"720\" height=\"360\"></canvas>
-      <h2 style=\"margin-top:1.5rem;\">نمای سه‌بعدى مدار</h2>
-      <div id=\"three-d-view\" style=\"width:100%; height:420px;\"></div>
-      <section style=\"margin-top:1.5rem;\">
-        <h2>نظارت بر لاگ‌ها</h2>
-        <div class=\"log-tabs\">
-          <button id=\"tab-debug-log\" type=\"button\" class=\"active\">debug.txt</button>
-          <button id=\"tab-job-log\" type=\"button\">خروجی اجرا</button>
-        </div>
-        <div class=\"log-actions\">
-          <span id=\"debug-stream-status\" class=\"stream-status\">در حال اتصال...</span>
-          <a href=\"/debug/log/download\" target=\"_blank\" class=\"badge\">دانلود debug.txt</a>
-        </div>
-        <pre id=\"debug-log\" class=\"log-view active\">(در انتظار اتصال به جریان لاگ)</pre>
-        <pre id=\"job-log\" class=\"log-view\">(لاگ دیباگ انتخاب نشده است.)</pre>
-      </section>
+        <figure class="wide">
+          <figcaption>تغییر المان‌های مداری طی اجرا</figcaption>
+          <canvas id="element-chart" width="900" height="360"></canvas>
+        </figure>
+      </div>
+    </section>
+    <section id="settings-view" class="panel hidden" style="grid-column: 2 / span 2;">
+      <h2>تنظیمات سناریو</h2>
+      <form id="settings-form">
+        <label for="city-select">انتخاب شهر هدف</label>
+        <select id="city-select"></select>
+        <button type="button" id="compute-elements" disabled>محاسبه پارامترهای مداری</button>
+        <button type="submit" id="save-settings">ذخیره تغییرات</button>
+      </form>
+      <div class="settings-status" id="settings-status">تغییرى ثبت نشده است.</div>
     </section>
   </main>
-  <script defer>
+  <footer class="development-banner">در حال توسعه</footer>
+  <script>
+    const BASE_TRIANGLE_CONFIG = {base_config_json};
+    const DURATION_OPTIONS = {duration_options_json};
+    const DEFAULT_CITY = {city_json};
     const EARTH_RADIUS_M = {EARTH_EQUATORIAL_RADIUS_M};
+    const MU_EARTH = {EARTH_GRAVITATIONAL_PARAMETER_M3_S2};
+    const DEVELOPMENT_TEXT = {json.dumps(development_text, ensure_ascii=False)};
+
     const state = {{
-      runs: [],
-      selectedRunId: null,
-      debugSource: null,
-      jobStream: null,
-      debugJobs: [],
-      activeJobId: null,
-      jobRefreshTimer: null,
-      debugReconnectTimer: null,
+      view: 'home',
+      running: false,
+      selectedDuration: null,
+      lastRun: null,
+      city: DEFAULT_CITY,
+      threeAnimation: null,
+      threeRenderer: null,
     }};
 
-    const historyList = document.getElementById('run-history');
+    const navButtons = Array.from(document.querySelectorAll('.nav-item'));
+    const durationSelect = document.getElementById('duration-select');
+    const durationHint = document.getElementById('duration-hint');
     const statusMessage = document.getElementById('status-message');
-    const windowInfo = document.getElementById('window-info');
-    const artefactContainer = document.getElementById('artefact-links');
-    const metricsTables = document.getElementById('metrics-tables');
-    const debugJobTableBody = document.querySelector('#debug-job-table tbody');
-    const debugLogView = document.getElementById('debug-log');
-    const jobLogView = document.getElementById('job-log');
-    const debugStatusChip = document.getElementById('debug-stream-status');
-    const debugTabButton = document.getElementById('tab-debug-log');
-    const jobTabButton = document.getElementById('tab-job-log');
-    const debugTriangleOptions = document.getElementById('debug-triangle-options');
-    const debugScenarioOptions = document.getElementById('debug-scenario-options');
-    const threeState = {{
-      renderer: null,
-      scene: null,
-      camera: null,
-      earthGroup: null,
-      orbitGroup: null,
-      tehranGroup: null,
-      container: null,
-      placeholder: null,
-      proximityLabel: null,
-      animationId: null,
-      resizeHandlerBound: false,
-    }};
-    const TEHRAN_LAT = 35.6892 * (Math.PI / 180);
-    const TEHRAN_LON = 51.3890 * (Math.PI / 180);
-    const PROXIMITY_THRESHOLD_M = 550000;
+    const summaryContainer = document.getElementById('run-summary');
+    const orbitalTableBody = document.querySelector('#orbital-table tbody');
+    const groundTrackCanvas = document.getElementById('ground-track');
+    const elementChartCanvas = document.getElementById('element-chart');
+    const threeContainer = document.getElementById('three-d-view');
+    const homeControls = document.getElementById('home-controls');
+    const homeVisual = document.getElementById('home-visual');
+    const settingsView = document.getElementById('settings-view');
+    const durationNotes = document.getElementById('duration-notes');
+    const citySelect = document.getElementById('city-select');
+    const settingsStatus = document.getElementById('settings-status');
+    const scenarioForm = document.getElementById('scenario-form');
+    const settingsForm = document.getElementById('settings-form');
 
-    async function initialise() {{
-      await fetchConfigs();
-      await refreshHistory();
-      await refreshDebugJobs();
-      subscribeDebugLog();
-      if (state.jobRefreshTimer) {{
-        clearInterval(state.jobRefreshTimer);
-      }}
-      state.jobRefreshTimer = setInterval(refreshDebugJobs, 8000);
-      const initialMode = document.querySelector('input[name="debug-mode"]:checked');
-      toggleDebugMode(initialMode ? initialMode.value : 'triangle');
-      if (!state.selectedRunId) {{
-        renderThreeD(null);
-      }}
-    }}
-
-    async function fetchConfigs() {{
-      try {{
-        const response = await fetch('/runs/configs');
-        if (!response.ok) throw new Error('دریافت فهرست سناریوها ناموفق بود.');
-        const payload = await response.json();
-        populateScenarioSelects(payload.scenarios || []);
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
-      }}
-    }}
-
-    function populateScenarioSelects(scenarios) {{
-      const triangleSelect = document.getElementById('triangle-scenario');
-      const scenarioSelect = document.getElementById('scenario-id');
-      const debugScenarioSelect = document.getElementById('debug-scenario-id');
-      triangleSelect.innerHTML = '';
-      scenarioSelect.innerHTML = '';
-      debugScenarioSelect.innerHTML = '';
-      const fragmentA = document.createDocumentFragment();
-      const fragmentB = document.createDocumentFragment();
-      const fragmentC = document.createDocumentFragment();
-      scenarios.forEach((entry) => {{
-        const option = document.createElement('option');
-        option.value = entry.id;
-        option.textContent = `${{entry.id}} — ${{entry.scenario_name || 'بدون عنوان'}}`;
-        fragmentA.appendChild(option.cloneNode(true));
-        fragmentB.appendChild(option.cloneNode(true));
-        fragmentC.appendChild(option);
-      }});
-      triangleSelect.appendChild(fragmentA);
-      scenarioSelect.appendChild(fragmentB);
-      debugScenarioSelect.appendChild(fragmentC);
-    }}
-
-    async function refreshHistory() {{
-      try {{
-        const response = await fetch('/runs/history?limit=30');
-        if (!response.ok) throw new Error('بازیابی تاریخچه ممکن نشد.');
-        const payload = await response.json();
-        state.runs = Array.isArray(payload.runs) ? payload.runs : [];
-        renderHistory();
-        if (!state.selectedRunId && state.runs.length) {{
-          selectRun(state.runs[0].run_id);
-        }} else if (state.selectedRunId) {{
-          selectRun(state.selectedRunId);
-        }}
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
-      }}
-    }}
-
-    async function refreshDebugJobs() {{
-      try {{
-        const response = await fetch('/runs/debug/jobs');
-        if (!response.ok) throw new Error('بازیابی وضعیت فرآیندهای دیباگ ممکن نشد.');
-        const payload = await response.json();
-        state.debugJobs = Array.isArray(payload.jobs) ? payload.jobs : [];
-        renderDebugJobs();
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
-      }}
-    }}
-
-    function renderDebugJobs() {{
-      if (!debugJobTableBody) return;
-      debugJobTableBody.innerHTML = '';
-      if (!state.debugJobs.length) {{
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 5;
-        cell.textContent = 'هیچ فرآیند دیباگی در حال اجرا نیست.';
-        row.appendChild(cell);
-        debugJobTableBody.appendChild(row);
-        return;
-      }}
-      state.debugJobs.forEach((job) => {{
-        const row = document.createElement('tr');
-        if (job.job_id === state.activeJobId) {{
-          row.classList.add('active');
-        }}
-        const idCell = document.createElement('td');
-        idCell.textContent = job.job_id;
-        const statusCell = document.createElement('td');
-        const badge = document.createElement('span');
-        badge.className = `badge job-status job-status-${{job.status || 'unknown'}}`;
-        badge.textContent = translateJobStatus(job.status);
-        statusCell.appendChild(badge);
-        const startCell = document.createElement('td');
-        startCell.textContent = job.started_at ? formatTimestamp(job.started_at) : '—';
-        const endCell = document.createElement('td');
-        endCell.textContent = job.completed_at ? formatTimestamp(job.completed_at) : '—';
-        const actionCell = document.createElement('td');
-        const actions = document.createElement('div');
-        actions.className = 'job-actions';
-        const watchButton = document.createElement('button');
-        watchButton.type = 'button';
-        watchButton.textContent = 'نمایش';
-        watchButton.addEventListener('click', () => watchDebugJob(job.job_id));
-        const cancelButton = document.createElement('button');
-        cancelButton.type = 'button';
-        cancelButton.textContent = 'لغو';
-        const cancellable = ['pending', 'running', 'cancelling'].includes(job.status);
-        if (!cancellable) {{
-          cancelButton.disabled = true;
-        }} else {{
-          cancelButton.addEventListener('click', () => cancelDebugJob(job.job_id));
-        }}
-        actions.appendChild(watchButton);
-        actions.appendChild(cancelButton);
-        actionCell.appendChild(actions);
-        row.appendChild(idCell);
-        row.appendChild(statusCell);
-        row.appendChild(startCell);
-        row.appendChild(endCell);
-        row.appendChild(actionCell);
-        debugJobTableBody.appendChild(row);
-      }});
-    }}
-
-    function formatTimestamp(value) {{
-      try {{
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return value;
-        return date.toLocaleString('fa-IR', {{ hour12: false }});
-      }} catch (error) {{
-        return value;
-      }}
-    }}
-
-    function translateJobStatus(status) {{
-      const labels = {{
-        pending: 'در انتظار',
-        running: 'در حال اجرا',
-        completed: 'کامل شد',
-        failed: 'ناموفق',
-        cancelled: 'لغو شد',
-        cancelling: 'در حال لغو',
-        failed_to_start: 'خطا در آغاز',
-        unknown: 'نامشخص',
-      }};
-      return labels[status] || status || 'نامشخص';
-    }}
-
-    async function cancelDebugJob(jobId) {{
-      try {{
-        const response = await fetch(`/runs/debug/jobs/${{jobId}}`, {{ method: 'DELETE' }});
-        if (!response.ok) throw new Error('لغو فرآیند امکان‌پذیر نبود.');
-        await refreshDebugJobs();
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
-      }}
-    }}
-
-    function watchDebugJob(jobId) {{
-      state.activeJobId = jobId;
-      renderDebugJobs();
-      showJobLogTab();
-      if (state.jobStream) {{
-        state.jobStream.close();
-        state.jobStream = null;
-      }}
-      jobLogView.textContent = '(در انتظار داده‌های جدید...)';
-      const source = new EventSource(`/runs/debug/jobs/${{jobId}}/stream`);
-      state.jobStream = source;
-      source.onmessage = (event) => {{
-        if (!event.data) return;
-        try {{
-          const payload = JSON.parse(event.data);
-          if (payload && payload.message) {{
-            appendLog(jobLogView, payload.message);
-          }}
-        }} catch (error) {{
-          appendLog(jobLogView, event.data);
-        }}
-      }};
-      source.addEventListener('summary', (event) => {{
-        try {{
-          const payload = JSON.parse(event.data);
-          appendLog(
-            jobLogView,
-            `[وضعیت نهایی] ${{translateJobStatus(payload.status)}} — کد بازگشت: ${{payload.returncode ?? '—'}}`,
-          );
-        }} catch (error) {{
-          appendLog(jobLogView, '[وضعیت نهایی] اجرای دیباگ پایان یافت.');
-        }}
-        source.close();
-        state.jobStream = null;
-        refreshDebugJobs();
-      }});
-      source.onerror = () => {{
-        appendLog(jobLogView, '[هشدار] ارتباط با جریان خروجی قطع شد.');
-        source.close();
-        state.jobStream = null;
-      }};
-    }}
-
-    function subscribeDebugLog() {{
-      if (state.debugSource) {{
-        state.debugSource.close();
-        state.debugSource = null;
-      }}
-      if (state.debugReconnectTimer) {{
-        clearTimeout(state.debugReconnectTimer);
-        state.debugReconnectTimer = null;
-      }}
-      debugStatusChip.textContent = 'در حال اتصال...';
-      debugLogView.textContent = '(در انتظار اتصال به جریان لاگ)';
-      const source = new EventSource('/debug/log/stream');
-      state.debugSource = source;
-      source.onopen = () => {{
-        debugStatusChip.textContent = 'فعال';
-      }};
-      source.onmessage = (event) => {{
-        if (!event.data) return;
-        try {{
-          const payload = JSON.parse(event.data);
-          if (payload && payload.message) {{
-            appendLog(debugLogView, payload.message);
-          }}
-        }} catch (error) {{
-          appendLog(debugLogView, event.data);
-        }}
-      }};
-      source.onerror = () => {{
-        debugStatusChip.textContent = 'قطع اتصال';
-        source.close();
-        state.debugSource = null;
-        if (state.debugReconnectTimer) {{
-          clearTimeout(state.debugReconnectTimer);
-        }}
-        state.debugReconnectTimer = setTimeout(() => {{
-          debugStatusChip.textContent = 'تلاش براى اتصال مجدد...';
-          subscribeDebugLog();
-        }}, 5000);
-      }};
-    }}
-
-    function appendLog(view, message) {{
-      if (!view || !message) return;
-      if (view.textContent.startsWith('(')) {{
-        view.textContent = '';
-      }}
-      view.textContent += (view.textContent ? '\n' : '') + message;
-      view.scrollTop = view.scrollHeight;
-    }}
-
-    function showDebugLogTab() {{
-      debugTabButton.classList.add('active');
-      jobTabButton.classList.remove('active');
-      debugLogView.classList.add('active');
-      jobLogView.classList.remove('active');
-    }}
-
-    function showJobLogTab() {{
-      jobTabButton.classList.add('active');
-      debugTabButton.classList.remove('active');
-      jobLogView.classList.add('active');
-      debugLogView.classList.remove('active');
-    }}
-
-    function toggleDebugMode(mode) {{
-      if (mode === 'scenario') {{
-        debugScenarioOptions.style.display = 'block';
-        debugTriangleOptions.style.display = 'none';
-      }} else {{
-        debugScenarioOptions.style.display = 'none';
-        debugTriangleOptions.style.display = 'block';
-      }}
-    }}
-
-    function renderHistory() {{
-      historyList.innerHTML = '';
-      if (!state.runs.length) {{
-        const empty = document.createElement('li');
-        empty.textContent = 'تاکنون اجرایی ثبت نشده است.';
-        historyList.appendChild(empty);
-        return;
-      }}
-      state.runs.forEach((record) => {{
-        const item = document.createElement('li');
-        item.className = 'history-item' + (record.run_id === state.selectedRunId ? ' active' : '');
-        const heading = document.createElement('div');
-        heading.style.display = 'flex';
-        heading.style.justifyContent = 'space-between';
-        heading.style.alignItems = 'center';
-        const idSpan = document.createElement('span');
-        idSpan.textContent = record.run_id;
-        const badge = document.createElement('span');
-        badge.className = 'badge';
-        badge.textContent = record.status;
-        heading.appendChild(idSpan);
-        heading.appendChild(badge);
-        const meta = document.createElement('div');
-        meta.style.fontSize = '0.8rem';
-        meta.style.opacity = '0.85';
-        meta.textContent = `${{record.route}} — ${{record.timestamp}}`;
-        item.appendChild(heading);
-        item.appendChild(meta);
-        item.addEventListener('click', () => selectRun(record.run_id));
-        historyList.appendChild(item);
-      }});
-    }}
-
-    function selectRun(runId) {{
-      state.selectedRunId = runId;
-      renderHistory();
-      const record = state.runs.find((entry) => entry.run_id === runId);
-      if (!record) return;
-      renderSummary(record);
-      fetchMetrics(runId);
-      fetchArtefacts(runId);
-      renderGroundTrack(record.summary);
-      renderThreeD(record.summary);
-    }}
-
-    function renderSummary(record) {{
-      const container = document.getElementById('run-summary');
-      container.innerHTML = '';
-      if (!record.summary) {{
-        container.textContent = 'گزارشى برای این اجرا ذخیره نشده است.';
-        windowInfo.textContent = '';
-        return;
-      }}
-      const metrics = record.summary.metrics || {{}};
-      const formationWindow = metrics.formation_window || {{}};
-      windowInfo.innerHTML = '';
-      if (formationWindow.start && formationWindow.end) {{
-        windowInfo.innerHTML = `<div class="summary-grid"><div class="summary-card"><strong>شروع پنجره:</strong><br/>${{formationWindow.start}}</div><div class="summary-card"><strong>پایان پنجره:</strong><br/>${{formationWindow.end}}</div><div class="summary-card"><strong>مدت‌زمان (ثانیه):</strong><br/>${{formationWindow.duration_s}}</div></div>`;
-      }}
-
-      const cards = document.createElement('div');
-      cards.className = 'summary-grid';
-
-      const triangle = metrics.triangle || {{}};
-      const ground = metrics.ground_track || {{}};
-      const orbital = metrics.orbital_elements || {{}};
-      const perSatellite = orbital.per_satellite || {{}};
-      const orbitalCount = Object.keys(perSatellite).length || Object.keys(orbital).length;
-
-      const triangleCard = document.createElement('div');
-      triangleCard.className = 'summary-card';
-      triangleCard.innerHTML = `<strong>هندسه مثلث</strong><br/>میانگین مساحت: ${{triangle.mean_area_m2?.toFixed?.(2) ?? '-'}} m²<br/>حداقل مساحت: ${{triangle.min_area_m2?.toFixed?.(2) ?? '-'}} m²<br/>حداکثر نسبت اضلاع: ${{triangle.aspect_ratio_max ?? '-'}}`;
-
-      const groundCard = document.createElement('div');
-      groundCard.className = 'summary-card';
-      groundCard.innerHTML = `<strong>مسیر زمینی</strong><br/>حداکثر فاصله: ${{ground.max_ground_distance_km ?? '-'}} km<br/>حداقل فاصله: ${{ground.min_ground_distance_km ?? '-'}} km`;
-
-      const orbitalCard = document.createElement('div');
-      orbitalCard.className = 'summary-card';
-      const timeSeries = orbital.time_series || {{}};
-      const hasTimeSeries = Boolean(timeSeries && (timeSeries.artefact_key || timeSeries.artefact || timeSeries.per_satellite_files));
-      orbitalCard.innerHTML = `<strong>صفحه‌هاى مداری</strong><br/>فضاپیماها: ${{orbitalCount}} مورد` +
-        `<br/>سری زمانی عناصر: ${{hasTimeSeries ? 'دردسترس' : 'ناموجود'}}`;
-
-      cards.appendChild(triangleCard);
-      cards.appendChild(groundCard);
-      cards.appendChild(orbitalCard);
-      container.appendChild(cards);
-    }}
-
-    async function fetchMetrics(runId) {{
-      metricsTables.innerHTML = 'در حال محاسبه متریک‌ها...';
-      document.getElementById('window-plot').src = '';
-      document.getElementById('triangle-plot').src = '';
-      document.getElementById('window-csv').removeAttribute('href');
-      document.getElementById('triangle-csv').removeAttribute('href');
-      try {{
-        const response = await fetch(`/runs/${{runId}}/metrics-report`);
-        if (!response.ok) {{
-          const text = await response.text();
-          let message = 'محاسبه متریک‌ها با خطا مواجه شد.';
-          try {{
-            const info = JSON.parse(text);
-            if (info && info.detail) {{
-              message = info.detail;
-            }} else if (typeof info === 'string' && info.trim()) {{
-              message = info;
-            }}
-          }} catch (parseError) {{
-            if (text && text.trim()) {{
-              message = text;
-            }}
-          }}
-          throw new Error(message);
-        }}
-        const payload = await response.json();
-        renderMetricsTables(payload.tables || {{}});
-        updatePlotLinks(payload.plots || {{}}, payload.csv_urls || {{}});
-      }} catch (error) {{
-        metricsTables.textContent = error.message;
-      }}
-    }}
-
-    function renderMetricsTables(tables) {{
-      metricsTables.innerHTML = '';
-      Object.entries(tables).forEach(([name, rows]) => {{
-        const section = document.createElement('section');
-        section.innerHTML = `<h3>${{name}}</h3>`;
-        const table = document.createElement('table');
-        if (!rows.length) {{
-          const empty = document.createElement('caption');
-          empty.textContent = 'داده‌ای موجود نیست.';
-          section.appendChild(empty);
-        }} else {{
-          const header = document.createElement('tr');
-          Object.keys(rows[0]).forEach((key) => {{
-            const th = document.createElement('th');
-            th.textContent = key;
-            header.appendChild(th);
-          }});
-          table.appendChild(header);
-          rows.forEach((row) => {{
-            const tr = document.createElement('tr');
-            Object.values(row).forEach((value) => {{
-              const td = document.createElement('td');
-              td.textContent = value;
-              tr.appendChild(td);
-            }});
-            table.appendChild(tr);
-          }});
-        }}
-        section.appendChild(table);
-        metricsTables.appendChild(section);
-      }});
-    }}
-
-    function updatePlotLinks(plots, csvs) {{
-      const windowPlot = document.getElementById('window-plot');
-      const trianglePlot = document.getElementById('triangle-plot');
-      if (plots.window_durations) {{
-        windowPlot.src = plots.window_durations;
-      }}
-      if (plots.triangle_area) {{
-        trianglePlot.src = plots.triangle_area;
-      }}
-      const windowCsv = document.getElementById('window-csv');
-      const triangleCsv = document.getElementById('triangle-csv');
-      if (csvs.window_events) windowCsv.href = csvs.window_events;
-      if (csvs.triangle_samples) triangleCsv.href = csvs.triangle_samples;
-    }}
-
-    async function fetchArtefacts(runId) {{
-      artefactContainer.innerHTML = '';
-      try {{
-        const response = await fetch(`/runs/${{runId}}/artefacts`);
-        if (!response.ok) throw new Error('نمایش آرتیفکت‌ها ممکن نیست.');
-        const payload = await response.json();
-        renderArtefacts(payload.artefacts || {{}});
-      }} catch (error) {{
-        artefactContainer.textContent = error.message;
-      }}
-    }}
-
-    function renderArtefacts(artefacts) {{
-      artefactContainer.innerHTML = '';
-      const entries = Object.entries(artefacts);
-      if (!entries.length) {{
-        artefactContainer.textContent = 'هیچ آرتیفکت در دسترس نیست.';
-        return;
-      }}
-      entries.forEach(([name, descriptor]) => {{
-        const card = document.createElement('div');
-        card.className = 'artefact-entry';
-        const title = document.createElement('strong');
-        title.textContent = name;
-        card.appendChild(title);
-        const path = document.createElement('div');
-        path.style.fontSize = '0.8rem';
-        path.style.marginTop = '0.35rem';
-        path.textContent = descriptor.path;
-        card.appendChild(path);
-        if (descriptor.url) {{
-          const link = document.createElement('a');
-          link.href = descriptor.url;
-          link.target = '_blank';
-          link.textContent = 'مشاهده/دانلود';
-          link.style.display = 'inline-block';
-          link.style.marginTop = '0.35rem';
-          card.appendChild(link);
-        }}
-        if (Array.isArray(descriptor.files) && descriptor.files.length) {{
-          const list = document.createElement('ul');
-          list.style.fontSize = '0.8rem';
-          list.style.marginTop = '0.5rem';
-          descriptor.files.forEach((file) => {{
-            const item = document.createElement('li');
-            if (file.url) {{
-              const link = document.createElement('a');
-              link.href = file.url;
-              link.target = '_blank';
-              link.textContent = file.name;
-              item.appendChild(link);
-            }} else {{
-              item.textContent = file.name;
-            }}
-            list.appendChild(item);
-          }});
-          card.appendChild(list);
-        }}
-        artefactContainer.appendChild(card);
-      }});
-    }}
-
-    function initialiseThreeScene(container) {{
-      if (!window.THREE) {{
-        container.innerHTML = '<div class="three-placeholder">کتابخانه Three.js بارگذارى نشد.</div>';
-        return false;
-      }}
-      ensureThreeOverlay(container);
-      if (threeState.renderer) {{
-        if (threeState.container !== container) {{
-          container.innerHTML = '';
-          container.appendChild(threeState.renderer.domElement);
-          ensureThreeOverlay(container);
-        }}
-        threeState.container = container;
-        handleThreeResize();
-        startThreeAnimation();
-        return true;
-      }}
-
-      const width = container.clientWidth || container.offsetWidth || 640;
-      const height = container.clientHeight || container.offsetHeight || 420;
-      const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
-      renderer.setPixelRatio(window.devicePixelRatio || 1);
-      renderer.setSize(width, height);
-
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#020b1a');
-
-      const camera = new THREE.PerspectiveCamera(45, width / height, 1000, EARTH_RADIUS_M * 40);
-      camera.position.set(EARTH_RADIUS_M * 4.2, EARTH_RADIUS_M * 2.2, EARTH_RADIUS_M * 2.7);
-      camera.up.set(0, 0, 1);
-      camera.lookAt(0, 0, 0);
-
-      container.innerHTML = '';
-      container.appendChild(renderer.domElement);
-
-      const ambient = new THREE.AmbientLight(0xbcdcff, 0.75);
-      scene.add(ambient);
-      const keyLight = new THREE.DirectionalLight(0xffffff, 0.55);
-      keyLight.position.set(EARTH_RADIUS_M * 3, EARTH_RADIUS_M * 2, EARTH_RADIUS_M * 4);
-      scene.add(keyLight);
-      const rimLight = new THREE.DirectionalLight(0x4ca8ff, 0.35);
-      rimLight.position.set(-EARTH_RADIUS_M * 2.5, -EARTH_RADIUS_M * 1.5, EARTH_RADIUS_M * 2);
-      scene.add(rimLight);
-
-      const earthGroup = new THREE.Group();
-      const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS_M, 96, 96);
-      const earthMaterial = new THREE.MeshPhongMaterial({{
-        color: 0x0c3b70,
-        emissive: 0x071b33,
-        specular: 0x1a3352,
-        shininess: 18,
-        transparent: true,
-        opacity: 0.96,
-      }});
-      const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
-      earthGroup.add(earthMesh);
-      const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS_M * 1.02, 64, 64);
-      const atmosphereMaterial = new THREE.MeshBasicMaterial({{ color: 0x4ca8ff, transparent: true, opacity: 0.08 }});
-      const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-      earthGroup.add(atmosphere);
-
-      const tehranGroup = new THREE.Group();
-      const tehranVector = latLonToVector3(TEHRAN_LAT, TEHRAN_LON, EARTH_RADIUS_M);
-      const tehranMarker = new THREE.Mesh(
-        new THREE.SphereGeometry(EARTH_RADIUS_M * 0.015, 28, 28),
-        new THREE.MeshBasicMaterial({{ color: 0xffd166, transparent: true, opacity: 0.9 }})
-      );
-      tehranMarker.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.01));
-      tehranGroup.add(tehranMarker);
-      const halo = new THREE.Mesh(
-        new THREE.CircleGeometry(EARTH_RADIUS_M * 0.16, 64),
-        new THREE.MeshBasicMaterial({{ color: 0xffd166, transparent: true, opacity: 0.25, side: THREE.DoubleSide }})
-      );
-      halo.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.001));
-      halo.lookAt(tehranVector.clone().multiplyScalar(2));
-      tehranGroup.add(halo);
-
-      const labelCanvas = document.createElement('canvas');
-      labelCanvas.width = 256;
-      labelCanvas.height = 128;
-      const labelCtx = labelCanvas.getContext('2d');
-      labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
-      labelCtx.font = '48px "Inter", sans-serif';
-      labelCtx.fillStyle = '#ffd166';
-      labelCtx.textAlign = 'center';
-      labelCtx.textBaseline = 'middle';
-      labelCtx.fillText('تهران', labelCanvas.width / 2, labelCanvas.height / 2);
-      const labelTexture = new THREE.CanvasTexture(labelCanvas);
-      const labelMaterial = new THREE.SpriteMaterial({{ map: labelTexture, transparent: true }});
-      const labelSprite = new THREE.Sprite(labelMaterial);
-      labelSprite.position.copy(tehranVector.clone().setLength(EARTH_RADIUS_M * 1.13));
-      labelSprite.scale.set(EARTH_RADIUS_M * 0.22, EARTH_RADIUS_M * 0.11, 1);
-      tehranGroup.add(labelSprite);
-
-      earthGroup.add(tehranGroup);
-      scene.add(earthGroup);
-
-      const orbitGroup = new THREE.Group();
-      scene.add(orbitGroup);
-
-      threeState.renderer = renderer;
-      threeState.scene = scene;
-      threeState.camera = camera;
-      threeState.earthGroup = earthGroup;
-      threeState.tehranGroup = tehranGroup;
-      threeState.orbitGroup = orbitGroup;
-      threeState.container = container;
-
-      ensureThreeOverlay(container);
-      if (!threeState.resizeHandlerBound) {{
-        window.addEventListener('resize', handleThreeResize);
-        threeState.resizeHandlerBound = true;
-      }}
-      handleThreeResize();
-      startThreeAnimation();
-      return true;
-    }}
-
-    function ensureThreeOverlay(container) {{
-      if (!threeState.placeholder) {{
-        const placeholder = document.createElement('div');
-        placeholder.className = 'three-placeholder';
-        placeholder.textContent = 'برای نمایش مدار، اجرایى را انتخاب کنید.';
-        container.appendChild(placeholder);
-        threeState.placeholder = placeholder;
-      }} else if (!container.contains(threeState.placeholder)) {{
-        container.appendChild(threeState.placeholder);
-      }}
-      if (!threeState.proximityLabel) {{
-        const label = document.createElement('div');
-        label.className = 'three-proximity';
-        label.textContent = 'کمترین فاصله‌ها پس از دریافت داده نمایش داده مى‌شوند.';
-        container.appendChild(label);
-        threeState.proximityLabel = label;
-      }} else if (!container.contains(threeState.proximityLabel)) {{
-        container.appendChild(threeState.proximityLabel);
-      }}
-    }}
-
-    function showThreePlaceholder(message) {{
-      if (!threeState.container) return;
-      ensureThreeOverlay(threeState.container);
-      if (threeState.placeholder) {{
-        threeState.placeholder.textContent = message;
-        threeState.placeholder.style.display = 'flex';
-      }}
-    }}
-
-    function hideThreePlaceholder() {{
-      if (threeState.placeholder) {{
-        threeState.placeholder.style.display = 'none';
-      }}
-    }}
-
-    function updateProximityLabel(text) {{
-      if (!threeState.container) return;
-      ensureThreeOverlay(threeState.container);
-      if (threeState.proximityLabel) {{
-        threeState.proximityLabel.textContent = text;
-        threeState.proximityLabel.style.display = text ? 'block' : 'none';
-      }}
-    }}
-
-    function handleThreeResize() {{
-      if (!threeState.renderer || !threeState.camera || !threeState.container) return;
-      const width = threeState.container.clientWidth || threeState.container.offsetWidth || 640;
-      const height = threeState.container.clientHeight || threeState.container.offsetHeight || 420;
-      threeState.renderer.setSize(width, height);
-      threeState.camera.aspect = width / height;
-      threeState.camera.updateProjectionMatrix();
-    }}
-
-    function startThreeAnimation() {{
-      if (threeState.animationId) return;
-      const animate = () => {{
-        threeState.animationId = requestAnimationFrame(animate);
-        if (threeState.earthGroup) {{
-          threeState.earthGroup.rotation.y += 0.00035;
-        }}
-        if (threeState.renderer && threeState.scene && threeState.camera) {{
-          threeState.renderer.render(threeState.scene, threeState.camera);
-        }}
-      }};
-      animate();
-    }}
-
-    function latLonToVector3(lat, lon, radius) {{
-      const cosLat = Math.cos(lat);
-      return new THREE.Vector3(
-        radius * cosLat * Math.cos(lon),
-        radius * cosLat * Math.sin(lon),
-        radius * Math.sin(lat)
-      );
-    }}
-
-    function greatCircleDistance(lat1, lon1, lat2, lon2) {{
-      const deltaLat = lat2 - lat1;
-      const deltaLon = lon2 - lon1;
-      const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return EARTH_RADIUS_M * c;
-    }}
-
-    function updateThreeScene(summary) {{
-      if (!threeState.orbitGroup) return;
-      threeState.orbitGroup.children.forEach((child) => {{
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {{
-          if (Array.isArray(child.material)) {{
-            child.material.forEach((mat) => mat.dispose());
-          }} else {{
-            child.material.dispose();
-          }}
-        }}
-      }});
-      threeState.orbitGroup.clear();
-
-      if (!summary || !summary.geometry) {{
-        updateProximityLabel('کمترین فاصله‌ها پس از دریافت داده نمایش داده مى‌شوند.');
-        showThreePlaceholder('داده‌اى براى نمایش مدار در دسترس نیست.');
-        return;
-      }}
-
-      const geometry = summary.geometry;
-      const satelliteIds = Array.isArray(geometry.satellite_ids) ? geometry.satellite_ids : [];
-      const positions = geometry.positions_m || {{}};
-      if (!satelliteIds.length) {{
-        updateProximityLabel('داده‌اى براى مسیر ماهواره‌ها یافت نشد.');
-        showThreePlaceholder('داده‌اى براى مسیر ماهواره‌ها یافت نشد.');
-        return;
-      }}
-
-      hideThreePlaceholder();
-      const proximityLines = [];
-      satelliteIds.forEach((id, index) => {{
-        const samples = Array.isArray(positions[id]) ? positions[id] : [];
-        if (!samples.length) return;
-
-        const flattened = new Float32Array(samples.length * 3);
-        const nearAccumulator = [];
-        let minDistance = Number.POSITIVE_INFINITY;
-        samples.forEach((row, sampleIndex) => {{
-          const x = row[0];
-          const y = row[1];
-          const z = row[2];
-          flattened[sampleIndex * 3] = x;
-          flattened[sampleIndex * 3 + 1] = y;
-          flattened[sampleIndex * 3 + 2] = z;
-
-          const radius = Math.sqrt(x * x + y * y + z * z) || EARTH_RADIUS_M;
-          const lat = Math.asin(Math.min(Math.max(z / radius, -1), 1));
-          const lon = Math.atan2(y, x);
-          const distance = greatCircleDistance(lat, lon, TEHRAN_LAT, TEHRAN_LON);
-          if (distance < minDistance) minDistance = distance;
-          if (distance <= PROXIMITY_THRESHOLD_M) {{
-            nearAccumulator.push(x, y, z);
-          }}
+    function initialiseNavigation() {{
+      navButtons.forEach((button) => {{
+        button.addEventListener('click', () => {{
+          setView(button.dataset.view || 'home');
         }});
-
-        const lineGeometry = new THREE.BufferGeometry();
-        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flattened, 3));
-        const lineColour = new THREE.Color();
-        lineColour.setHSL((index % Math.max(satelliteIds.length, 1)) / Math.max(satelliteIds.length, 1), 0.7, 0.6);
-        const lineMaterial = new THREE.LineBasicMaterial({{ color: lineColour }});
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        threeState.orbitGroup.add(line);
-
-        if (nearAccumulator.length) {{
-          const glowGeometry = new THREE.BufferGeometry();
-          glowGeometry.setAttribute(
-            'position',
-            new THREE.Float32BufferAttribute(new Float32Array(nearAccumulator), 3)
-          );
-          const glowMaterial = new THREE.PointsMaterial({{
-            color: 0xffd166,
-            size: 12,
-            transparent: true,
-            opacity: 0.95,
-            depthTest: false,
-          }});
-          const glowPoints = new THREE.Points(glowGeometry, glowMaterial);
-          threeState.orbitGroup.add(glowPoints);
-        }}
-
-        if (Number.isFinite(minDistance)) {{
-          const formatted = Math.round(minDistance / 1000).toLocaleString('fa-IR');
-          proximityLines.push(`${{id}}: ${{formatted}} کیلومتر`);
-        }}
       }});
+    }}
 
-      if (proximityLines.length) {{
-        updateProximityLabel(`کمترین فاصله تا تهران\n${{proximityLines.join('\n')}}`);
+    function setView(view) {{
+      state.view = view;
+      navButtons.forEach((button) => {{
+        button.classList.toggle('active', button.dataset.view === view);
+      }});
+      if (view === 'home') {{
+        homeControls.classList.remove('hidden');
+        homeVisual.classList.remove('hidden');
+        settingsView.classList.add('hidden');
       }} else {{
-        updateProximityLabel('داده‌اى براى محاسبه فاصله تا تهران وجود ندارد.');
+        homeControls.classList.add('hidden');
+        homeVisual.classList.add('hidden');
+        settingsView.classList.remove('hidden');
       }}
     }}
 
-    function renderGroundTrack(summary) {{
-      const canvas = document.getElementById('ground-track');
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!summary || !summary.geometry) return;
-      const geometry = summary.geometry;
-      const latitudes = geometry.latitudes_rad || {{}};
-      const longitudes = geometry.longitudes_rad || {{}};
-      const satelliteIds = geometry.satellite_ids || Object.keys(latitudes);
-      if (!satelliteIds.length) return;
-      const w = canvas.width;
-      const h = canvas.height;
-
-      ctx.fillStyle = 'rgba(10, 30, 55, 0.6)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = 'rgba(125, 190, 255, 0.2)';
-      ctx.lineWidth = 1;
-      for (let i = -60; i <= 60; i += 30) {{
-        const y = h - ((i + 90) / 180) * h;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }}
-      ctx.strokeStyle = 'rgba(125, 190, 255, 0.4)';
-      for (let lon = -180; lon <= 180; lon += 60) {{
-        const x = ((lon + 180) / 360) * w;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }}
-
-      const tehranLat = 35.6892 * (Math.PI / 180);
-      const tehranLon = 51.3890 * (Math.PI / 180);
-      const tehranX = ((tehranLon + Math.PI) / (2 * Math.PI)) * w;
-      const tehranY = h - ((tehranLat + Math.PI / 2) / Math.PI) * h;
-      ctx.fillStyle = '#ffd166';
-      ctx.beginPath();
-      ctx.arc(tehranX, tehranY, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 209, 102, 0.65)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(tehranX, tehranY, 9, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = '#ffd166';
-      ctx.font = '12px "Inter", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('تهران', tehranX + 8, tehranY - 6);
-
-      satelliteIds.forEach((id, index) => {{
-        const latSeries = latitudes[id];
-        const lonSeries = longitudes[id];
-        if (!latSeries || !lonSeries) return;
-        const hue = (index / satelliteIds.length) * 360;
-        ctx.strokeStyle = `hsl(${{hue}}, 75%, 65%)`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        latSeries.forEach((lat, idx) => {{
-          const lon = lonSeries[idx];
-          const x = ((lon + Math.PI) / (2 * Math.PI)) * w;
-          const y = h - ((lat + Math.PI / 2) / Math.PI) * h;
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }});
-        ctx.stroke();
+    function populateDurations() {{
+      durationSelect.innerHTML = '';
+      const seenNotes = new Set();
+      DURATION_OPTIONS.forEach((option, index) => {{
+        const element = document.createElement('option');
+        element.value = String(option.days);
+        element.textContent = option.label;
+        if (index === 0) {{
+          element.selected = true;
+          state.selectedDuration = option;
+          durationHint.textContent = option.explanation;
+        }}
+        durationSelect.appendChild(element);
+        if (option.explanation && !seenNotes.has(option.explanation)) {{
+          const noteItem = document.createElement('li');
+          noteItem.textContent = option.explanation;
+          durationNotes.appendChild(noteItem);
+          seenNotes.add(option.explanation);
+        }}
+      }});
+      durationSelect.addEventListener('change', () => {{
+        const selectedDays = parseFloat(durationSelect.value);
+        const match = DURATION_OPTIONS.find((item) => Math.abs(item.days - selectedDays) < 1e-6);
+        state.selectedDuration = match || null;
+        durationHint.textContent = match ? match.explanation : '';
       }});
     }}
 
-    function renderThreeD(summary) {{
-      const container = document.getElementById('three-d-view');
-      if (!container) return;
-      const ready = initialiseThreeScene(container);
-      if (!ready) return;
-      updateThreeScene(summary);
+    function populateCities() {{
+      citySelect.innerHTML = '';
+      const option = document.createElement('option');
+      option.value = DEFAULT_CITY.id;
+      option.textContent = DEFAULT_CITY.label;
+      option.selected = true;
+      citySelect.appendChild(option);
+      citySelect.addEventListener('change', () => {{
+        state.city = DEFAULT_CITY;
+      }});
     }}
 
-    function parseJsonField(text) {{
-      if (!text || !text.trim()) return null;
-      try {{
-        return JSON.parse(text);
-      }} catch (error) {{
-        throw new Error('قالب JSON نامعتبر است.');
+    function updateStatus(message, isError = false) {{
+      statusMessage.textContent = message;
+      statusMessage.classList.toggle('error', Boolean(isError));
+    }}
+
+    function resetSummaries() {{
+      summaryContainer.innerHTML = '';
+      orbitalTableBody.innerHTML = '';
+      resetGroundTrack();
+      resetElementChart();
+      resetThreeView();
+    }}
+
+    function resetGroundTrack() {{
+      if (!groundTrackCanvas) return;
+      const ctx = groundTrackCanvas.getContext('2d');
+      ctx.clearRect(0, 0, groundTrackCanvas.width, groundTrackCanvas.height);
+      ctx.fillStyle = '#061830';
+      ctx.fillRect(0, 0, groundTrackCanvas.width, groundTrackCanvas.height);
+      ctx.fillStyle = '#94b8ff';
+      ctx.font = '16px Vazirmatn, sans-serif';
+      ctx.fillText('پس از اجراى سناریو مسیر پوشش نمایش داده خواهد شد.', 30, groundTrackCanvas.height / 2);
+    }}
+
+    function resetElementChart() {{
+      if (!elementChartCanvas) return;
+      const ctx = elementChartCanvas.getContext('2d');
+      ctx.clearRect(0, 0, elementChartCanvas.width, elementChartCanvas.height);
+      ctx.fillStyle = '#061830';
+      ctx.fillRect(0, 0, elementChartCanvas.width, elementChartCanvas.height);
+      ctx.fillStyle = '#94b8ff';
+      ctx.font = '16px Vazirmatn, sans-serif';
+      ctx.fillText('نمودار المان‌ها پس از اجرا نمایش داده مى‌شود.', 40, elementChartCanvas.height / 2);
+    }}
+
+    function resetThreeView() {{
+      if (state.threeAnimation) {{
+        cancelAnimationFrame(state.threeAnimation);
+        state.threeAnimation = null;
       }}
+      if (state.threeRenderer) {{
+        state.threeRenderer.dispose();
+        state.threeRenderer = null;
+      }}
+      threeContainer.innerHTML = '<span class="placeholder">پس از اجراى سناریو، مدل سه‌بعدى نمایش داده مى‌شود.</span>';
     }}
 
-    function parseListField(text) {{
-      if (!text || !text.trim()) return [];
-      return text.split(',').map((item) => item.trim()).filter(Boolean);
-    }}
-
-    document.getElementById('triangle-form').addEventListener('submit', async (event) => {{
+    async function runScenario(event) {{
       event.preventDefault();
-      const payload = {{
-        scenario_id: document.getElementById('triangle-scenario').value || null,
-        configuration: null,
-        assumptions: parseListField(document.getElementById('triangle-assumptions').value),
-        seed: document.getElementById('triangle-seed').value ? Number(document.getElementById('triangle-seed').value) : null,
-      }};
-      try {{
-        payload.configuration = parseJsonField(document.getElementById('triangle-config').value);
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
+      if (state.running) return;
+      if (!state.selectedDuration) {{
+        updateStatus('ابتدا مدت سناریو را مشخص کنید.', true);
         return;
       }}
-      statusMessage.textContent = 'در حال اجرا...';
+      state.running = true;
+      updateStatus('در حال ارسال تنظیمات به شبیه‌ساز...');
+      resetSummaries();
       try {{
+        const payload = buildScenarioPayload();
         const response = await fetch('/runs/triangle', {{
           method: 'POST',
           headers: {{ 'Content-Type': 'application/json' }},
           body: JSON.stringify(payload),
         }});
-        if (!response.ok) throw new Error('اجرای شبیه‌سازی مثلث ناموفق بود.');
-        await refreshHistory();
-        statusMessage.textContent = 'اجرا با موفقیت کامل شد.';
+        if (!response.ok) {{
+          let detail = 'اجرای سناریو با خطا مواجه شد.';
+          try {{
+            const errorPayload = await response.json();
+            if (errorPayload && errorPayload.detail) {{
+              detail = errorPayload.detail;
+            }}
+          }} catch (err) {{
+            detail = detail;
+          }}
+          throw new Error(detail);
+        }}
+        const data = await response.json();
+        state.lastRun = data;
+        renderRunSummary(data);
+        renderOrbitalTable(data.summary);
+        renderGroundTrack(data.summary.geometry);
+        renderElementChart(data.summary.geometry);
+        renderThreeView(data.summary.geometry);
+        updateStatus('سناریو با موفقیت اجرا شد.');
       }} catch (error) {{
-        statusMessage.textContent = error.message;
+        updateStatus(error.message || 'خطاى ناشناخته رخ داده است.', true);
+      }} finally {{
+        state.running = false;
       }}
-    }});
+    }}
 
-    document.getElementById('scenario-form').addEventListener('submit', async (event) => {{
-      event.preventDefault();
-      const payload = {{
-        scenario_id: document.getElementById('scenario-id').value || null,
-        configuration: null,
-        metrics_specification: parseListField(document.getElementById('scenario-metrics').value),
-        assumptions: parseListField(document.getElementById('scenario-assumptions').value),
-        seed: document.getElementById('scenario-seed').value ? Number(document.getElementById('scenario-seed').value) : null,
+    function buildScenarioPayload() {{
+      const duration = state.selectedDuration ? state.selectedDuration.days : 1;
+      const config = JSON.parse(JSON.stringify(BASE_TRIANGLE_CONFIG || {{}}));
+      if (!config.formation) {{
+        config.formation = {{}};
+      }}
+      const durationSeconds = duration * 86_400.0;
+      let step = config.formation.time_step_s || 1.0;
+      if (durationSeconds > 6 * 3_600) {{
+        step = 60.0;
+      }}
+      if (durationSeconds > 3 * 86_400) {{
+        step = 300.0;
+      }}
+      config.formation.duration_s = durationSeconds;
+      config.formation.time_step_s = step;
+      config.metadata = config.metadata || {{}};
+      config.metadata.notes = config.metadata.notes || [];
+      config.metadata.notes.push(`Duration selected in UI: ${duration} days`);
+      return {{
+        configuration: config,
+        assumptions: [
+          `duration_days=${duration.toFixed(3)}`,
+          `time_step_s=${step.toFixed(3)}`,
+          `city=${state.city.id}`,
+        ],
       }};
-      if (!payload.metrics_specification.length) delete payload.metrics_specification;
-      try {{
-        payload.configuration = parseJsonField(document.getElementById('scenario-config').value);
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
+    }}
+
+    function renderRunSummary(data) {{
+      summaryContainer.innerHTML = '';
+      if (!data) return;
+      const {{ run_id: runId, timestamp }} = data;
+      const selected = state.selectedDuration ? state.selectedDuration.label : 'نامشخص';
+      const cards = [
+        {{
+          title: 'شناسه اجرا',
+          value: runId,
+        }},
+        {{
+          title: 'زمان ثبت',
+          value: new Date(timestamp).toLocaleString('fa-IR'),
+        }},
+        {{
+          title: 'مدت انتخاب‌شده',
+          value: selected,
+        }},
+      ];
+      cards.forEach((card) => {{
+        const wrapper = document.createElement('div');
+        wrapper.className = 'summary-card';
+        const label = document.createElement('span');
+        label.textContent = card.title;
+        const value = document.createElement('strong');
+        value.textContent = card.value;
+        wrapper.append(label, value);
+        summaryContainer.appendChild(wrapper);
+      }});
+    }}
+
+    function renderOrbitalTable(summary) {{
+      orbitalTableBody.innerHTML = '';
+      if (!summary || !summary.metrics || !summary.metrics.orbital_elements) {{
         return;
       }}
-      statusMessage.textContent = 'در حال اجرا...';
-      try {{
-        const response = await fetch('/runs/scenario', {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify(payload),
-        }});
-        if (!response.ok) throw new Error('اجرای سناریو با خطا مواجه شد.');
-        await refreshHistory();
-        statusMessage.textContent = 'سناریو تکمیل شد.';
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
-      }}
-    }});
+      const entries = summary.metrics.orbital_elements;
+      Object.keys(entries).forEach((satId) => {{
+        const row = document.createElement('tr');
+        const cell = (value) => {{
+          const td = document.createElement('td');
+          td.textContent = value;
+          return td;
+        }};
+        const parameters = entries[satId];
+        row.appendChild(cell(satId));
+        row.appendChild(cell(formatNumber(parameters.semi_major_axis_km)));
+        row.appendChild(cell(formatNumber(parameters.eccentricity, 6)));
+        row.appendChild(cell(formatNumber(parameters.inclination_deg)));
+        row.appendChild(cell(formatNumber(parameters.raan_deg)));
+        row.appendChild(cell(formatNumber(parameters.argument_of_perigee_deg)));
+        orbitalTableBody.appendChild(row);
+      }});
+    }}
 
-    document.getElementById('debug-form').addEventListener('submit', async (event) => {{
-      event.preventDefault();
-      const modeInput = document.querySelector('input[name="debug-mode"]:checked');
-      const mode = modeInput ? modeInput.value : 'triangle';
-      const payload = {{ mode }};
-      if (mode === 'scenario') {{
-        const scenarioId = document.getElementById('debug-scenario-id').value;
-        if (scenarioId) payload.scenario_id = scenarioId;
-      }} else {{
-        const configPath = document.getElementById('debug-triangle-config').value.trim();
-        if (configPath) payload.triangle_config = configPath;
-      }}
-      const outputRoot = document.getElementById('debug-output-root').value.trim();
-      if (outputRoot) payload.output_root = outputRoot;
-      statusMessage.textContent = 'در حال آغاز اجرای دیباگ...';
-      try {{
-        const response = await fetch('/runs/debug/jobs', {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify(payload),
+    function renderGroundTrack(geometry) {{
+      resetGroundTrack();
+      if (!geometry || !geometry.latitudes_rad) return;
+      const ctx = groundTrackCanvas.getContext('2d');
+      const width = groundTrackCanvas.width;
+      const height = groundTrackCanvas.height;
+      const latCentre = DEFAULT_CITY.latitude_deg;
+      const lonCentre = DEFAULT_CITY.longitude_deg;
+      const latRange = 18;
+      const lonRange = 28;
+      ctx.fillStyle = '#041327';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = 'rgba(126, 185, 255, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.moveTo(width / 2, 0);
+      ctx.lineTo(width / 2, height);
+      ctx.stroke();
+      const toCanvas = (latDeg, lonDeg) => {{
+        const x = ((lonDeg - (lonCentre - lonRange)) / (2 * lonRange)) * width;
+        const y = height - ((latDeg - (latCentre - latRange)) / (2 * latRange)) * height;
+        return [Math.max(0, Math.min(width, x)), Math.max(0, Math.min(height, y))];
+      }};
+      const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
+      (geometry.satellite_ids || []).forEach((satId, index) => {{
+        const lats = geometry.latitudes_rad[satId] || [];
+        const lons = geometry.longitudes_rad[satId] || [];
+        if (!lats.length || !lons.length) return;
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = colours[index % colours.length];
+        lats.forEach((lat, i) => {{
+          const latDeg = lat * (180 / Math.PI);
+          let lonDeg = lons[i] * (180 / Math.PI);
+          if (lonDeg - lonCentre > 180) lonDeg -= 360;
+          if (lonDeg - lonCentre < -180) lonDeg += 360;
+          const [x, y] = toCanvas(latDeg, lonDeg);
+          if (i === 0) {{
+            ctx.moveTo(x, y);
+          }} else {{
+            ctx.lineTo(x, y);
+          }}
         }});
-        if (!response.ok) throw new Error('راه‌اندازی اجرای دیباگ با خطا مواجه شد.');
-        const data = await response.json();
-        await refreshDebugJobs();
-        statusMessage.textContent = 'اجرای دیباگ آغاز شد.';
-        if (data && data.job && data.job.job_id) {{
-          watchDebugJob(data.job.job_id);
+        ctx.stroke();
+      }});
+      const [cx, cy] = toCanvas(latCentre, lonCentre);
+      ctx.fillStyle = '#ffd54f';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '15px Vazirmatn, sans-serif';
+      ctx.fillStyle = '#ffe082';
+      ctx.fillText('تهران', cx + 10, cy - 10);
+    }}
+
+    function renderElementChart(geometry) {{
+      resetElementChart();
+      if (!geometry || !geometry.positions_m) return;
+      const ctx = elementChartCanvas.getContext('2d');
+      const width = elementChartCanvas.width;
+      const height = elementChartCanvas.height;
+      ctx.fillStyle = '#041327';
+      ctx.fillRect(0, 0, width, height);
+      const times = (geometry.times || []).map((item) => Date.parse(item));
+      if (times.length < 3) return;
+      const start = times[0];
+      const timeSeconds = times.map((t) => (t - start) / 1000.0);
+      const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
+      const metrics = [
+        {{ key: 'semiMajorAxis', label: 'نیم‌محور بزرگ (km)' }},
+        {{ key: 'inclination', label: 'میل مدار (°)' }},
+        {{ key: 'raan', label: 'گره صعودى راست (°)' }},
+      ];
+      const perSatellite = {{}};
+      (geometry.satellite_ids || []).forEach((satId) => {{
+        const positions = geometry.positions_m[satId] || [];
+        const velocities = estimateVelocities(positions, timeSeconds);
+        perSatellite[satId] = computeOrbitalElementsSeries(positions, velocities);
+      }});
+      metrics.forEach((metric, index) => {{
+        const top = index * (height / metrics.length);
+        const panelHeight = height / metrics.length;
+        drawMetricPanel(ctx, {{
+          top,
+          height: panelHeight,
+          width,
+          metric,
+          timeSeconds,
+          perSatellite,
+          colours,
+        }});
+      }});
+      drawLegend(ctx, {{
+        colours,
+        satelliteIds: geometry.satellite_ids || [],
+        width,
+        height,
+      }});
+    }}
+
+    function drawMetricPanel(ctx, config) {{
+      const {{ top, height, width, metric, timeSeconds, perSatellite, colours }} = config;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(126, 185, 255, 0.2)';
+      ctx.beginPath();
+      ctx.rect(40, top + 10, width - 80, height - 30);
+      ctx.stroke();
+      const values = [];
+      Object.keys(perSatellite).forEach((satId) => {{
+        const series = perSatellite[satId][metric.key] || [];
+        series.forEach((value) => values.push(value));
+      }});
+      if (!values.length) {{
+        ctx.restore();
+        return;
+      }}
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const margin = (max - min) * 0.1 || 1.0;
+      const lower = min - margin;
+      const upper = max + margin;
+      Object.keys(perSatellite).forEach((satId, index) => {{
+        const series = perSatellite[satId][metric.key] || [];
+        if (!series.length) return;
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = colours[index % colours.length];
+        series.forEach((value, i) => {{
+          const x = 40 + ((timeSeconds[i] - timeSeconds[0]) / (timeSeconds[timeSeconds.length - 1] - timeSeconds[0])) * (width - 80);
+          const y = top + height - 30 - ((value - lower) / (upper - lower)) * (height - 40);
+          if (i === 0) {{
+            ctx.moveTo(x, y);
+          }} else {{
+            ctx.lineTo(x, y);
+          }}
+        }});
+        ctx.stroke();
+      }});
+      ctx.fillStyle = '#d0e4ff';
+      ctx.font = '15px Vazirmatn, sans-serif';
+      ctx.fillText(metric.label, 50, top + 30);
+      ctx.restore();
+    }}
+
+    function drawLegend(ctx, config) {{
+      const {{ colours, satelliteIds, width, height }} = config;
+      ctx.save();
+      const startX = width - 220;
+      let currentY = height - 30;
+      ctx.font = '14px Vazirmatn, sans-serif';
+      satelliteIds.forEach((satId, index) => {{
+        ctx.fillStyle = colours[index % colours.length];
+        ctx.fillRect(startX + index * 70, currentY - 12, 14, 14);
+        ctx.fillStyle = '#d0e4ff';
+        ctx.fillText(satId, startX + index * 70 + 20, currentY);
+      }});
+      ctx.restore();
+    }}
+
+    function renderThreeView(geometry) {{
+      resetThreeView();
+      if (!geometry || !geometry.positions_m || !window.THREE) {{
+        return;
+      }}
+      const width = threeContainer.clientWidth || 480;
+      const height = threeContainer.clientHeight || 360;
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x020b1a);
+      const camera = new THREE.PerspectiveCamera(45, width / Math.max(height, 1), 0.1, 1000);
+      camera.position.set(0, -4.8, 2.6);
+      const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+      renderer.setSize(width, height);
+      threeContainer.innerHTML = '';
+      threeContainer.appendChild(renderer.domElement);
+      state.threeRenderer = renderer;
+      const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+      const directional = new THREE.DirectionalLight(0xffffff, 0.55);
+      directional.position.set(5, 3, 5);
+      scene.add(ambient);
+      scene.add(directional);
+      const earthGeometry = new THREE.SphereGeometry(1, 48, 48);
+      const earthMaterial = new THREE.MeshPhongMaterial({{
+        color: 0x0b2542,
+        emissive: 0x061628,
+        shininess: 18,
+        transparent: true,
+        opacity: 0.95,
+      }});
+      const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+      scene.add(earth);
+      const colours = [0x7fd0ff, 0xffb74d, 0xce93d8, 0x80cbc4];
+      (geometry.satellite_ids || []).forEach((satId, index) => {{
+        const samples = geometry.positions_m[satId] || [];
+        const points = samples.map((point) => {{
+          return new THREE.Vector3(point[0] / EARTH_RADIUS_M, point[1] / EARTH_RADIUS_M, point[2] / EARTH_RADIUS_M);
+        }});
+        if (!points.length) return;
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMaterial = new THREE.LineBasicMaterial({{ color: colours[index % colours.length], linewidth: 2 }});
+        const orbitLine = new THREE.Line(lineGeometry, lineMaterial);
+        scene.add(orbitLine);
+        const satelliteMesh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 16), new THREE.MeshBasicMaterial({{ color: colours[index % colours.length] }}));
+        satelliteMesh.position.copy(points[points.length - 1]);
+        scene.add(satelliteMesh);
+      }});
+      const lat = DEFAULT_CITY.latitude_deg * (Math.PI / 180);
+      const lon = DEFAULT_CITY.longitude_deg * (Math.PI / 180);
+      const tehranMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({{ color: 0xffd54f }}));
+      tehranMarker.position.set(
+        Math.cos(lat) * Math.cos(lon),
+        Math.cos(lat) * Math.sin(lon),
+        Math.sin(lat)
+      );
+      scene.add(tehranMarker);
+      function animate() {{
+        state.threeAnimation = requestAnimationFrame(animate);
+        earth.rotation.y += 0.0008;
+        renderer.render(scene, camera);
+      }}
+      animate();
+    }}
+
+    function estimateVelocities(positions, timeSeconds) {{
+      const velocities = [];
+      if (!positions || positions.length !== timeSeconds.length) {{
+        return velocities;
+      }}
+      for (let i = 0; i < positions.length; i += 1) {{
+        let dt;
+        let delta;
+        if (i === 0) {{
+          dt = timeSeconds[i + 1] - timeSeconds[i];
+          delta = subtractVectors(positions[i + 1], positions[i]);
+        }} else if (i === positions.length - 1) {{
+          dt = timeSeconds[i] - timeSeconds[i - 1];
+          delta = subtractVectors(positions[i], positions[i - 1]);
+        }} else {{
+          dt = timeSeconds[i + 1] - timeSeconds[i - 1];
+          delta = subtractVectors(positions[i + 1], positions[i - 1]);
         }}
-      }} catch (error) {{
-        statusMessage.textContent = error.message;
+        const scale = dt !== 0 ? 1 / dt : 0;
+        velocities.push(scaleVector(delta, scale));
       }}
+      return velocities;
+    }}
+
+    function computeOrbitalElementsSeries(positions, velocities) {{
+      const semiMajorAxis = [];
+      const inclination = [];
+      const raan = [];
+      const eccentricity = [];
+      for (let i = 0; i < positions.length; i += 1) {{
+        const r = positions[i];
+        const v = velocities[i] || [0, 0, 0];
+        const rMag = vectorNorm(r);
+        const vMag = vectorNorm(v);
+        if (rMag === 0) {{
+          semiMajorAxis.push(0);
+          inclination.push(0);
+          raan.push(0);
+          eccentricity.push(0);
+          continue;
+        }}
+        const h = crossProduct(r, v);
+        const hMag = vectorNorm(h);
+        const n = crossProduct([0, 0, 1], h);
+        const nMag = vectorNorm(n);
+        const eVector = subtractVectors(scaleVector(crossProduct(v, h), 1 / MU_EARTH), scaleVector(r, 1 / rMag));
+        const eMag = vectorNorm(eVector);
+        eccentricity.push(eMag);
+        const energy = (vMag * vMag) / 2 - MU_EARTH / rMag;
+        const a = Math.abs(energy) > 1e-9 ? -MU_EARTH / (2 * energy) : Infinity;
+        semiMajorAxis.push(a / 1000.0);
+        const inc = hMag > 0 ? Math.acos(clamp(h[2] / hMag, -1, 1)) : 0;
+        inclination.push(inc * (180 / Math.PI));
+        let raanValue = 0;
+        if (nMag > 1e-10) {{
+          raanValue = Math.acos(clamp(n[0] / nMag, -1, 1));
+          if (n[1] < 0) {{
+            raanValue = 2 * Math.PI - raanValue;
+          }}
+        }}
+        raan.push(raanValue * (180 / Math.PI));
+      }}
+      return {{
+        semiMajorAxis,
+        inclination,
+        raan,
+        eccentricity,
+      }};
+    }}
+
+    function clamp(value, min, max) {{
+      return Math.max(min, Math.min(max, value));
+    }}
+
+    function subtractVectors(a, b) {{
+      return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    }}
+
+    function scaleVector(vector, scalar) {{
+      return [vector[0] * scalar, vector[1] * scalar, vector[2] * scalar];
+    }}
+
+    function crossProduct(a, b) {{
+      return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+      ];
+    }}
+
+    function vectorNorm(vector) {{
+      return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
+    }}
+
+    function formatNumber(value, digits = 3) {{
+      if (value === undefined || value === null || Number.isNaN(value)) {{
+        return '—';
+      }}
+      return Number(value).toFixed(digits);
+    }}
+
+    scenarioForm.addEventListener('submit', runScenario);
+    settingsForm.addEventListener('submit', (event) => {{
+      event.preventDefault();
+      settingsStatus.textContent = 'تنظیمات ذخیره شد (محلى). اتصال به سناریو برقرار است.';
     }});
 
-    document.getElementById('refresh-history').addEventListener('click', refreshHistory);
-    debugTabButton.addEventListener('click', showDebugLogTab);
-    jobTabButton.addEventListener('click', showJobLogTab);
-    document.querySelectorAll('input[name="debug-mode"]').forEach((input) => {{
-      input.addEventListener('change', () => toggleDebugMode(input.value));
-    }});
-    window.addEventListener('beforeunload', () => {{
-      if (state.debugSource) state.debugSource.close();
-      if (state.jobStream) state.jobStream.close();
-    }});
-
-    initialise();
+    resetGroundTrack();
+    resetElementChart();
+    initialiseNavigation();
+    populateDurations();
+    populateCities();
+    settingsStatus.textContent = DEVELOPMENT_TEXT;
   </script>
 </body>
-</html>"""
+</html>
+"""
+
 
 
 @app.get("/debug/log/stream")
