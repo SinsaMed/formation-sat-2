@@ -224,7 +224,19 @@ def _load_stk_ephemerides(stk_dir: Path) -> dict[str, pd.DataFrame]:
 def _load_stk_groundtracks(stk_dir: Path) -> dict[str, pd.DataFrame]:
     """Read STK ground track files if available."""
 
+    def _infer_epoch_from_ephemeris(asset: str) -> Optional[pd.Timestamp]:
+        ephemeris_file = stk_dir / f"{asset}.e"
+        if not ephemeris_file.exists():
+            return None
+        with ephemeris_file.open("r", encoding="utf-8") as eph_handle:
+            for line in eph_handle:
+                stripped = line.strip()
+                if stripped.startswith("ScenarioEpoch"):
+                    return _parse_stk_epoch(stripped.split("ScenarioEpoch", 1)[1].strip())
+        return None
+
     groundtracks: dict[str, pd.DataFrame] = {}
+    epoch_cache: dict[str, Optional[pd.Timestamp]] = {}
     for gt_file in sorted(stk_dir.glob("*groundtrack.gt")):
         name = gt_file.stem.replace("_groundtrack", "")
         with gt_file.open("r", encoding="utf-8") as handle:
@@ -238,7 +250,14 @@ def _load_stk_groundtracks(stk_dir: Path) -> dict[str, pd.DataFrame]:
                     break
 
             if epoch is None:
-                LOGGER.warning("%s missing ScenarioEpoch; skipping ground track import.", gt_file)
+                if name not in epoch_cache:
+                    epoch_cache[name] = _infer_epoch_from_ephemeris(name)
+                epoch = epoch_cache[name]
+            if epoch is None:
+                LOGGER.warning(
+                    "%s missing ScenarioEpoch and no matching ephemeris epoch found; skipping ground track import.",
+                    gt_file,
+                )
                 continue
 
             for line in handle:
