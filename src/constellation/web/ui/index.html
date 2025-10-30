@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fa">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>سامانه کنترل فورمیشن ماهواره‌ای</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/web/static/app.css" />
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" defer></script>
+    <script src="/web/static/app.js" defer></script>
+  </head>
+  <body>
+    <main class="layout">
+      <aside class="sidebar">
+        <div>
+          <h1>سامانه فورمیشن ماهواره‌ای</h1>
+          <p>اجرای تعاملى سناریوهای تشکیل آرایش برای تهران</p>
+        </div>
+        <nav>
+          <button class="nav-item active" data-view="home">خانه</button>
+          <button class="nav-item" data-view="settings">تنظیمات</button>
+        </nav>
+        <section class="sidebar-info">
+          <h2>اطلاعات پیکربندى</h2>
+          <p>مدت سناریو از فایل‌های پیکربندى موجود در مخزن استخراج شده است.</p>
+          <ul id="duration-notes"></ul>
+        </section>
+      </aside>
+      <section id="home-controls" class="panel">
+        <h2>اجرای سناریوى شکل‌دهى</h2>
+        <form id="scenario-form">
+          <label for="duration-select">مدت اجرای سناریو</label>
+          <select id="duration-select"></select>
+          <p class="field-hint" id="duration-hint"></p>
+          <button type="submit" id="run-button">اجرای سناریو</button>
+        </form>
+        <div class="status" id="status-message">برای آغاز، مدت سناریو را انتخاب کنید.</div>
+        <section class="summary" id="run-summary"></section>
+        <section class="table-wrapper">
+          <h3>پارامترهای مداری ماهواره‌ها</h3>
+          <table id="orbital-table">
+            <thead>
+              <tr>
+                <th>ماهواره</th>
+                <th>نیم‌محور بزرگ (km)</th>
+                <th>اگزا‌نتریسیته</th>
+                <th>میل مدار (°)</th>
+                <th>گره صعودى راست (°)</th>
+                <th>آرگومان حضیض (°)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </section>
+      <section id="home-visual" class="panel">
+        <h2>نمایش مسیر و تحلیل‌ها</h2>
+        <div class="visual-grid">
+          <figure>
+            <figcaption>نمای سه‌بعدى مدار و موقعیت تهران</figcaption>
+            <div id="three-d-view" class="three-d-container">
+              <span class="placeholder">پس از اجراى سناریو، مدل سه‌بعدى نمایش داده مى‌شود.</span>
+            </div>
+          </figure>
+          <figure>
+            <figcaption>گراوند ترک متمرکز بر تهران</figcaption>
+            <canvas id="ground-track" width="720" height="420"></canvas>
+          </figure>
+          <figure class="wide">
+            <figcaption>تغییر المان‌های مداری طی اجرا</figcaption>
+            <canvas id="element-chart" width="900" height="360"></canvas>
+          </figure>
+        </div>
+      </section>
+      <section id="settings-view" class="panel hidden" style="grid-column: 2 / span 2;">
+        <h2>تنظیمات سناریو</h2>
+        <form id="settings-form">
+          <label for="city-select">انتخاب شهر هدف</label>
+          <select id="city-select"></select>
+          <button type="button" id="compute-elements" disabled>محاسبه پارامترهای مداری</button>
+          <button type="submit" id="save-settings">ذخیره تغییرات</button>
+        </form>
+        <div class="settings-status" id="settings-status">تغییرى ثبت نشده است.</div>
+      </section>
+    </main>
+    <footer class="development-banner">در حال توسعه</footer>
+    <script id="app-bootstrap" type="application/json">__BOOTSTRAP_DATA__</script>
+  </body>
+</html>
