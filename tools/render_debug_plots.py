@@ -13,14 +13,17 @@ import argparse
 import json
 import logging
 import math
+from datetime import timedelta
 from pathlib import Path
-from typing import Iterable, List, Tuple, Optional
+from typing import Iterable, List, Tuple, Optional, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
+from plotly.colors import qualitative
+from plotly.subplots import make_subplots
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # Required for 3D projection
 
@@ -30,6 +33,12 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - optional dependency
     ccrs = None
     cfeature = None
+
+try:  # pragma: no cover - optional dependency
+    from shapely.geometry import LineString, MultiLineString
+except Exception:  # pragma: no cover - optional dependency
+    LineString = None
+    MultiLineString = None
 
 
 LOGGER = logging.getLogger(__name__)
@@ -59,6 +68,41 @@ TEHRAN_LONGITUDE_DEG = 51.3890
 EARTH_MEAN_RADIUS_KM = 6371.0
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_sensor_swath_width_km() -> float:
+    """Return the primary sensor swath width declared in the project configuration."""
+
+    project_config = PROJECT_ROOT / "config" / "project.yaml"
+    if not project_config.exists():
+        LOGGER.warning("Project configuration %s not found; using default swath width.", project_config)
+        return 60.0
+
+    try:
+        import yaml
+    except ImportError:  # pragma: no cover - dependency is part of requirements
+        LOGGER.warning("PyYAML not available; falling back to default swath width value.")
+        return 60.0
+
+    try:
+        with project_config.open("r", encoding="utf-8") as handle:
+            data = yaml.safe_load(handle)
+    except (OSError, yaml.YAMLError) as exc:  # pragma: no cover - defensive
+        LOGGER.warning("Failed to parse %s: %s", project_config, exc)
+        return 60.0
+
+    try:
+        swath_width = float(
+            data["platform"]["payload"]["primary_sensor"]["swath_width_km"]
+        )
+    except (KeyError, TypeError, ValueError):  # pragma: no cover - defensive
+        LOGGER.warning(
+            "platform.payload.primary_sensor.swath_width_km missing or invalid in %s; using default.",
+            project_config,
+        )
+        return 60.0
+
+    return swath_width
 
 
 def _wrap_longitudes_around_tehran(longitudes_rad: np.ndarray) -> np.ndarray:
@@ -106,6 +150,301 @@ def _load_positions(run_dir: Path) -> pd.DataFrame:
         raise FileNotFoundError("Expected positions_m.csv within the run directory.")
 
     return pd.read_csv(pos_path, parse_dates=["time_utc"])
+
+
+def _cartesian_from_lat_lon(
+    latitude_deg: np.ndarray,
+    longitude_deg: np.ndarray,
+    radius_m: float,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert spherical coordinates to Cartesian arrays."""
+
+    lat_rad = np.deg2rad(latitude_deg)
+    lon_rad = np.deg2rad(longitude_deg)
+    cos_lat = np.cos(lat_rad)
+    x = radius_m * cos_lat * np.cos(lon_rad)
+    y = radius_m * cos_lat * np.sin(lon_rad)
+    z = radius_m * np.sin(lat_rad)
+    return x, y, z
+
+
+def _parse_stk_epoch(value: str) -> pd.Timestamp:
+    """Parse an STK timestamp expressed as ``DD Mon YYYY HH:MM:SS.sss``."""
+
+    timestamp = pd.to_datetime(value + "Z", utc=True, format="%d %b %Y %H:%M:%S.%fZ")
+    if pd.isna(timestamp):
+        raise ValueError(f"Failed to parse STK timestamp: {value}")
+    return timestamp
+
+
+def _load_stk_ephemerides(stk_dir: Path) -> dict[str, pd.DataFrame]:
+    """Read all STK ephemeris files available in the directory."""
+
+    ephemerides: dict[str, pd.DataFrame] = {}
+    for ephemeris_file in sorted(stk_dir.glob("*.e")):
+        name = ephemeris_file.stem
+        with ephemeris_file.open("r", encoding="utf-8") as handle:
+            epoch: Optional[pd.Timestamp] = None
+            rows: list[tuple[pd.Timestamp, float, float, float]] = []
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("ScenarioEpoch"):
+                    epoch = _parse_stk_epoch(stripped.split("ScenarioEpoch", 1)[1].strip())
+                elif stripped.startswith("BEGIN EphemerisTimePosVel"):
+                    break
+
+            if epoch is None:
+                LOGGER.warning("%s missing ScenarioEpoch; skipping ephemeris import.", ephemeris_file)
+                continue
+
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("END EphemerisTimePosVel"):
+                    break
+                if not stripped or stripped.startswith("#"):
+                    continue
+                parts = stripped.split()
+                if len(parts) < 4:
+                    continue
+                try:
+                    offset = float(parts[0])
+                    x_km, y_km, z_km = map(float, parts[1:4])
+                except ValueError:
+                    continue
+                timestamp = epoch + timedelta(seconds=offset)
+                rows.append((timestamp, x_km * 1000.0, y_km * 1000.0, z_km * 1000.0))
+
+        if rows:
+            df = pd.DataFrame(rows, columns=["time_utc", "x_m", "y_m", "z_m"])
+            ephemerides[name] = df
+
+    return ephemerides
+
+
+def _load_stk_groundtracks(stk_dir: Path) -> dict[str, pd.DataFrame]:
+    """Read STK ground track files if available."""
+
+    groundtracks: dict[str, pd.DataFrame] = {}
+    for gt_file in sorted(stk_dir.glob("*groundtrack.gt")):
+        name = gt_file.stem.replace("_groundtrack", "")
+        with gt_file.open("r", encoding="utf-8") as handle:
+            epoch: Optional[pd.Timestamp] = None
+            rows: list[tuple[pd.Timestamp, float, float, float]] = []
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("ScenarioEpoch"):
+                    epoch = _parse_stk_epoch(stripped.split("ScenarioEpoch", 1)[1].strip())
+                elif stripped.startswith("BEGIN Points"):
+                    break
+
+            if epoch is None:
+                LOGGER.warning("%s missing ScenarioEpoch; skipping ground track import.", gt_file)
+                continue
+
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("END Points"):
+                    break
+                if not stripped or stripped.startswith("#"):
+                    continue
+                parts = stripped.split()
+                if len(parts) < 4:
+                    continue
+                try:
+                    offset = float(parts[0])
+                    latitude = float(parts[1])
+                    longitude = float(parts[2])
+                    altitude_km = float(parts[3])
+                except ValueError:
+                    continue
+                timestamp = epoch + timedelta(seconds=offset)
+                rows.append((timestamp, latitude, longitude, altitude_km * 1000.0))
+
+        if rows:
+            df = pd.DataFrame(
+                rows,
+                columns=["time_utc", "latitude_deg", "longitude_deg", "altitude_m"],
+            )
+            groundtracks[name] = df
+
+    return groundtracks
+
+
+def _load_stk_facilities(stk_dir: Path) -> dict[str, dict[str, float]]:
+    """Parse facility definitions exported for STK."""
+
+    facilities: dict[str, dict[str, float]] = {}
+    for fac_file in sorted(stk_dir.glob("*.fac")):
+        name = fac_file.stem.replace("Facility_", "")
+        latitude = longitude = altitude = None
+        with fac_file.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("Latitude"):
+                    try:
+                        latitude = float(stripped.split()[1])
+                    except (ValueError, IndexError):
+                        latitude = None
+                elif stripped.startswith("Longitude"):
+                    try:
+                        longitude = float(stripped.split()[1])
+                    except (ValueError, IndexError):
+                        longitude = None
+                elif stripped.startswith("Altitude"):
+                    try:
+                        altitude = float(stripped.split()[1])
+                    except (ValueError, IndexError):
+                        altitude = None
+        if latitude is None or longitude is None:
+            continue
+        facilities[name] = {
+            "latitude_deg": latitude,
+            "longitude_deg": longitude,
+            "altitude_km": 0.0 if altitude is None else altitude / 1000.0,
+        }
+    return facilities
+
+
+def _load_stk_contacts(stk_dir: Path) -> dict[str, list[dict[str, object]]]:
+    """Return contact intervals keyed by filename stem."""
+
+    contacts: dict[str, list[dict[str, object]]] = {}
+    for contact_file in sorted(stk_dir.glob("*.int")):
+        name = contact_file.stem.replace("Contacts_", "")
+        intervals: list[dict[str, object]] = []
+        with contact_file.open("r", encoding="utf-8") as handle:
+            current: dict[str, object] | None = None
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("BEGIN Interval"):
+                    current = {}
+                elif stripped.startswith("END Interval") and current is not None:
+                    intervals.append(current)
+                    current = None
+                elif current is not None:
+                    if stripped.startswith("Asset"):
+                        parts = stripped.split()
+                        if len(parts) >= 2:
+                            current["asset"] = parts[1]
+                    elif stripped.startswith("StartTime"):
+                        current["start"] = _parse_stk_epoch(stripped.split("StartTime", 1)[1].strip())
+                    elif stripped.startswith("StopTime"):
+                        current["end"] = _parse_stk_epoch(stripped.split("StopTime", 1)[1].strip())
+        if intervals:
+            contacts[name] = intervals
+
+    return contacts
+
+
+def _build_coastline_traces(earth_radius_m: float) -> list[go.Scatter3d]:
+    """Generate coastline polylines projected on the Earth sphere."""
+
+    if cfeature is None:
+        return []
+
+    coast_feature = cfeature.NaturalEarthFeature("physical", "coastline", "110m")
+    traces: list[go.Scatter3d] = []
+    try:
+        geometries = list(coast_feature.geometries())
+    except Exception as exc:  # pragma: no cover - defensive
+        LOGGER.warning("Failed to load Natural Earth coastline data: %s", exc)
+        return traces
+
+    for geometry in geometries:
+        components = []
+        if hasattr(geometry, "geoms"):
+            for geom in geometry.geoms:
+                components.append(geom)
+        else:
+            components.append(geometry)
+
+        for component in components:
+            coords = list(component.coords)
+            if len(coords) < 2:
+                continue
+            if len(coords) > 1000:
+                step = max(1, len(coords) // 1000)
+                coords = coords[::step]
+            lon, lat = zip(*coords)
+            x, y, z = _cartesian_from_lat_lon(np.array(lat), np.array(lon), earth_radius_m)
+            traces.append(
+                go.Scatter3d(
+                    x=x,
+                    y=y,
+                    z=z,
+                    mode="lines",
+                    line=dict(color="rgba(255,255,255,0.6)", width=1),
+                    name="Coastlines",
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+
+    return traces
+
+
+def _create_cone_mesh(
+    apex: np.ndarray,
+    target: np.ndarray,
+    half_angle_rad: float,
+    name: str,
+    colour: str,
+) -> go.Mesh3d:
+    """Construct a conical field-of-view mesh between a spacecraft and the target."""
+
+    axis = target - apex
+    length = float(np.linalg.norm(axis))
+    if not math.isfinite(length) or length <= 0:
+        raise ValueError("Apex and target must not coincide when constructing a cone.")
+
+    axis_unit = axis / length
+    base_radius = length * math.tan(half_angle_rad)
+
+    reference = np.array([0.0, 0.0, 1.0])
+    cross = np.cross(axis_unit, reference)
+    norm = np.linalg.norm(cross)
+    if norm < 1e-6:
+        reference = np.array([0.0, 1.0, 0.0])
+        cross = np.cross(axis_unit, reference)
+        norm = np.linalg.norm(cross)
+        if norm < 1e-6:
+            raise ValueError("Unable to construct orthonormal basis for cone generation.")
+
+    u = cross / norm
+    v = np.cross(axis_unit, u)
+
+    segments = 48
+    angles = np.linspace(0, 2 * math.pi, segments, endpoint=False)
+    vertices = [apex]
+    for angle in angles:
+        direction = math.cos(angle) * u + math.sin(angle) * v
+        point = target + base_radius * direction
+        vertices.append(point)
+
+    vertices_array = np.vstack(vertices)
+    apex_index = 0
+    i_indices: list[int] = []
+    j_indices: list[int] = []
+    k_indices: list[int] = []
+    for idx in range(1, segments + 1):
+        next_idx = 1 + (idx % segments)
+        i_indices.append(apex_index)
+        j_indices.append(idx)
+        k_indices.append(next_idx)
+
+    colour_rgba = colour
+    return go.Mesh3d(
+        x=vertices_array[:, 0],
+        y=vertices_array[:, 1],
+        z=vertices_array[:, 2],
+        i=i_indices,
+        j=j_indices,
+        k=k_indices,
+        opacity=0.25,
+        color=colour_rgba,
+        name=f"{name} FOV",
+        showscale=False,
+    )
 
 
 def _load_orbital_elements(run_dir: Path) -> pd.DataFrame:
@@ -1000,72 +1339,393 @@ def _render_formation_svg(
     plt.close(fig)
 
 
-def _render_3d_formation(times: pd.Series, positions: pd.DataFrame, output_dir: Path) -> dict[str, Path]:
+def _render_3d_formation(
+    run_dir: Path,
+    times: pd.Series,
+    positions: pd.DataFrame,
+    latitudes: pd.DataFrame,
+    longitudes: pd.DataFrame,
+    formation_window: Tuple[pd.Timestamp, pd.Timestamp],
+    design_altitude_km: float,
+    output_dir: Path,
+) -> dict[str, Path]:
+    """Create the combined three-dimensional and ground-track visualisation."""
+
     satellites = _extract_satellite_labels(positions.columns)
-    traces: List[go.Scatter3d] = []
     if times.dt.tz is not None:
         utc_times = times.dt.tz_convert("UTC")
     else:
         utc_times = times.dt.tz_localize("UTC")
     iso_times = utc_times.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    for satellite in satellites:
-        x = positions[f"{satellite}_x_m"]
-        y = positions[f"{satellite}_y_m"]
-        z = positions[f"{satellite}_z_m"]
-        traces.append(
+    earth_radius_m = EARTH_MEAN_RADIUS_KM * 1000.0
+    swath_width_km = _load_sensor_swath_width_km()
+    half_angle_rad = math.atan2(swath_width_km * 500.0, design_altitude_km * 1000.0)
+    if not math.isfinite(half_angle_rad) or half_angle_rad <= 0:
+        half_angle_rad = math.radians(3.0)
+
+    formation_start, formation_end = formation_window
+    formation_midpoint = formation_start + (formation_end - formation_start) / 2
+    if formation_start.tzinfo is None:
+        formation_start_utc = formation_start.tz_localize("UTC")
+    else:
+        formation_start_utc = formation_start.tz_convert("UTC")
+    if formation_end.tzinfo is None:
+        formation_end_utc = formation_end.tz_localize("UTC")
+    else:
+        formation_end_utc = formation_end.tz_convert("UTC")
+
+    stk_dir = run_dir / "stk_export"
+    ephemerides: dict[str, pd.DataFrame] = {}
+    groundtracks: dict[str, pd.DataFrame] = {}
+    facilities: dict[str, dict[str, float]] = {}
+    contacts: dict[str, list[dict[str, object]]] = {}
+    if stk_dir.exists():
+        ephemerides = _load_stk_ephemerides(stk_dir)
+        groundtracks = _load_stk_groundtracks(stk_dir)
+        facilities = _load_stk_facilities(stk_dir)
+        contacts = _load_stk_contacts(stk_dir)
+
+    figure = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{"type": "scene"}, {"type": "scattergeo"}]],
+        column_widths=[0.55, 0.45],
+        subplot_titles=("3D formation context", "Global ground tracks"),
+    )
+
+    theta = np.linspace(0, 2 * math.pi, 90)
+    phi = np.linspace(0, math.pi, 45)
+    theta_grid, phi_grid = np.meshgrid(theta, phi)
+    x = earth_radius_m * np.sin(phi_grid) * np.cos(theta_grid)
+    y = earth_radius_m * np.sin(phi_grid) * np.sin(theta_grid)
+    z = earth_radius_m * np.cos(phi_grid)
+    earth_surface = go.Surface(
+        x=x,
+        y=y,
+        z=z,
+        colorscale="earth",
+        opacity=0.35,
+        showscale=False,
+        name="Earth",
+        hoverinfo="skip",
+        legendgroup="Earth",
+        showlegend=False,
+    )
+    figure.add_trace(earth_surface, row=1, col=1)
+
+    for coastline in _build_coastline_traces(earth_radius_m):
+        coastline.legendgroup = "Earth"
+        figure.add_trace(coastline, row=1, col=1)
+
+    tehran_xyz = np.column_stack(
+        _cartesian_from_lat_lon(
+            np.array([TEHRAN_LATITUDE_DEG]), np.array([TEHRAN_LONGITUDE_DEG]), earth_radius_m
+        )
+    )[0]
+
+    palette = qualitative.D3
+    trace_colours: Dict[str, str] = {}
+    for idx, satellite in enumerate(satellites):
+        colour = palette[idx % len(palette)]
+        trace_colours[satellite] = colour
+        figure.add_trace(
             go.Scatter3d(
-                x=x,
-                y=y,
-                z=z,
+                x=positions[f"{satellite}_x_m"],
+                y=positions[f"{satellite}_y_m"],
+                z=positions[f"{satellite}_z_m"],
                 mode="lines",
-                name=satellite,
-                line=dict(width=4),
+                name=f"{satellite} formation",
+                legendgroup=f"{satellite}_orbit",
+                line=dict(color=colour, width=4),
+                text=[f"{satellite} @ {timestamp}" for timestamp in iso_times],
                 hovertemplate=(
                     "<b>%{text}</b><br>"
                     "x: %{x:.0f} m<br>"
                     "y: %{y:.0f} m<br>"
                     "z: %{z:.0f} m"
                 ),
-                text=[f"{satellite} @ {t}" for t in iso_times],
-            )
+            ),
+            row=1,
+            col=1,
         )
 
-    # Generate a translucent Earth sphere for context.
-    theta = np.linspace(0, 2 * math.pi, 60)
-    phi = np.linspace(0, math.pi, 30)
-    theta_grid, phi_grid = np.meshgrid(theta, phi)
-    earth_radius = 6_371_000.0
-    x = earth_radius * np.sin(phi_grid) * np.cos(theta_grid)
-    y = earth_radius * np.sin(phi_grid) * np.sin(theta_grid)
-    z = earth_radius * np.cos(phi_grid)
-    earth_surface = go.Surface(
-        x=x,
-        y=y,
-        z=z,
-        colorscale=[[0, "#1f78b4"], [1, "#a6cee3"]],
-        opacity=0.25,
-        showscale=False,
-        name="Earth",
-    )
+        window_mask = (utc_times >= formation_start) & (utc_times <= formation_end)
+        if window_mask.any():
+            figure.add_trace(
+                go.Scatter3d(
+                    x=positions.loc[window_mask, f"{satellite}_x_m"],
+                    y=positions.loc[window_mask, f"{satellite}_y_m"],
+                    z=positions.loc[window_mask, f"{satellite}_z_m"],
+                    mode="lines",
+                    name=f"{satellite} formation window",
+                    legendgroup=f"{satellite}_window",
+                    line=dict(color=colour, width=6, dash="dot"),
+                    showlegend=True,
+                ),
+                row=1,
+                col=1,
+            )
 
-    layout = go.Layout(
-        title="Tehran triangle formation in Earth-Centred coordinates",
-        scene=dict(
-            xaxis=dict(title="x (m)"),
-            yaxis=dict(title="y (m)"),
-            zaxis=dict(title="z (m)"),
+        lat_deg = np.rad2deg(latitudes[satellite])
+        lon_deg = np.rad2deg(longitudes[satellite])
+        figure.add_trace(
+            go.Scattergeo(
+                lat=lat_deg,
+                lon=lon_deg,
+                mode="lines",
+                name=f"{satellite} ground track",
+                legendgroup=f"{satellite}_orbit",
+                line=dict(color=colour, width=1.5),
+                showlegend=False,
+            ),
+            row=1,
+            col=2,
+        )
+
+        if window_mask.any():
+            figure.add_trace(
+                go.Scattergeo(
+                    lat=lat_deg[window_mask.to_numpy()],
+                    lon=lon_deg[window_mask.to_numpy()],
+                    mode="lines",
+                    name=f"{satellite} window track",
+                    legendgroup=f"{satellite}_window",
+                    line=dict(color=colour, width=3),
+                    showlegend=False,
+                ),
+                row=1,
+                col=2,
+            )
+
+    for asset, dataframe in sorted(ephemerides.items()):
+        colour = "#555555"
+        figure.add_trace(
+            go.Scatter3d(
+                x=dataframe["x_m"],
+                y=dataframe["y_m"],
+                z=dataframe["z_m"],
+                mode="lines",
+                name=f"{asset} daily pass",
+                legendgroup=f"{asset}_daily",
+                line=dict(color=colour, width=2, dash="dash"),
+                showlegend=True,
+            ),
+            row=1,
+            col=1,
+        )
+
+        window_mask = (
+            (dataframe["time_utc"] >= formation_start_utc)
+            & (dataframe["time_utc"] <= formation_end_utc)
+        )
+        if window_mask.any():
+            figure.add_trace(
+                go.Scatter3d(
+                    x=dataframe.loc[window_mask, "x_m"],
+                    y=dataframe.loc[window_mask, "y_m"],
+                    z=dataframe.loc[window_mask, "z_m"],
+                    mode="lines",
+                    name=f"{asset} daily window",
+                    legendgroup=f"{asset}_window",
+                    line=dict(color="#ff7f0e", width=4),
+                    showlegend=True,
+                ),
+                row=1,
+                col=1,
+            )
+
+        groundtrack = groundtracks.get(asset)
+        if groundtrack is not None:
+            figure.add_trace(
+                go.Scattergeo(
+                    lat=groundtrack["latitude_deg"],
+                    lon=groundtrack["longitude_deg"],
+                    mode="lines",
+                    name=f"{asset} daily ground track",
+                    legendgroup=f"{asset}_daily",
+                    line=dict(color="#555555", width=1, dash="dash"),
+                    showlegend=False,
+                ),
+                row=1,
+                col=2,
+            )
+            gt_mask = (
+                (groundtrack["time_utc"] >= formation_start_utc)
+                & (groundtrack["time_utc"] <= formation_end_utc)
+            )
+            if gt_mask.any():
+                figure.add_trace(
+                    go.Scattergeo(
+                        lat=groundtrack.loc[gt_mask, "latitude_deg"],
+                        lon=groundtrack.loc[gt_mask, "longitude_deg"],
+                        mode="lines",
+                        name=f"{asset} window track",
+                        legendgroup=f"{asset}_window",
+                        line=dict(color="#ff7f0e", width=2),
+                        showlegend=False,
+                    ),
+                    row=1,
+                    col=2,
+                )
+
+    for facility, attributes in facilities.items():
+        facility_lat = attributes.get("latitude_deg", TEHRAN_LATITUDE_DEG)
+        facility_lon = attributes.get("longitude_deg", TEHRAN_LONGITUDE_DEG)
+        x_fac, y_fac, z_fac = _cartesian_from_lat_lon(
+            np.array([facility_lat]), np.array([facility_lon]), earth_radius_m
+        )
+        figure.add_trace(
+            go.Scatter3d(
+                x=x_fac,
+                y=y_fac,
+                z=z_fac,
+                mode="markers",
+                name=f"Facility: {facility}",
+                legendgroup=f"facility_{facility}",
+                marker=dict(size=6, color="#d62728", symbol="diamond"),
+                showlegend=True,
+            ),
+            row=1,
+            col=1,
+        )
+
+        figure.add_trace(
+            go.Scattergeo(
+                lat=[facility_lat],
+                lon=[facility_lon],
+                mode="markers+text",
+                text=[facility.replace("_", " ")],
+                textposition="top right",
+                name=f"Facility: {facility}",
+                legendgroup=f"facility_{facility}",
+                marker=dict(size=8, color="#d62728", symbol="star"),
+                showlegend=False,
+            ),
+            row=1,
+            col=2,
+        )
+
+    if np.linalg.norm(tehran_xyz) > 0:
+        figure.add_trace(
+            go.Scatter3d(
+                x=[tehran_xyz[0]],
+                y=[tehran_xyz[1]],
+                z=[tehran_xyz[2]],
+                mode="markers",
+                name="Tehran",
+                legendgroup="facility_Tehran",
+                marker=dict(color="#e31a1c", size=7, symbol="x"),
+                showlegend=True,
+            ),
+            row=1,
+            col=1,
+        )
+        figure.add_trace(
+            go.Scattergeo(
+                lat=[TEHRAN_LATITUDE_DEG],
+                lon=[TEHRAN_LONGITUDE_DEG],
+                mode="markers+text",
+                text=["Tehran"],
+                textposition="bottom right",
+                name="Tehran",
+                legendgroup="facility_Tehran",
+                marker=dict(size=9, color="#e31a1c", symbol="star"),
+                showlegend=False,
+            ),
+            row=1,
+            col=2,
+        )
+
+    for contact_name, intervals in contacts.items():
+        for interval in intervals:
+            asset = str(interval.get("asset", contact_name))
+            start = interval.get("start")
+            end = interval.get("end")
+            dataframe = ephemerides.get(asset)
+            if dataframe is None:
+                continue
+            mask = (dataframe["time_utc"] >= start) & (dataframe["time_utc"] <= end)
+            if not mask.any():
+                continue
+            figure.add_trace(
+                go.Scatter3d(
+                    x=dataframe.loc[mask, "x_m"],
+                    y=dataframe.loc[mask, "y_m"],
+                    z=dataframe.loc[mask, "z_m"],
+                    mode="lines",
+                    name=f"{contact_name} contact",
+                    legendgroup=f"contact_{contact_name}",
+                    line=dict(color="#9467bd", width=4),
+                    showlegend=True,
+                ),
+                row=1,
+                col=1,
+            )
+
+    window_mid_idx = (np.abs((utc_times - formation_midpoint).to_numpy())).argmin()
+    apex_points: Dict[str, np.ndarray] = {}
+    for satellite in satellites:
+        apex_points[satellite] = np.array(
+            [
+                positions.iloc[window_mid_idx][f"{satellite}_x_m"],
+                positions.iloc[window_mid_idx][f"{satellite}_y_m"],
+                positions.iloc[window_mid_idx][f"{satellite}_z_m"],
+            ]
+        )
+
+    for satellite, apex in apex_points.items():
+        try:
+            cone = _create_cone_mesh(apex, tehran_xyz, half_angle_rad, satellite, trace_colours[satellite])
+        except Exception as exc:  # pragma: no cover - diagnostic fallback
+            LOGGER.warning("Failed to build cone for %s: %s", satellite, exc)
+        else:
+            cone.legendgroup = f"{satellite}_cones"
+            cone.showlegend = True
+            figure.add_trace(cone, row=1, col=1)
+
+    figure.update_scenes(
+        dict(
+            xaxis=dict(title="x (m)", showgrid=False),
+            yaxis=dict(title="y (m)", showgrid=False),
+            zaxis=dict(title="z (m)", showgrid=False),
             aspectmode="data",
+        )
+    )
+    figure.update_geos(
+        dict(
+            showcountries=True,
+            showcoastlines=True,
+            showland=True,
+            landcolor="#f0f4f8",
+            oceancolor="#ccd9e8",
+            lakecolor="#ccd9e8",
+            projection=dict(type="natural earth"),
         ),
-        legend=dict(x=0.0, y=1.0),
+        row=1,
+        col=2,
+    )
+    figure.update_layout(
+        title="Tehran formation and daily pass overview",
+        legend=dict(
+            title="Display settings (click entries to toggle)",
+            yanchor="top",
+            y=1.0,
+            xanchor="left",
+            x=1.05,
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="#cccccc",
+            borderwidth=1,
+        ),
+        margin=dict(l=0, r=200, t=60, b=0),
+        hovermode="closest",
     )
 
-    figure = go.Figure(data=[earth_surface, *traces], layout=layout)
     html_path = output_dir / "formation_3d.html"
-    pio.write_html(figure, file=html_path, include_plotlyjs="cdn", auto_play=False)
+    pio.write_html(figure, file=html_path, include_plotlyjs="cdn", auto_play=False, full_html=True)
 
     svg_path = output_dir / "formation_3d.svg"
-    _render_formation_svg(positions, satellites, earth_radius, svg_path)
+    _render_formation_svg(positions, satellites, earth_radius_m, svg_path)
 
     return {"svg": svg_path, "html": html_path}
 
@@ -1095,7 +1755,16 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
         "ground_command_ranges": _plot_ground_command_ranges(
             ground_ranges, range_limits, output_dir
         ),
-        "formation_3d": _render_3d_formation(time_index, positions, output_dir),
+        "formation_3d": _render_3d_formation(
+            run_directory,
+            time_index,
+            positions,
+            latitudes,
+            longitudes,
+            (formation_start, formation_end),
+            design_altitude_km,
+            output_dir,
+        ),
         "orbital_elements_timeseries": _plot_orbital_elements(
             orbital_pivots, output_dir
         ),
