@@ -29,10 +29,37 @@ def test_render_3d_outputs_vector_svg(tmp_path: Path) -> None:
         }
     )
 
+    latitudes = pd.DataFrame(
+        {
+            "SAT-1": np.linspace(np.radians(35.5), np.radians(36.0), len(time_index)),
+            "SAT-2": np.linspace(np.radians(35.5), np.radians(35.0), len(time_index)),
+            "SAT-3": np.linspace(np.radians(35.7), np.radians(35.9), len(time_index)),
+        }
+    )
+    longitudes = pd.DataFrame(
+        {
+            "SAT-1": np.linspace(np.radians(51.2), np.radians(51.4), len(time_index)),
+            "SAT-2": np.linspace(np.radians(51.2), np.radians(51.0), len(time_index)),
+            "SAT-3": np.linspace(np.radians(51.3), np.radians(51.5), len(time_index)),
+        }
+    )
+
+    formation_window = (time_index[1], time_index[3])
+    design_altitude_km = 520.0
+    run_dir = tmp_path / "run"
+    output_dir = tmp_path / "artefacts"
+    run_dir.mkdir()
+    output_dir.mkdir()
+
     artefacts = render_debug_plots._render_3d_formation(  # noqa: SLF001
+        run_dir,
         positions["time_utc"],
         positions,
-        tmp_path,
+        latitudes,
+        longitudes,
+        formation_window,
+        design_altitude_km,
+        output_dir,
     )
 
     svg_path = artefacts["svg"]
