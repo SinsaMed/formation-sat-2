@@ -154,6 +154,12 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         result.triangle_aspect_ratio,
         result.triangle_sides_m,
     )
+    csv_paths["ground_ranges"] = _write_ground_ranges_csv(
+        output_directory / "ground_ranges.csv",
+        times,
+        result.max_ground_distance_km,
+        result.min_command_distance_km,
+    )
     orbital_csv = _write_orbital_elements_csv(
         output_directory / "orbital_elements.csv",
         times,
@@ -191,6 +197,7 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
         f"  • latitudes_rad CSV: {csv_paths['latitudes_rad']}",
         f"  • longitudes_rad CSV: {csv_paths['longitudes_rad']}",
         f"  • triangle_geometry CSV: {csv_paths['triangle_geometry']}",
+        f"  • ground_ranges CSV: {csv_paths['ground_ranges']}",
         f"  • orbital_elements CSV: {csv_paths['orbital_elements']}",
     ]
     if per_satellite_paths:
@@ -329,6 +336,35 @@ def _write_triangle_geometry_csv(
                     value = float("nan")
                 row.append(_format_number(value))
             writer.writerow(row)
+    return path
+
+
+def _write_ground_ranges_csv(
+    path: Path,
+    times: Sequence[datetime],
+    max_ground_distance_km: Sequence[float],
+    min_command_distance_km: Sequence[float],
+) -> Path:
+    """Serialise ground- and command-range diagnostics to CSV."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "time_utc",
+                "max_ground_distance_km",
+                "min_command_distance_km",
+            ]
+        )
+        for index, epoch in enumerate(times):
+            writer.writerow(
+                [
+                    _format_time(epoch),
+                    _format_number(max_ground_distance_km[index]),
+                    _format_number(min_command_distance_km[index]),
+                ]
+            )
     return path
 
 

@@ -108,6 +108,23 @@ def _load_orbital_elements(run_dir: Path) -> pd.DataFrame:
     return dataframe
 
 
+def _load_ground_command_ranges(run_dir: Path) -> pd.DataFrame:
+    ground_path = run_dir / "ground_ranges.csv"
+    if not ground_path.exists():
+        raise FileNotFoundError(
+            "Expected ground_ranges.csv within the run directory."
+        )
+
+    dataframe = pd.read_csv(ground_path, parse_dates=["time_utc"])
+    numeric_columns = [
+        column for column in dataframe.columns if column != "time_utc"
+    ]
+    dataframe[numeric_columns] = dataframe[numeric_columns].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    return dataframe
+
+
 def _load_triangle_geometry(run_dir: Path) -> pd.DataFrame:
     geometry_path = run_dir / "triangle_geometry.csv"
     if not geometry_path.exists():
@@ -244,6 +261,55 @@ def _load_geometry_tolerances(run_dir: Path) -> dict[str, float]:
     return tolerances
 
 
+def _load_ground_command_limits(run_dir: Path) -> dict[str, float]:
+    limits = {
+        "ground_tolerance_km": float("nan"),
+        "command_contact_range_km": float("nan"),
+    }
+
+    config_path = _resolve_configuration_path(run_dir)
+    if config_path is None:
+        LOGGER.warning(
+            "Falling back to default ground and command limits; configuration file not located."
+        )
+        return limits
+
+    try:
+        with config_path.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        LOGGER.warning(
+            "Failed to parse formation configuration %s: %s", config_path, exc
+        )
+        return limits
+
+    formation = config.get("formation", {})
+    if isinstance(formation, dict):
+        tolerance = formation.get("ground_tolerance_km")
+        if tolerance is not None:
+            try:
+                limits["ground_tolerance_km"] = float(tolerance)
+            except (TypeError, ValueError):
+                LOGGER.warning(
+                    "ground_tolerance_km in %s is not numeric; retaining default.",
+                    config_path,
+                )
+
+        command_cfg = formation.get("command", {})
+        if isinstance(command_cfg, dict):
+            contact_range = command_cfg.get("contact_range_km")
+            if contact_range is not None:
+                try:
+                    limits["command_contact_range_km"] = float(contact_range)
+                except (TypeError, ValueError):
+                    LOGGER.warning(
+                        "command.contact_range_km in %s is not numeric; retaining default.",
+                        config_path,
+                    )
+
+    return limits
+
+
 def _reshape_orbital_elements(
     dataframe: pd.DataFrame,
 ) -> dict[str, pd.DataFrame]:
@@ -326,6 +392,113 @@ def _plot_longitude(times: pd.Series, longitudes: pd.DataFrame, output_dir: Path
     fig.autofmt_xdate()
 
     output_path = output_dir / "longitude_timeseries.svg"
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def _annotate_threshold_crossings(
+    ax: plt.Axes,
+    times: pd.Series,
+    values: pd.Series,
+    threshold: float,
+    label: str,
+) -> None:
+    """Mark transitions where a series exceeds a threshold."""
+
+    if not np.isfinite(threshold):
+        return
+
+    try:
+        series = values.astype(float)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return
+
+    exceed_mask = series > threshold
+    if not exceed_mask.any():
+        return
+
+    crossing_indices: list[int] = []
+    previous = False
+    for index, current in enumerate(exceed_mask):
+        if bool(current) and not previous:
+            crossing_indices.append(index)
+        previous = bool(current)
+
+    if not crossing_indices:
+        return
+
+    for index in crossing_indices[:3]:  # limit annotations to the first few crossings
+        try:
+            time_value = times.iloc[index]
+            sample = series.iloc[index]
+        except IndexError:  # pragma: no cover - defensive
+            continue
+        if pd.isna(sample):
+            continue
+        annotation = f"{label} > {threshold:.0f} km"
+        ax.annotate(
+            annotation,
+            xy=(time_value, sample),
+            xytext=(0, 15),
+            textcoords="offset points",
+            arrowprops=dict(arrowstyle="->", color="#d62728"),
+            fontsize=9,
+            color="#d62728",
+        )
+
+
+def _plot_ground_command_ranges(
+    ranges: pd.DataFrame,
+    limits: dict[str, float],
+    output_dir: Path,
+) -> Path:
+    if ranges.empty:
+        raise ValueError("ground_ranges.csv is empty.")
+
+    times = ranges["time_utc"]
+    max_ground = ranges["max_ground_distance_km"]
+    min_command = ranges["min_command_distance_km"]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(times, max_ground, label="Max ground distance", color="#1f77b4")
+    ax.plot(times, min_command, label="Min command distance", color="#ff7f0e")
+
+    ground_tol = limits.get("ground_tolerance_km", float("nan"))
+    command_range = limits.get("command_contact_range_km", float("nan"))
+
+    if np.isfinite(ground_tol):
+        ax.axhline(
+            ground_tol,
+            color="#2ca02c",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"Ground tolerance ({ground_tol:.0f} km)",
+        )
+        _annotate_threshold_crossings(
+            ax, times, max_ground, ground_tol, "Ground range"
+        )
+
+    if np.isfinite(command_range):
+        ax.axhline(
+            command_range,
+            color="#9467bd",
+            linestyle=":",
+            linewidth=1.2,
+            label=f"Command contact range ({command_range:.0f} km)",
+        )
+        _annotate_threshold_crossings(
+            ax, times, min_command, command_range, "Command range"
+        )
+
+    ax.set_title("Ground and command ranges versus time")
+    ax.set_xlabel("Time (UTC)")
+    ax.set_ylabel("Range (km)")
+    ax.legend(loc="best")
+    ax.grid(True, linestyle=":", linewidth=0.5)
+    fig.autofmt_xdate()
+
+    output_path = output_dir / "ground_command_ranges.svg"
     fig.savefig(output_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return output_path
@@ -794,9 +967,11 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
     positions = _load_positions(run_directory)
     orbital_elements = _load_orbital_elements(run_directory)
     triangle_geometry = _load_triangle_geometry(run_directory)
+    ground_ranges = _load_ground_command_ranges(run_directory)
     formation_start, formation_end = _load_formation_window(run_directory)
     orbital_pivots = _reshape_orbital_elements(orbital_elements)
     tolerances = _load_geometry_tolerances(run_directory)
+    range_limits = _load_ground_command_limits(run_directory)
     output_dir = _ensure_output_directory(run_directory)
 
     time_index = latitudes["time_utc"]
@@ -804,6 +979,9 @@ def generate_visualisations(run_directory: Path) -> dict[str, Path | dict[str, P
         "latitude": _plot_latitude(time_index, latitudes, output_dir),
         "longitude": _plot_longitude(time_index, longitudes, output_dir),
         "ground_track": _plot_ground_track(latitudes, longitudes, output_dir),
+        "ground_command_ranges": _plot_ground_command_ranges(
+            ground_ranges, range_limits, output_dir
+        ),
         "formation_3d": _render_3d_formation(time_index, positions, output_dir),
         "orbital_elements_timeseries": _plot_orbital_elements(
             orbital_pivots, output_dir
