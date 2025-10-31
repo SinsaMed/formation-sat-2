@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import re
@@ -936,3 +937,70 @@ def download_debug_log() -> FileResponse:
 
 
 app.include_router(router)
+
+
+def _build_cli_parser() -> argparse.ArgumentParser:
+    """Create the command-line parser for launching the FastAPI service."""
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Launch the interactive formation simulation service using Uvicorn."
+        )
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Network interface upon which the server listens.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="TCP port exposed by the service.",
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable live-reload for local iterative development.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of worker processes that Uvicorn should spawn.",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug", "trace"],
+        help="Verbosity level for server diagnostics.",
+    )
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] | None = None) -> int:
+    """Parse command-line arguments and start the Uvicorn server."""
+
+    arguments = _build_cli_parser().parse_args(
+        list(argv) if argv is not None else None
+    )
+    try:
+        import uvicorn
+    except ModuleNotFoundError as error:  # pragma: no cover - dependency missing
+        raise SystemExit(
+            "Uvicorn is required to run the web service. Install it via 'pip install uvicorn'."
+        ) from error
+
+    uvicorn.run(
+        "run:app",
+        host=arguments.host,
+        port=arguments.port,
+        reload=arguments.reload,
+        workers=arguments.workers,
+        log_level=arguments.log_level,
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised via CLI
+    raise SystemExit(main())
