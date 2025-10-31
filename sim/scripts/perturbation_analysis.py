@@ -25,8 +25,8 @@ import os
 import numpy as np
 from statistics import fmean
 
-from constellation.frames import rotation_matrix_rtn_to_eci
-from constellation.orbit import (
+from src.constellation.frames import rotation_matrix_rtn_to_eci
+from src.constellation.orbit import (
     EARTH_EQUATORIAL_RADIUS_M,
     EARTH_ROTATION_RATE,
     cartesian_to_classical,
@@ -34,7 +34,7 @@ from constellation.orbit import (
     haversine_distance,
     inertial_to_ecef,
 )
-from constellation.roe import MU_EARTH, OrbitalElements
+from src.constellation.roe import MU_EARTH, OrbitalElements
 
 
 J2_COEFFICIENT = 1.08262668e-3

@@ -45,7 +45,7 @@ matplotlib.use("Agg")  # Ensure headless rendering for automated environments.
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
-from constellation.geometry import (
+from src.constellation.geometry import (
     triangle_area,
     triangle_aspect_ratio,
     triangle_side_lengths,
