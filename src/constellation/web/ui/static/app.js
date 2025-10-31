@@ -271,8 +271,14 @@
     if (!summary || !summary.metrics || !summary.metrics.orbital_elements) {
       return;
     }
-    const entries = summary.metrics.orbital_elements;
-    Object.keys(entries).forEach((satId) => {
+    const orbitalMetrics = summary.metrics.orbital_elements;
+    const entries = orbitalMetrics.per_satellite || orbitalMetrics;
+    const satelliteIds = Object.keys(entries).filter((key) => {
+      const candidate = entries[key];
+      return candidate && typeof candidate === 'object' && 'semi_major_axis_km' in candidate;
+    });
+    satelliteIds.sort();
+    satelliteIds.forEach((satId) => {
       const row = document.createElement('tr');
       const parameters = entries[satId] || {};
       const values = [
@@ -300,46 +306,83 @@
     const height = groundTrackCanvas.height;
     const latCentre = DEFAULT_CITY.latitude_deg;
     const lonCentre = DEFAULT_CITY.longitude_deg;
-    const latRange = 18;
-    const lonRange = 28;
-    ctx.fillStyle = '#041327';
-    ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = 'rgba(126, 185, 255, 0.25)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
-    ctx.moveTo(width / 2, 0);
-    ctx.lineTo(width / 2, height);
-    ctx.stroke();
-    const toCanvas = (latDeg, lonDeg) => {
-      const x = ((lonDeg - (lonCentre - lonRange)) / (2 * lonRange)) * width;
-      const y = height - ((latDeg - (latCentre - latRange)) / (2 * latRange)) * height;
-      return [Math.max(0, Math.min(width, x)), Math.max(0, Math.min(height, y))];
-    };
-    const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
-    (geometry.satellite_ids || []).forEach((satId, index) => {
+    const rad2deg = 180 / Math.PI;
+
+    const tracks = [];
+    const allLatitudes = [latCentre];
+    const allLongitudes = [lonCentre];
+
+    (geometry.satellite_ids || []).forEach((satId) => {
       const lats = geometry.latitudes_rad[satId] || [];
       const lons = geometry.longitudes_rad[satId] || [];
-      if (!lats.length || !lons.length) return;
+      if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length === 0 || lats.length !== lons.length) {
+        return;
+      }
+      const points = lats.map((lat, index) => {
+        const latDeg = lat * rad2deg;
+        let lonDeg = (lons[index] || 0) * rad2deg;
+        lonDeg = normaliseLongitude(lonDeg, lonCentre);
+        allLatitudes.push(latDeg);
+        allLongitudes.push(lonDeg);
+        return { lat: latDeg, lon: lonDeg };
+      });
+      tracks.push({ satId, points });
+    });
+
+    if (!tracks.length) {
+      return;
+    }
+
+    const latExtent = computeExtent(allLatitudes, 2, -90, 90);
+    const lonExtent = computeExtent(allLongitudes, 2, -180, 180);
+
+    ctx.fillStyle = '#041327';
+    ctx.fillRect(0, 0, width, height);
+
+    drawLatitudeLongitudeGrid(ctx, {
+      width,
+      height,
+      latMin: latExtent.min,
+      latMax: latExtent.max,
+      lonMin: lonExtent.min,
+      lonMax: lonExtent.max,
+    });
+
+    const toCanvas = (latDeg, lonDeg) => {
+      const x = ((lonDeg - lonExtent.min) / Math.max(lonExtent.max - lonExtent.min, 1e-6)) * width;
+      const y = height - ((latDeg - latExtent.min) / Math.max(latExtent.max - latExtent.min, 1e-6)) * height;
+      return [x, y];
+    };
+
+    const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
+    tracks.forEach((track, index) => {
+      const series = track.points;
+      if (!series.length) return;
       ctx.beginPath();
       ctx.lineWidth = 2;
       ctx.strokeStyle = colours[index % colours.length];
-      lats.forEach((lat, i) => {
-        const latDeg = lat * (180 / Math.PI);
-        let lonDeg = lons[i] * (180 / Math.PI);
-        if (lonDeg - lonCentre > 180) lonDeg -= 360;
-        if (lonDeg - lonCentre < -180) lonDeg += 360;
-        const [x, y] = toCanvas(latDeg, lonDeg);
-        if (i === 0) {
+      let previous = null;
+      series.forEach((point, pointIndex) => {
+        const [x, y] = toCanvas(point.lat, point.lon);
+        if (pointIndex === 0 || !previous) {
           ctx.moveTo(x, y);
         } else {
-          ctx.lineTo(x, y);
+          const lonJump = Math.abs(point.lon - previous.lon);
+          const lonRange = Math.max(lonExtent.max - lonExtent.min, 1e-6);
+          if (lonJump > 0.5 * lonRange) {
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
         }
+        previous = point;
       });
       ctx.stroke();
     });
-    const [cx, cy] = toCanvas(latCentre, lonCentre);
+
+    const [cx, cy] = toCanvas(latCentre, normaliseLongitude(lonCentre, lonCentre));
     ctx.fillStyle = '#ffd54f';
     ctx.beginPath();
     ctx.arc(cx, cy, 6, 0, Math.PI * 2);
@@ -351,31 +394,37 @@
 
   function renderElementChart(geometry) {
     resetElementChart();
-    if (!geometry || !geometry.positions_m) return;
+    if (!geometry || !geometry.times || !geometry.satellite_ids) return;
     const ctx = elementChartCanvas.getContext('2d');
     const width = elementChartCanvas.width;
     const height = elementChartCanvas.height;
     ctx.fillStyle = '#041327';
     ctx.fillRect(0, 0, width, height);
-    const times = (geometry.times || []).map((item) => Date.parse(item));
-    if (times.length < 3) return;
-    const start = times[0];
-    const timeSeconds = times.map((t) => (t - start) / 1000.0);
+    const timeEpochs = (geometry.times || []).map((item) => Date.parse(item));
+    if (timeEpochs.length < 2 || timeEpochs.some((value) => Number.isNaN(value))) {
+      return;
+    }
+    const start = timeEpochs[0];
+    const timeSeconds = timeEpochs.map((t) => (t - start) / 1000.0);
     const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
     const metrics = [
       { key: 'semiMajorAxis', label: 'نیم‌محور بزرگ (km)' },
+      { key: 'eccentricity', label: 'اگزا‌نتریسیته' },
       { key: 'inclination', label: 'میل مدار (°)' },
       { key: 'raan', label: 'گره صعودى راست (°)' },
     ];
-    const perSatellite = {};
-    (geometry.satellite_ids || []).forEach((satId) => {
-      const positions = geometry.positions_m[satId] || [];
-      const velocities = estimateVelocities(positions, timeSeconds);
-      perSatellite[satId] = computeOrbitalElementsSeries(positions, velocities);
+
+    const perSatellite = buildOrbitalElementSeries(geometry, timeSeconds);
+    const availableMetrics = metrics.filter((metric) => {
+      return Object.values(perSatellite).some((series) => Array.isArray(series[metric.key]) && series[metric.key].length);
     });
-    metrics.forEach((metric, index) => {
-      const top = index * (height / metrics.length);
-      const panelHeight = height / metrics.length;
+    if (!availableMetrics.length) {
+      return;
+    }
+
+    availableMetrics.forEach((metric, index) => {
+      const top = index * (height / availableMetrics.length);
+      const panelHeight = height / availableMetrics.length;
       drawMetricPanel(ctx, {
         top,
         height: panelHeight,
@@ -404,7 +453,11 @@
     const values = [];
     Object.keys(perSatellite).forEach((satId) => {
       const series = perSatellite[satId][metric.key] || [];
-      series.forEach((value) => values.push(value));
+      series.forEach((value) => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          values.push(value);
+        }
+      });
     });
     if (!values.length) {
       ctx.restore();
@@ -415,6 +468,7 @@
     const margin = (max - min) * 0.1 || 1.0;
     const lower = min - margin;
     const upper = max + margin;
+    const duration = Math.max(timeSeconds[timeSeconds.length - 1] - timeSeconds[0], 1e-6);
     Object.keys(perSatellite).forEach((satId, index) => {
       const series = perSatellite[satId][metric.key] || [];
       if (!series.length) return;
@@ -422,7 +476,10 @@
       ctx.lineWidth = 2;
       ctx.strokeStyle = colours[index % colours.length];
       series.forEach((value, i) => {
-        const x = 40 + ((timeSeconds[i] - timeSeconds[0]) / (timeSeconds[timeSeconds.length - 1] - timeSeconds[0])) * (width - 80);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const x = 40 + ((timeSeconds[i] - timeSeconds[0]) / duration) * (width - 80);
         const y = top + height - 30 - ((value - lower) / (upper - lower)) * (height - 40);
         if (i === 0) {
           ctx.moveTo(x, y);
@@ -440,17 +497,50 @@
 
   function drawLegend(ctx, config) {
     const { colours, satelliteIds, width, height } = config;
+    if (!satelliteIds.length) return;
     ctx.save();
-    const startX = width - 220;
-    let currentY = height - 30;
+    const padding = 18;
+    const entryWidth = 120;
+    const startX = width - padding - entryWidth * Math.min(satelliteIds.length, 3);
+    const baselineY = height - 24;
     ctx.font = '14px Vazirmatn, sans-serif';
     satelliteIds.forEach((satId, index) => {
+      const column = index % 3;
+      const row = Math.floor(index / 3);
+      const x = startX + column * entryWidth;
+      const y = baselineY - row * 22;
       ctx.fillStyle = colours[index % colours.length];
-      ctx.fillRect(startX + index * 70, currentY - 12, 14, 14);
+      ctx.fillRect(x, y - 12, 14, 14);
       ctx.fillStyle = '#d0e4ff';
-      ctx.fillText(satId, startX + index * 70 + 20, currentY);
+    ctx.fillText(satId, x + 20, y);
     });
     ctx.restore();
+  }
+
+  function buildOrbitalElementSeries(geometry, timeSeconds) {
+    const perSatellite = {};
+    const satIds = geometry.satellite_ids || [];
+    const classical = geometry.classical_elements || {};
+    const hasClassical = satIds.length > 0 && satIds.every((satId) => classical[satId]);
+    if (hasClassical) {
+      satIds.forEach((satId) => {
+        const elements = classical[satId] || {};
+        perSatellite[satId] = {
+          semiMajorAxis: (elements.semi_major_axis_km || []).map(Number),
+          eccentricity: (elements.eccentricity || []).map(Number),
+          inclination: (elements.inclination_deg || []).map(Number),
+          raan: (elements.raan_deg || []).map(Number),
+        };
+      });
+      return perSatellite;
+    }
+
+    satIds.forEach((satId) => {
+      const positions = geometry.positions_m[satId] || [];
+      const velocities = estimateVelocities(positions, timeSeconds);
+      perSatellite[satId] = computeOrbitalElementsSeries(positions, velocities);
+    });
+    return perSatellite;
   }
 
   function renderThreeView(geometry) {
@@ -608,6 +698,73 @@
 
   function vectorNorm(vector) {
     return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
+  }
+
+  function computeExtent(values, minimumMarginDeg, hardMin, hardMax) {
+    const valid = values.filter((value) => Number.isFinite(value));
+    if (!valid.length) {
+      return { min: hardMin, max: hardMax };
+    }
+    let min = Math.max(hardMin, Math.min(...valid));
+    let max = Math.min(hardMax, Math.max(...valid));
+    const span = max - min;
+    const margin = Math.max(minimumMarginDeg, span * 0.1);
+    min = Math.max(hardMin, min - margin);
+    max = Math.min(hardMax, max + margin);
+    if (max - min < minimumMarginDeg) {
+      const mid = 0.5 * (max + min);
+      min = Math.max(hardMin, mid - minimumMarginDeg);
+      max = Math.min(hardMax, mid + minimumMarginDeg);
+    }
+    return { min, max };
+  }
+
+  function normaliseLongitude(lonDeg, referenceDeg) {
+    let delta = lonDeg - referenceDeg;
+    delta = ((delta + 180) % 360 + 360) % 360 - 180;
+    return referenceDeg + delta;
+  }
+
+  function drawLatitudeLongitudeGrid(ctx, bounds) {
+    const { width, height, latMin, latMax, lonMin, lonMax } = bounds;
+    const latStep = determineNiceStep(latMax - latMin);
+    const lonStep = determineNiceStep(lonMax - lonMin);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(126, 185, 255, 0.12)';
+    ctx.fillStyle = '#5c7fbf';
+    ctx.font = '12px Vazirmatn, sans-serif';
+
+    for (let lat = Math.ceil(latMin / latStep) * latStep; lat <= latMax + 1e-6; lat += latStep) {
+      const y = height - ((lat - latMin) / Math.max(latMax - latMin, 1e-6)) * height;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.fillText(`${lat.toFixed(1)}°`, 6, y - 4);
+    }
+
+    for (let lon = Math.ceil(lonMin / lonStep) * lonStep; lon <= lonMax + 1e-6; lon += lonStep) {
+      const x = ((lon - lonMin) / Math.max(lonMax - lonMin, 1e-6)) * width;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+      ctx.fillText(`${lon.toFixed(1)}°`, x + 4, height - 6);
+    }
+
+    ctx.restore();
+  }
+
+  function determineNiceStep(range) {
+    if (!Number.isFinite(range) || range <= 0) {
+      return 5;
+    }
+    const roughStep = range / 6;
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const scaled = roughStep / magnitude;
+    if (scaled >= 5) return 5 * magnitude;
+    if (scaled >= 2) return 2 * magnitude;
+    return magnitude;
   }
 
   function formatNumber(value, digits = 3) {
