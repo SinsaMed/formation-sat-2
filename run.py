@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import sys
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence
@@ -13,7 +14,7 @@ from typing import Any, AsyncIterator, Dict, Iterable, List, Mapping, MutableMap
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 
 from sim.formation import simulate_triangle_formation
 from sim.formation.triangle import TriangleFormationResult
@@ -188,7 +189,16 @@ TRIANGLE_BASE_CONFIGURATION = _load_json(SCENARIO_DIR / f"{DEFAULT_TRIANGLE_SCEN
 SCENARIO_DURATION_OPTIONS = _derive_duration_options()
 DEFAULT_CITY_OPTION = _extract_city_option(TRIANGLE_BASE_CONFIGURATION)
 
-app = FastAPI(title="Formation SAT Run Service")
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Set up global resources required by the FastAPI application."""
+
+    WEB_ARTEFACT_DIR.mkdir(parents=True, exist_ok=True)
+    yield
+
+
+app = FastAPI(title="Formation SAT Run Service", lifespan=_lifespan)
 router = APIRouter(prefix="/runs")
 app.mount("/web_runs", StaticFiles(directory=WEB_ARTEFACT_DIR, html=False), name="web_runs")
 if WEB_STATIC_DIR.exists():
@@ -216,13 +226,17 @@ class TriangleRunRequest(BaseModel):
         description="Optional random seed recorded alongside the run metadata.",
     )
 
-    @root_validator(pre=True)
-    def _ensure_source_present(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
-        scenario = values.get("scenario_id")
-        configuration = values.get("configuration")
+    @model_validator(mode="before")
+    @classmethod
+    def _ensure_source_present(cls, values: Any) -> Any:
+        if not isinstance(values, Mapping):
+            return values
+        data = dict(values)
+        scenario = data.get("scenario_id")
+        configuration = data.get("configuration")
         if not scenario and not configuration:
-            values["scenario_id"] = DEFAULT_TRIANGLE_SCENARIO
-        return values
+            data["scenario_id"] = DEFAULT_TRIANGLE_SCENARIO
+        return data
 
 
 class ScenarioRunRequest(BaseModel):
@@ -249,13 +263,17 @@ class ScenarioRunRequest(BaseModel):
         description="Optional random seed recorded alongside the run metadata.",
     )
 
-    @root_validator(pre=True)
-    def _ensure_source_present(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
-        scenario = values.get("scenario_id")
-        configuration = values.get("configuration")
+    @model_validator(mode="before")
+    @classmethod
+    def _ensure_source_present(cls, values: Any) -> Any:
+        if not isinstance(values, Mapping):
+            return values
+        data = dict(values)
+        scenario = data.get("scenario_id")
+        configuration = data.get("configuration")
         if not scenario and not configuration:
-            values["scenario_id"] = DEFAULT_PIPELINE_SCENARIO
-        return values
+            data["scenario_id"] = DEFAULT_PIPELINE_SCENARIO
+        return data
 
 
 class DebugRunRequest(BaseModel):
@@ -279,21 +297,13 @@ class DebugRunRequest(BaseModel):
         description="Optional directory root for storing debug artefacts.",
     )
 
-    @root_validator(skip_on_failure=True)
-    def _validate_mode_arguments(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
-        mode = values.get("mode")
-        if mode == "triangle":
-            values["scenario_id"] = None
-        elif mode == "scenario":
-            values.setdefault("scenario_id", "tehran_daily_pass")
-        return values
-
-
-@app.on_event("startup")
-def _initialise_directories() -> None:
-    """Ensure that artefact directories exist before handling requests."""
-
-    WEB_ARTEFACT_DIR.mkdir(parents=True, exist_ok=True)
+    @model_validator(mode="after")
+    def _validate_mode_arguments(self) -> "DebugRunRequest":
+        if self.mode == "triangle":
+            self.scenario_id = None
+        elif self.mode == "scenario" and self.scenario_id is None:
+            self.scenario_id = "tehran_daily_pass"
+        return self
 
 
 @app.get("/", response_class=HTMLResponse)
