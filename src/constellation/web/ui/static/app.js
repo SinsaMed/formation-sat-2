@@ -25,6 +25,7 @@
     attribution: '© OpenStreetMap contributors',
   };
   const TRACK_COLOURS = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
+  const RAD2DEG = 180 / Math.PI;
 
   const state = {
     view: 'home',
@@ -387,14 +388,16 @@
 
   function renderOrbitalTable(summary) {
     orbitalTableBody.innerHTML = '';
-    if (!summary || !summary.metrics || !summary.metrics.orbital_elements) {
+    if (!summary) {
       return;
     }
-    const orbitalMetrics = summary.metrics.orbital_elements;
-    const entries = orbitalMetrics.per_satellite || orbitalMetrics;
+    const entries = buildOrbitalSnapshot(summary);
+    if (!entries) {
+      return;
+    }
     const satelliteIds = Object.keys(entries).filter((key) => {
       const candidate = entries[key];
-      return candidate && typeof candidate === 'object' && 'semi_major_axis_km' in candidate;
+      return candidate && typeof candidate === 'object' && ('semi_major_axis_km' in candidate || 'semiMajorAxis' in candidate);
     });
     satelliteIds.sort();
     satelliteIds.forEach((satId) => {
@@ -402,11 +405,11 @@
       const parameters = entries[satId] || {};
       const values = [
         satId,
-        formatNumber(parameters.semi_major_axis_km),
+        formatNumber(parameters.semi_major_axis_km ?? parameters.semiMajorAxis),
         formatNumber(parameters.eccentricity, 6),
-        formatNumber(parameters.inclination_deg),
-        formatNumber(parameters.raan_deg),
-        formatNumber(parameters.argument_of_perigee_deg),
+        formatNumber(parameters.inclination_deg ?? parameters.inclination),
+        formatNumber(parameters.raan_deg ?? parameters.raan),
+        formatNumber(parameters.argument_of_perigee_deg ?? parameters.argumentOfPerigee),
       ];
       values.forEach((value) => {
         const td = document.createElement('td');
@@ -415,6 +418,46 @@
       });
       orbitalTableBody.appendChild(row);
     });
+  }
+
+  function buildOrbitalSnapshot(summary) {
+    const metrics = summary.metrics || {};
+    const orbital = metrics.orbital_elements || {};
+    if (orbital && orbital.per_satellite && Object.keys(orbital.per_satellite).length) {
+      return orbital.per_satellite;
+    }
+    const geometry = summary.geometry || {};
+    const classical = geometry.classical_elements || {};
+    const satelliteIds = geometry.satellite_ids || Object.keys(classical);
+    if (!satelliteIds || !satelliteIds.length) {
+      return null;
+    }
+    const times = geometry.times || [];
+    const centreIndex = times.length ? Math.floor(times.length / 2) : 0;
+    const snapshot = {};
+    satelliteIds.forEach((satId) => {
+      const elements = classical[satId];
+      if (!elements) {
+        return;
+      }
+      snapshot[satId] = {
+        semi_major_axis_km: pickSeriesValue(elements.semi_major_axis_km, centreIndex),
+        eccentricity: pickSeriesValue(elements.eccentricity, centreIndex),
+        inclination_deg: pickSeriesValue(elements.inclination_deg, centreIndex),
+        raan_deg: pickSeriesValue(elements.raan_deg, centreIndex),
+        argument_of_perigee_deg: pickSeriesValue(elements.argument_of_perigee_deg, centreIndex),
+      };
+    });
+    return Object.keys(snapshot).length ? snapshot : null;
+  }
+
+  function pickSeriesValue(series, index) {
+    if (!Array.isArray(series) || !series.length) {
+      return null;
+    }
+    const clamped = Math.min(Math.max(index, 0), series.length - 1);
+    const value = Number(series[clamped]);
+    return Number.isFinite(value) ? value : null;
   }
 
   function renderGroundTrack(geometry) {
@@ -438,32 +481,25 @@
       return;
     }
 
-    const rad2deg = 180 / Math.PI;
     const boundsPoints = [];
     const legendEntries = [];
 
     (geometry.satellite_ids || []).forEach((satId, index) => {
-      const lats = geometry.latitudes_rad[satId] || [];
-      const lons = geometry.longitudes_rad[satId] || [];
-      if (!Array.isArray(lats) || !Array.isArray(lons) || !lats.length || lats.length !== lons.length) {
+      const lats = geometry.latitudes_rad[satId];
+      const lons = geometry.longitudes_rad[satId];
+      const segments = buildTrackSegments(lats, lons);
+      if (!segments.length) {
         return;
       }
-      const series = lats.map((lat, sampleIndex) => {
-        const latDeg = lat * rad2deg;
-        const lonDeg = normaliseLongitude((lons[sampleIndex] || 0) * rad2deg, CITY_LONGITUDE);
-        const point = [latDeg, lonDeg];
-        boundsPoints.push(point);
-        return point;
+      segments.forEach((segment) => {
+        const polyline = L.polyline(segment, {
+          color: TRACK_COLOURS[index % TRACK_COLOURS.length],
+          weight: 3,
+          opacity: 0.85,
+        }).addTo(map);
+        registerOverlay('ground', polyline);
+        segment.forEach((point) => boundsPoints.push([point[0], point[1]]));
       });
-      if (!series.length) {
-        return;
-      }
-      const polyline = L.polyline(series, {
-        color: TRACK_COLOURS[index % TRACK_COLOURS.length],
-        weight: 3,
-        opacity: 0.85,
-      }).addTo(map);
-      registerOverlay('ground', polyline);
       legendEntries.push({ colour: TRACK_COLOURS[index % TRACK_COLOURS.length], label: satId });
     });
 
@@ -561,38 +597,42 @@
       return;
     }
 
-    const rad2deg = 180 / Math.PI;
     const boundsPoints = [];
     const legendEntries = [];
 
     (geometry.satellite_ids || []).forEach((satId, index) => {
-      const lats = geometry.latitudes_rad[satId] || [];
-      const lons = geometry.longitudes_rad[satId] || [];
-      if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length !== lons.length) {
-        return;
-      }
-      const path = [];
-      for (let i = 0; i < lats.length; i += 1) {
+      const lats = geometry.latitudes_rad[satId];
+      const lons = geometry.longitudes_rad[satId];
+      const maskedLatitudes = [];
+      const maskedLongitudes = [];
+      for (let i = 0; i < (lats || []).length; i += 1) {
         const epoch = timeSeries[i];
-        if (Number.isNaN(epoch) || epoch < startEpoch || epoch > endEpoch) {
-          continue;
+        if (Number.isFinite(epoch) && epoch >= startEpoch && epoch <= endEpoch) {
+          maskedLatitudes.push(lats[i]);
+          maskedLongitudes.push(lons[i]);
+        } else {
+          maskedLatitudes.push(Number.NaN);
+          maskedLongitudes.push(Number.NaN);
         }
-        const latDeg = lats[i] * rad2deg;
-        const lonDeg = normaliseLongitude((lons[i] || 0) * rad2deg, CITY_LONGITUDE);
-        const point = [latDeg, lonDeg];
-        boundsPoints.push(point);
-        path.push(point);
       }
-      if (!path.length) {
+      const segments = buildTrackSegments(maskedLatitudes, maskedLongitudes);
+      if (!segments.length) {
         return;
       }
-      const polyline = L.polyline(path, {
-        color: TRACK_COLOURS[index % TRACK_COLOURS.length],
-        weight: 4,
-        opacity: 0.95,
-      }).addTo(map);
-      registerOverlay('formation', polyline);
-      const startMarker = L.circleMarker(path[0], {
+      segments.forEach((segment) => {
+        const polyline = L.polyline(segment, {
+          color: TRACK_COLOURS[index % TRACK_COLOURS.length],
+          weight: 4,
+          opacity: 0.95,
+        }).addTo(map);
+        registerOverlay('formation', polyline);
+        segment.forEach((point) => boundsPoints.push([point[0], point[1]]));
+      });
+      const firstSegment = segments[0];
+      const lastSegment = segments[segments.length - 1];
+      const startPoint = firstSegment[0];
+      const endPoint = lastSegment[lastSegment.length - 1];
+      const startMarker = L.circleMarker(startPoint, {
         radius: 4,
         color: '#ffffff',
         weight: 1,
@@ -600,7 +640,7 @@
         fillOpacity: 0.9,
       }).addTo(map);
       registerOverlay('formation', startMarker);
-      const endMarker = L.circleMarker(path[path.length - 1], {
+      const endMarker = L.circleMarker(endPoint, {
         radius: 4,
         color: '#121b2c',
         weight: 2,
@@ -773,6 +813,41 @@
     ctx.fillText(satId, x + 20, y);
     });
     ctx.restore();
+  }
+
+  function buildTrackSegments(latitudes, longitudes) {
+    if (!Array.isArray(latitudes) || !Array.isArray(longitudes) || latitudes.length !== longitudes.length) {
+      return [];
+    }
+    const segments = [];
+    let current = [];
+    let previousLongitude = null;
+    for (let i = 0; i < latitudes.length; i += 1) {
+      const lat = latitudes[i];
+      const lon = longitudes[i];
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        if (current.length) {
+          segments.push(current);
+        }
+        current = [];
+        previousLongitude = null;
+        continue;
+      }
+      const latDeg = lat * RAD2DEG;
+      const lonDeg = normaliseLongitude(lon * RAD2DEG);
+      if (previousLongitude !== null && Math.abs(lonDeg - previousLongitude) > 180) {
+        if (current.length) {
+          segments.push(current);
+        }
+        current = [];
+      }
+      current.push([latDeg, lonDeg]);
+      previousLongitude = lonDeg;
+    }
+    if (current.length) {
+      segments.push(current);
+    }
+    return segments;
   }
 
   function buildOrbitalElementSeries(geometry, timeSeconds) {
@@ -958,10 +1033,15 @@
     return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
   }
 
-  function normaliseLongitude(lonDeg, referenceDeg) {
-    let delta = lonDeg - referenceDeg;
-    delta = ((delta + 180) % 360 + 360) % 360 - 180;
-    return referenceDeg + delta;
+  function normaliseLongitude(lonDeg) {
+    if (!Number.isFinite(lonDeg)) {
+      return Number.NaN;
+    }
+    let wrapped = ((lonDeg + 180) % 360 + 360) % 360 - 180;
+    if (wrapped === -180) {
+      wrapped = 180;
+    }
+    return wrapped;
   }
 
   function formatNumber(value, digits = 3) {

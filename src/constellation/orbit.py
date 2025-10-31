@@ -20,6 +20,11 @@ from .roe import MU_EARTH, OrbitalElements
 
 EARTH_ROTATION_RATE = 7.2921150e-5  # [rad s^-1]
 EARTH_EQUATORIAL_RADIUS_M = 6_378_137.0  # [m]
+WGS84_FLATTENING = 1.0 / 298.257_223_563
+WGS84_ECCENTRICITY_SQUARED = 2.0 * WGS84_FLATTENING - WGS84_FLATTENING**2
+WGS84_SECOND_ECCENTRICITY_SQUARED = (
+    WGS84_ECCENTRICITY_SQUARED / (1.0 - WGS84_ECCENTRICITY_SQUARED)
+)
 
 
 def _wrap_angle(angle: float) -> float:
@@ -258,13 +263,39 @@ def julian_date(epoch: datetime) -> float:
 
 
 def geodetic_coordinates(position_ecef: Sequence[float]) -> Tuple[float, float, float]:
-    """Return geodetic latitude, longitude, and altitude from *position_ecef*."""
+    """Return WGS‑84 geodetic latitude, longitude, and altitude from *position_ecef*."""
 
     x, y, z = position_ecef
     longitude = math.atan2(y, x)
-    hyp = math.hypot(x, y)
-    latitude = math.atan2(z, hyp)
-    altitude = math.sqrt(x * x + y * y + z * z) - EARTH_EQUATORIAL_RADIUS_M
+    p = math.hypot(x, y)
+
+    if p < 1.0e-12:
+        latitude = math.copysign(math.pi / 2.0, z)
+        polar_radius = EARTH_EQUATORIAL_RADIUS_M * (1.0 - WGS84_FLATTENING)
+        altitude = abs(z) - polar_radius
+        return latitude, longitude, altitude
+
+    a = EARTH_EQUATORIAL_RADIUS_M
+    b = a * (1.0 - WGS84_FLATTENING)
+
+    theta = math.atan2(z * a, p * b)
+    sin_theta = math.sin(theta)
+    cos_theta = math.cos(theta)
+
+    latitude = math.atan2(
+        z + WGS84_SECOND_ECCENTRICITY_SQUARED * b * sin_theta**3,
+        p - WGS84_ECCENTRICITY_SQUARED * a * cos_theta**3,
+    )
+
+    sin_lat = math.sin(latitude)
+    N = a / math.sqrt(1.0 - WGS84_ECCENTRICITY_SQUARED * sin_lat**2)
+
+    cos_lat = math.cos(latitude)
+    if abs(cos_lat) > 1.0e-12:
+        altitude = p / cos_lat - N
+    else:
+        altitude = z / math.sin(latitude) - N * (1.0 - WGS84_ECCENTRICITY_SQUARED)
+
     return latitude, longitude, altitude
 
 
@@ -283,6 +314,9 @@ def haversine_distance(latitude_1: float, longitude_1: float, latitude_2: float,
 __all__ = [
     "EARTH_EQUATORIAL_RADIUS_M",
     "EARTH_ROTATION_RATE",
+    "WGS84_FLATTENING",
+    "WGS84_ECCENTRICITY_SQUARED",
+    "WGS84_SECOND_ECCENTRICITY_SQUARED",
     "classical_to_cartesian",
     "geodetic_coordinates",
     "greenwich_sidereal_angle",
