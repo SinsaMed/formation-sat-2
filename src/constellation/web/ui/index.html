@@ -10,8 +10,20 @@
       href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w=="
+      crossorigin=""
+    />
     <link rel="stylesheet" href="/web/static/app.css" />
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" defer></script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+      crossorigin=""
+      defer
+    ></script>
     <script src="/web/static/app.js" defer></script>
   </head>
   <body>
@@ -69,7 +81,19 @@
           </figure>
           <figure>
             <figcaption>گراوند ترک متمرکز بر تهران</figcaption>
-            <canvas id="ground-track" width="720" height="420"></canvas>
+            <div id="ground-track-map" class="map-view">
+              <div class="map-placeholder" id="ground-track-placeholder">
+                پس از اجراى سناریو، مسیر پوشش همراه با نقشه زمین نمایش داده خواهد شد.
+              </div>
+            </div>
+          </figure>
+          <figure>
+            <figcaption>گراوند ترک ماهواره‌ها در بازهٔ فورمیشن</figcaption>
+            <div id="formation-window-map" class="map-view">
+              <div class="map-placeholder" id="formation-window-placeholder">
+                پس از اجراى سناریو، رد زمینی هر سه ماهواره در بازهٔ فورمیشن در این نما نمایش داده مى‌شود.
+              </div>
+            </div>
           </figure>
           <figure class="wide">
             <figcaption>تغییر المان‌های مداری طی اجرا</figcaption>

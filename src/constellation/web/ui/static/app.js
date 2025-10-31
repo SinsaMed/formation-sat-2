@@ -12,10 +12,19 @@
   const BASE_TRIANGLE_CONFIG = bootstrapData.baseConfig || {};
   const DURATION_OPTIONS = bootstrapData.durationOptions || [];
   const DEFAULT_CITY = bootstrapData.defaultCity || {};
+  const CITY_LATITUDE = Number(DEFAULT_CITY.latitude_deg) || 35.6892;
+  const CITY_LONGITUDE = Number(DEFAULT_CITY.longitude_deg) || 51.389;
   const constants = bootstrapData.constants || {};
   const EARTH_RADIUS_M = constants.earthRadiusM || 1;
   const MU_EARTH = constants.muEarth || 1;
   const DEVELOPMENT_TEXT = bootstrapData.developmentText || '';
+  const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const MAP_TILE_OPTIONS = {
+    maxZoom: 10,
+    minZoom: 2,
+    attribution: '© OpenStreetMap contributors',
+  };
+  const TRACK_COLOURS = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
 
   const state = {
     view: 'home',
@@ -25,6 +34,10 @@
     city: DEFAULT_CITY,
     threeAnimation: null,
     threeRenderer: null,
+    maps: {
+      ground: createEmptyMapStore(),
+      formation: createEmptyMapStore(),
+    },
   };
 
   const navButtons = Array.from(document.querySelectorAll('.nav-item'));
@@ -33,7 +46,14 @@
   const statusMessage = document.getElementById('status-message');
   const summaryContainer = document.getElementById('run-summary');
   const orbitalTableBody = document.querySelector('#orbital-table tbody');
-  const groundTrackCanvas = document.getElementById('ground-track');
+  const groundTrackMapContainer = document.getElementById('ground-track-map');
+  const formationWindowMapContainer = document.getElementById('formation-window-map');
+  const groundTrackPlaceholder = document.getElementById('ground-track-placeholder');
+  const formationWindowPlaceholder = document.getElementById('formation-window-placeholder');
+  const defaultGroundPlaceholderText = groundTrackPlaceholder ? groundTrackPlaceholder.textContent : '';
+  const defaultFormationPlaceholderText = formationWindowPlaceholder
+    ? formationWindowPlaceholder.textContent
+    : '';
   const elementChartCanvas = document.getElementById('element-chart');
   const threeContainer = document.getElementById('three-d-view');
   const homeControls = document.getElementById('home-controls');
@@ -122,19 +142,117 @@
     summaryContainer.innerHTML = '';
     orbitalTableBody.innerHTML = '';
     resetGroundTrack();
+    resetFormationWindow();
     resetElementChart();
     resetThreeView();
   }
 
   function resetGroundTrack() {
-    if (!groundTrackCanvas) return;
-    const ctx = groundTrackCanvas.getContext('2d');
-    ctx.clearRect(0, 0, groundTrackCanvas.width, groundTrackCanvas.height);
-    ctx.fillStyle = '#061830';
-    ctx.fillRect(0, 0, groundTrackCanvas.width, groundTrackCanvas.height);
-    ctx.fillStyle = '#94b8ff';
-    ctx.font = '16px Vazirmatn, sans-serif';
-    ctx.fillText('پس از اجراى سناریو مسیر پوشش نمایش داده خواهد شد.', 30, groundTrackCanvas.height / 2);
+    if (groundTrackPlaceholder) {
+      groundTrackPlaceholder.textContent = defaultGroundPlaceholderText;
+      togglePlaceholder(groundTrackPlaceholder, true);
+    }
+    clearMapOverlays('ground');
+    const map = ensureLeafletMap('ground', groundTrackMapContainer);
+    if (map) {
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 4);
+      setTimeout(() => map.invalidateSize(), 0);
+    }
+  }
+
+  function resetFormationWindow() {
+    if (formationWindowPlaceholder) {
+      formationWindowPlaceholder.textContent = defaultFormationPlaceholderText;
+      togglePlaceholder(formationWindowPlaceholder, true);
+    }
+    clearMapOverlays('formation');
+    const map = ensureLeafletMap('formation', formationWindowMapContainer);
+    if (map) {
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 6);
+      setTimeout(() => map.invalidateSize(), 0);
+    }
+  }
+
+  function createEmptyMapStore() {
+    return { map: null, overlays: [], baseLayer: null };
+  }
+
+  function ensureLeafletMap(key, container) {
+    if (!container) {
+      return null;
+    }
+    if (typeof window === 'undefined' || typeof window.L === 'undefined') {
+      console.warn('Leaflet library is not available.');
+      return null;
+    }
+    if (!state.maps[key]) {
+      state.maps[key] = createEmptyMapStore();
+    }
+    const store = state.maps[key];
+    if (store.map) {
+      return store.map;
+    }
+    const map = L.map(container, {
+      zoomControl: true,
+      attributionControl: true,
+      worldCopyJump: true,
+    });
+    store.map = map;
+    store.baseLayer = L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map);
+    return map;
+  }
+
+  function clearMapOverlays(key) {
+    const store = state.maps[key];
+    if (!store || !store.overlays) {
+      return;
+    }
+    store.overlays.forEach((layer) => {
+      if (!layer) {
+        return;
+      }
+      if (typeof layer.remove === 'function') {
+        layer.remove();
+      } else if (store.map && typeof store.map.removeLayer === 'function') {
+        store.map.removeLayer(layer);
+      }
+    });
+    store.overlays = [];
+  }
+
+  function registerOverlay(key, layer) {
+    const store = state.maps[key];
+    if (!store) {
+      return;
+    }
+    store.overlays = store.overlays || [];
+    store.overlays.push(layer);
+  }
+
+  function togglePlaceholder(placeholder, visible) {
+    if (!placeholder) {
+      return;
+    }
+    placeholder.classList.toggle('hidden', !visible);
+  }
+
+  function createLegendControl(entries) {
+    if (!entries.length || typeof window === 'undefined' || typeof window.L === 'undefined') {
+      return null;
+    }
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = () => {
+      const container = L.DomUtil.create('div', 'map-legend');
+      entries.forEach((entry) => {
+        const item = L.DomUtil.create('div', 'map-legend-item', container);
+        const swatch = L.DomUtil.create('span', 'map-legend-swatch', item);
+        swatch.style.backgroundColor = entry.colour;
+        const label = L.DomUtil.create('span', 'map-legend-label', item);
+        label.textContent = entry.label;
+      });
+      return container;
+    };
+    return legend;
   }
 
   function resetElementChart() {
@@ -196,6 +314,7 @@
       renderRunSummary(data);
       renderOrbitalTable(data.summary);
       renderGroundTrack(data.summary.geometry);
+      renderFormationWindow(data.summary.geometry, data.summary.metrics);
       renderElementChart(data.summary.geometry);
       renderThreeView(data.summary.geometry);
       updateStatus('سناریو با موفقیت اجرا شد.');
@@ -299,97 +418,236 @@
   }
 
   function renderGroundTrack(geometry) {
-    resetGroundTrack();
-    if (!geometry || !geometry.latitudes_rad) return;
-    const ctx = groundTrackCanvas.getContext('2d');
-    const width = groundTrackCanvas.width;
-    const height = groundTrackCanvas.height;
-    const latCentre = DEFAULT_CITY.latitude_deg;
-    const lonCentre = DEFAULT_CITY.longitude_deg;
-    const rad2deg = 180 / Math.PI;
-
-    const tracks = [];
-    const allLatitudes = [latCentre];
-    const allLongitudes = [lonCentre];
-
-    (geometry.satellite_ids || []).forEach((satId) => {
-      const lats = geometry.latitudes_rad[satId] || [];
-      const lons = geometry.longitudes_rad[satId] || [];
-      if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length === 0 || lats.length !== lons.length) {
-        return;
+    clearMapOverlays('ground');
+    const map = ensureLeafletMap('ground', groundTrackMapContainer);
+    if (!map) {
+      if (groundTrackPlaceholder) {
+        groundTrackPlaceholder.textContent = 'کتابخانهٔ نقشه در دسترس نیست.';
+        togglePlaceholder(groundTrackPlaceholder, true);
       }
-      const points = lats.map((lat, index) => {
-        const latDeg = lat * rad2deg;
-        let lonDeg = (lons[index] || 0) * rad2deg;
-        lonDeg = normaliseLongitude(lonDeg, lonCentre);
-        allLatitudes.push(latDeg);
-        allLongitudes.push(lonDeg);
-        return { lat: latDeg, lon: lonDeg };
-      });
-      tracks.push({ satId, points });
-    });
-
-    if (!tracks.length) {
       return;
     }
 
-    const latExtent = computeExtent(allLatitudes, 2, -90, 90);
-    const lonExtent = computeExtent(allLongitudes, 2, -180, 180);
+    if (!geometry || !geometry.latitudes_rad || !(geometry.satellite_ids || []).length) {
+      if (groundTrackPlaceholder) {
+        groundTrackPlaceholder.textContent = 'داده‌اى براى گراوند ترک یافت نشد.';
+        togglePlaceholder(groundTrackPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 4);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
 
-    ctx.fillStyle = '#041327';
-    ctx.fillRect(0, 0, width, height);
+    const rad2deg = 180 / Math.PI;
+    const boundsPoints = [];
+    const legendEntries = [];
 
-    drawLatitudeLongitudeGrid(ctx, {
-      width,
-      height,
-      latMin: latExtent.min,
-      latMax: latExtent.max,
-      lonMin: lonExtent.min,
-      lonMax: lonExtent.max,
-    });
-
-    const toCanvas = (latDeg, lonDeg) => {
-      const x = ((lonDeg - lonExtent.min) / Math.max(lonExtent.max - lonExtent.min, 1e-6)) * width;
-      const y = height - ((latDeg - latExtent.min) / Math.max(latExtent.max - latExtent.min, 1e-6)) * height;
-      return [x, y];
-    };
-
-    const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
-    tracks.forEach((track, index) => {
-      const series = track.points;
-      if (!series.length) return;
-      ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = colours[index % colours.length];
-      let previous = null;
-      series.forEach((point, pointIndex) => {
-        const [x, y] = toCanvas(point.lat, point.lon);
-        if (pointIndex === 0 || !previous) {
-          ctx.moveTo(x, y);
-        } else {
-          const lonJump = Math.abs(point.lon - previous.lon);
-          const lonRange = Math.max(lonExtent.max - lonExtent.min, 1e-6);
-          if (lonJump > 0.5 * lonRange) {
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        previous = point;
+    (geometry.satellite_ids || []).forEach((satId, index) => {
+      const lats = geometry.latitudes_rad[satId] || [];
+      const lons = geometry.longitudes_rad[satId] || [];
+      if (!Array.isArray(lats) || !Array.isArray(lons) || !lats.length || lats.length !== lons.length) {
+        return;
+      }
+      const series = lats.map((lat, sampleIndex) => {
+        const latDeg = lat * rad2deg;
+        const lonDeg = normaliseLongitude((lons[sampleIndex] || 0) * rad2deg, CITY_LONGITUDE);
+        const point = [latDeg, lonDeg];
+        boundsPoints.push(point);
+        return point;
       });
-      ctx.stroke();
+      if (!series.length) {
+        return;
+      }
+      const polyline = L.polyline(series, {
+        color: TRACK_COLOURS[index % TRACK_COLOURS.length],
+        weight: 3,
+        opacity: 0.85,
+      }).addTo(map);
+      registerOverlay('ground', polyline);
+      legendEntries.push({ colour: TRACK_COLOURS[index % TRACK_COLOURS.length], label: satId });
     });
 
-    const [cx, cy] = toCanvas(latCentre, normaliseLongitude(lonCentre, lonCentre));
-    ctx.fillStyle = '#ffd54f';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = '15px Vazirmatn, sans-serif';
-    ctx.fillStyle = '#ffe082';
-    ctx.fillText('تهران', cx + 10, cy - 10);
+    if (!legendEntries.length) {
+      if (groundTrackPlaceholder) {
+        groundTrackPlaceholder.textContent = 'مسیرى براى نمایش موجود نیست.';
+        togglePlaceholder(groundTrackPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 4);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const tehranMarker = L.circleMarker([CITY_LATITUDE, CITY_LONGITUDE], {
+      radius: 6,
+      color: '#ffd54f',
+      weight: 2,
+      fillColor: '#ffe082',
+      fillOpacity: 1,
+    }).addTo(map);
+    tehranMarker.bindTooltip('تهران', { direction: 'top', permanent: true, className: 'map-tooltip' });
+    registerOverlay('ground', tehranMarker);
+
+    const legend = createLegendControl(legendEntries);
+    if (legend) {
+      legend.addTo(map);
+      registerOverlay('ground', legend);
+    }
+
+    togglePlaceholder(groundTrackPlaceholder, false);
+
+    if (boundsPoints.length) {
+      const bounds = L.latLngBounds(boundsPoints);
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.18));
+      }
+    } else {
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 4);
+    }
+    setTimeout(() => map.invalidateSize(), 200);
+  }
+
+  function renderFormationWindow(geometry, metrics) {
+    clearMapOverlays('formation');
+    const map = ensureLeafletMap('formation', formationWindowMapContainer);
+    if (!map) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'کتابخانهٔ نقشه در دسترس نیست.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      return;
+    }
+
+    if (!geometry || !geometry.latitudes_rad) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'داده‌اى براى بازهٔ فورمیشن یافت نشد.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const windowInfo = metrics && metrics.formation_window;
+    if (!windowInfo || !windowInfo.start || !windowInfo.end) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'خروجى شامل بازهٔ فورمیشن معتبر نیست.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const startEpoch = Date.parse(windowInfo.start);
+    const endEpoch = Date.parse(windowInfo.end);
+    if (Number.isNaN(startEpoch) || Number.isNaN(endEpoch)) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'زمان‌بندى بازهٔ فورمیشن قابل تفسیر نیست.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const timeSeries = (geometry.times || []).map((value) => Date.parse(value));
+    if (!timeSeries.length || timeSeries.every((value) => Number.isNaN(value))) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'نمونه‌هاى زمانى براى بازهٔ فورمیشن موجود نیست.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const rad2deg = 180 / Math.PI;
+    const boundsPoints = [];
+    const legendEntries = [];
+
+    (geometry.satellite_ids || []).forEach((satId, index) => {
+      const lats = geometry.latitudes_rad[satId] || [];
+      const lons = geometry.longitudes_rad[satId] || [];
+      if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length !== lons.length) {
+        return;
+      }
+      const path = [];
+      for (let i = 0; i < lats.length; i += 1) {
+        const epoch = timeSeries[i];
+        if (Number.isNaN(epoch) || epoch < startEpoch || epoch > endEpoch) {
+          continue;
+        }
+        const latDeg = lats[i] * rad2deg;
+        const lonDeg = normaliseLongitude((lons[i] || 0) * rad2deg, CITY_LONGITUDE);
+        const point = [latDeg, lonDeg];
+        boundsPoints.push(point);
+        path.push(point);
+      }
+      if (!path.length) {
+        return;
+      }
+      const polyline = L.polyline(path, {
+        color: TRACK_COLOURS[index % TRACK_COLOURS.length],
+        weight: 4,
+        opacity: 0.95,
+      }).addTo(map);
+      registerOverlay('formation', polyline);
+      const startMarker = L.circleMarker(path[0], {
+        radius: 4,
+        color: '#ffffff',
+        weight: 1,
+        fillColor: TRACK_COLOURS[index % TRACK_COLOURS.length],
+        fillOpacity: 0.9,
+      }).addTo(map);
+      registerOverlay('formation', startMarker);
+      const endMarker = L.circleMarker(path[path.length - 1], {
+        radius: 4,
+        color: '#121b2c',
+        weight: 2,
+        fillColor: TRACK_COLOURS[index % TRACK_COLOURS.length],
+        fillOpacity: 1,
+      }).addTo(map);
+      registerOverlay('formation', endMarker);
+      legendEntries.push({ colour: TRACK_COLOURS[index % TRACK_COLOURS.length], label: satId });
+    });
+
+    if (!legendEntries.length) {
+      if (formationWindowPlaceholder) {
+        formationWindowPlaceholder.textContent = 'رد زمینی براى بازهٔ فورمیشن موجود نیست.';
+        togglePlaceholder(formationWindowPlaceholder, true);
+      }
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+      setTimeout(() => map.invalidateSize(), 200);
+      return;
+    }
+
+    const tehranMarker = L.circleMarker([CITY_LATITUDE, CITY_LONGITUDE], {
+      radius: 6,
+      color: '#ffd54f',
+      weight: 2,
+      fillColor: '#ffe082',
+      fillOpacity: 1,
+    }).addTo(map);
+    tehranMarker.bindTooltip('تهران', { direction: 'top', permanent: true, className: 'map-tooltip' });
+    registerOverlay('formation', tehranMarker);
+
+    const legend = createLegendControl(legendEntries);
+    if (legend) {
+      legend.addTo(map);
+      registerOverlay('formation', legend);
+    }
+
+    togglePlaceholder(formationWindowPlaceholder, false);
+
+    if (boundsPoints.length) {
+      const bounds = L.latLngBounds(boundsPoints);
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.22));
+      }
+    } else {
+      map.setView([CITY_LATITUDE, CITY_LONGITUDE], 7);
+    }
+    setTimeout(() => map.invalidateSize(), 200);
   }
 
   function renderElementChart(geometry) {
@@ -406,7 +664,7 @@
     }
     const start = timeEpochs[0];
     const timeSeconds = timeEpochs.map((t) => (t - start) / 1000.0);
-    const colours = ['#7fd0ff', '#ffb74d', '#ce93d8', '#80cbc4'];
+    const colours = TRACK_COLOURS;
     const metrics = [
       { key: 'semiMajorAxis', label: 'نیم‌محور بزرگ (km)' },
       { key: 'eccentricity', label: 'اگزا‌نتریسیته' },
@@ -589,8 +847,8 @@
       satelliteMesh.position.copy(points[points.length - 1]);
       scene.add(satelliteMesh);
     });
-    const lat = DEFAULT_CITY.latitude_deg * (Math.PI / 180);
-    const lon = DEFAULT_CITY.longitude_deg * (Math.PI / 180);
+    const lat = CITY_LATITUDE * (Math.PI / 180);
+    const lon = CITY_LONGITUDE * (Math.PI / 180);
     const tehranMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffd54f }));
     tehranMarker.position.set(
       Math.cos(lat) * Math.cos(lon),
@@ -700,71 +958,10 @@
     return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
   }
 
-  function computeExtent(values, minimumMarginDeg, hardMin, hardMax) {
-    const valid = values.filter((value) => Number.isFinite(value));
-    if (!valid.length) {
-      return { min: hardMin, max: hardMax };
-    }
-    let min = Math.max(hardMin, Math.min(...valid));
-    let max = Math.min(hardMax, Math.max(...valid));
-    const span = max - min;
-    const margin = Math.max(minimumMarginDeg, span * 0.1);
-    min = Math.max(hardMin, min - margin);
-    max = Math.min(hardMax, max + margin);
-    if (max - min < minimumMarginDeg) {
-      const mid = 0.5 * (max + min);
-      min = Math.max(hardMin, mid - minimumMarginDeg);
-      max = Math.min(hardMax, mid + minimumMarginDeg);
-    }
-    return { min, max };
-  }
-
   function normaliseLongitude(lonDeg, referenceDeg) {
     let delta = lonDeg - referenceDeg;
     delta = ((delta + 180) % 360 + 360) % 360 - 180;
     return referenceDeg + delta;
-  }
-
-  function drawLatitudeLongitudeGrid(ctx, bounds) {
-    const { width, height, latMin, latMax, lonMin, lonMax } = bounds;
-    const latStep = determineNiceStep(latMax - latMin);
-    const lonStep = determineNiceStep(lonMax - lonMin);
-    ctx.save();
-    ctx.strokeStyle = 'rgba(126, 185, 255, 0.12)';
-    ctx.fillStyle = '#5c7fbf';
-    ctx.font = '12px Vazirmatn, sans-serif';
-
-    for (let lat = Math.ceil(latMin / latStep) * latStep; lat <= latMax + 1e-6; lat += latStep) {
-      const y = height - ((lat - latMin) / Math.max(latMax - latMin, 1e-6)) * height;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-      ctx.fillText(`${lat.toFixed(1)}°`, 6, y - 4);
-    }
-
-    for (let lon = Math.ceil(lonMin / lonStep) * lonStep; lon <= lonMax + 1e-6; lon += lonStep) {
-      const x = ((lon - lonMin) / Math.max(lonMax - lonMin, 1e-6)) * width;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-      ctx.fillText(`${lon.toFixed(1)}°`, x + 4, height - 6);
-    }
-
-    ctx.restore();
-  }
-
-  function determineNiceStep(range) {
-    if (!Number.isFinite(range) || range <= 0) {
-      return 5;
-    }
-    const roughStep = range / 6;
-    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-    const scaled = roughStep / magnitude;
-    if (scaled >= 5) return 5 * magnitude;
-    if (scaled >= 2) return 2 * magnitude;
-    return magnitude;
   }
 
   function formatNumber(value, digits = 3) {
@@ -787,6 +984,7 @@
   }
 
   resetGroundTrack();
+  resetFormationWindow();
   resetElementChart();
   initialiseNavigation();
   populateDurations();
