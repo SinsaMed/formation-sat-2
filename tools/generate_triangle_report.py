@@ -456,9 +456,14 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
         times = list(summary.run.times)
     if not times:
         return
-    index = _find_nearest_epoch_index(times, start) if start else 0
-    if index is None:
-        index = 0
+    index = 0
+    if start:
+        index = next(
+            (i for i, ts in enumerate(times) if ts and ts >= start),
+            None,
+        )
+        if index is None:
+            index = _find_nearest_epoch_index(times, start) or 0
 
     time_step = float(summary.run.time_step)
     centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
@@ -520,14 +525,14 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     polygon_y = [lvlh_coordinates[sat][1] for sat in cycle]
     polygon_x = [lvlh_coordinates[sat][0] for sat in cycle]
     ax.fill(polygon_y, polygon_x, color="#d0e2ff", alpha=0.18, zorder=1)
-    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="--", zorder=2)
+    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=2.0, linestyle="-", zorder=2)
 
     for sat in ordered:
         coords = lvlh_coordinates[sat]
         ax.scatter(
             coords[1],
             coords[0],
-            s=170,
+            s=210,
             color=colours.get(sat, "#3182bd"),
             edgecolor="#1a1a1a",
             linewidths=0.8,
@@ -566,8 +571,8 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
 
     along = np.array([lvlh_coordinates[sat][1] for sat in sat_ids])
     radial = np.array([lvlh_coordinates[sat][0] for sat in sat_ids])
-    along_margin = max(0.1, (along.max() - along.min()) * 0.4)
-    radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
+    along_margin = max(0.05, (along.max() - along.min()) * 0.2)
+    radial_margin = max(0.05, (radial.max() - radial.min()) * 0.2)
 
     timestamp = times[index]
     timestamp_str = (
