@@ -7,6 +7,7 @@ import math
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -30,6 +31,9 @@ J2_COEFFICIENT = 1.08262668e-3
 SOLAR_PRESSURE_PA = 4.56e-6
 REFLECTIVITY_COEFF = 1.3
 SECONDS_PER_DAY = 86_400
+
+# Outline extracted from OpenStreetMap (ODbL) via polygons.openstreetmap.fr.
+TEHRAN_BOUNDARY_PATH = Path(__file__).resolve().parents[1] / "data" / "tehran_boundary.geojson"
 
 
 @dataclass
@@ -142,6 +146,41 @@ def _wrap_longitudes(longitudes_deg: np.ndarray, geometry: dict[str, object] | N
     centre = float(target.get("longitude_deg", 0.0))
     wrapped = ((longitudes_deg - centre + 180.0) % 360.0) - 180.0 + centre
     return wrapped
+
+
+@lru_cache(maxsize=1)
+def _load_tehran_boundary_polygons() -> list[np.ndarray]:
+    if not TEHRAN_BOUNDARY_PATH.exists():
+        return []
+    try:
+        raw = json.loads(TEHRAN_BOUNDARY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    polygons: list[np.ndarray] = []
+    geometry_type = raw.get("type")
+    coordinates = raw.get("coordinates")
+
+    if not coordinates:
+        return []
+
+    if geometry_type == "MultiPolygon":
+        polygon_iterable = coordinates
+    elif geometry_type == "Polygon":
+        polygon_iterable = [coordinates]
+    else:
+        return []
+
+    for polygon in polygon_iterable:
+        if not polygon:
+            continue
+        outer_ring = polygon[0]
+        if not outer_ring:
+            continue
+        xy = np.array([[float(lon), float(lat)] for lon, lat in outer_ring], dtype=float)
+        polygons.append(xy)
+
+    return polygons
 
 
 def _select_local_segment(
@@ -264,14 +303,29 @@ def generate_ground_track_zoom_figure(
     if not collected_lat:
         return
 
-    combined_lat = np.concatenate(collected_lat)
-    combined_lon = np.concatenate(collected_lon)
-    lat_span = combined_lat.max() - combined_lat.min()
-    lon_span = combined_lon.max() - combined_lon.min()
+    track_lat = np.concatenate(collected_lat)
+    track_lon = np.concatenate(collected_lon)
+    lat_span = track_lat.max() - track_lat.min()
+    lon_span = track_lon.max() - track_lon.min()
     lat_margin = max(0.05, lat_span * 0.2)
     lon_margin = max(0.08, lon_span * 0.2)
 
     fig, ax = plt.subplots(figsize=(6.5, 6.0))
+    ax.set_facecolor("#f5f5f5")
+    boundary_polygons = _load_tehran_boundary_polygons()
+    for polygon in boundary_polygons:
+        if polygon.size == 0:
+            continue
+        patch = mpatches.Polygon(
+            polygon,
+            closed=True,
+            facecolor="#f4efe8",
+            edgecolor="#b07d62",
+            linewidth=0.8,
+            alpha=0.9,
+            zorder=1,
+        )
+        ax.add_patch(patch)
     colours = {
         sat: colour
         for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
@@ -362,7 +416,19 @@ def generate_ground_track_zoom_figure(
         marker="*",
         s=140,
         label="Tehran",
+        zorder=6,
     )
+
+    axis_lat = [track_lat, np.array([target_lat])]
+    axis_lon = [track_lon, np.array([target_lon])]
+    for polygon in boundary_polygons:
+        if polygon.size == 0:
+            continue
+        axis_lon.append(polygon[:, 0])
+        axis_lat.append(polygon[:, 1])
+
+    combined_lat = np.concatenate(axis_lat)
+    combined_lon = np.concatenate(axis_lon)
 
     ax.set_xlim(combined_lon.min() - lon_margin, combined_lon.max() + lon_margin)
     ax.set_ylim(combined_lat.min() - lat_margin, combined_lat.max() + lat_margin)
