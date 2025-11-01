@@ -17,7 +17,7 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from sim.formation.triangle import simulate_triangle_formation
+from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
 from src.constellation.frames import eci_to_lvlh
 from src.constellation.orbit import (
     EARTH_EQUATORIAL_RADIUS_M,
@@ -122,7 +122,7 @@ def ensure_output_directory(run_dir: Path) -> Path:
 
 def generate_ground_track_figure(
     summary: SummaryData, config_path: Path, plot_dir: Path
-) -> None:
+) -> TriangleFormationResult | None:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     config_long = deepcopy(config)
     formation = config_long.setdefault("formation", {})
@@ -143,26 +143,41 @@ def generate_ground_track_figure(
     start = _parse_iso8601(window.get("start"))
     end = _parse_iso8601(window.get("end"))
 
+    colour_cycle = plt.get_cmap("tab10")
+    colours = {
+        sat: colour_cycle(index % colour_cycle.N)
+        for index, sat in enumerate(sorted(lat_deg))
+    }
+
     fig, ax = plt.subplots(figsize=(10, 6))
     for sat in sorted(lat_deg):
-        ax.plot(lon_deg[sat], lat_deg[sat], label=f"{sat} ground track")
+        ax.plot(
+            _wrap_longitudes(lon_deg[sat]),
+            lat_deg[sat],
+            color=colours[sat],
+            label=f"{sat} ground track",
+            linewidth=1.2,
+        )
 
     if start and end:
         mask = np.array(
             [bool(t and start <= t <= end) for t in summary.run.times], dtype=bool
         )
-        for sat, lats in summary.run.latitudes.items():
-            if sat not in summary.run.longitudes:
-                continue
-            lon = summary.run.longitudes[sat]
-            if len(lon) != len(mask):
-                continue
-            ax.scatter(
-                np.degrees(lon[mask]),
-                np.degrees(lats[mask]),
-                s=20,
-                label=f"{sat} 90 s window",
-            )
+    else:
+        mask = np.ones(len(summary.run.times), dtype=bool)
+    for sat, lats in summary.run.latitudes.items():
+        if sat not in summary.run.longitudes:
+            continue
+        lon = summary.run.longitudes[sat]
+        if len(lon) != len(mask):
+            continue
+        ax.scatter(
+            _wrap_longitudes(np.degrees(lon[mask])),
+            np.degrees(lats[mask]),
+            s=20,
+            color=colours.get(sat),
+            label=f"{sat} 90 s window",
+        )
 
     ax.set_xlabel("Longitude [deg]")
     ax.set_ylabel("Latitude [deg]")
@@ -173,52 +188,159 @@ def generate_ground_track_figure(
     fig.savefig(plot_dir / "ground_tracks.svg", format="svg")
     plt.close(fig)
 
+    target_lat = float(summary.geometry.get("target", {}).get("latitude_deg", 35.6892))
+    target_lon = float(summary.geometry.get("target", {}).get("longitude_deg", 51.3890))
+    zoom_margin_lat = 0.35
+    zoom_margin_lon = 0.45
 
-def generate_orbital_plane_figure(summary: SummaryData, plot_dir: Path) -> None:
-    sat_ids = sorted(summary.run.positions)
-    if not sat_ids:
+    fig_zoom, ax_zoom = plt.subplots(figsize=(6.5, 6.0))
+    has_data = False
+    for sat, lats in summary.run.latitudes.items():
+        if sat not in summary.run.longitudes:
+            continue
+        lon = summary.run.longitudes[sat]
+        if len(lon) != len(mask):
+            continue
+        window_lat = np.degrees(lats[mask])
+        window_lon = _wrap_longitudes(np.degrees(lon[mask]))
+        if window_lat.size == 0:
+            continue
+        has_data = True
+        ax_zoom.plot(
+            window_lon,
+            window_lat,
+            color=colours.get(sat),
+            marker="o",
+            markersize=4.5,
+            linewidth=1.0,
+            label=f"{sat} Tehran pass",
+        )
+        ax_zoom.scatter(
+            window_lon[-1],
+            window_lat[-1],
+            color=colours.get(sat),
+            s=35,
+            zorder=5,
+        )
+
+    if has_data:
+        ax_zoom.scatter(
+            target_lon,
+            target_lat,
+            marker="*",
+            s=150,
+            color="#000000",
+            label="Tehran",
+            zorder=6,
+        )
+        ax_zoom.set_xlim(target_lon - zoom_margin_lon, target_lon + zoom_margin_lon)
+        ax_zoom.set_ylim(target_lat - zoom_margin_lat, target_lat + zoom_margin_lat)
+        ax_zoom.set_xlabel("Longitude [deg]")
+        ax_zoom.set_ylabel("Latitude [deg]")
+        ax_zoom.set_title("Ninety-second ground tracks centred on Tehran")
+        ax_zoom.set_aspect("equal", adjustable="box")
+        ax_zoom.grid(True, linestyle=":", linewidth=0.6)
+        ax_zoom.legend(loc="upper right", fontsize="small")
+        fig_zoom.tight_layout()
+        fig_zoom.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
+    plt.close(fig_zoom)
+
+    return long_result
+
+
+def generate_orbital_plane_figure(
+    summary: SummaryData,
+    long_result: TriangleFormationResult | None,
+    plot_dir: Path,
+) -> None:
+    if long_result:
+        sat_ids = sorted(long_result.positions_m)
+        positions = {
+            sat: np.asarray(long_result.positions_m[sat], dtype=float) / 1e3
+            for sat in sat_ids
+        }
+        velocities = {
+            sat: np.asarray(long_result.velocities_mps[sat], dtype=float) / 1e3
+            for sat in sat_ids
+        }
+        times = list(long_result.times)
+    else:
+        sat_ids = sorted(summary.run.positions)
+        positions = {
+            sat: np.asarray(summary.run.positions[sat], dtype=float) / 1e3
+            for sat in sat_ids
+        }
+        velocities = {
+            sat: _differentiate(np.asarray(summary.run.positions[sat], dtype=float), summary.run.time_step)
+            / 1e3
+            for sat in sat_ids
+        }
+        times = list(summary.run.times)
+
+    if not sat_ids or not positions:
         return
-    centre_index = len(summary.run.times) // 2
-    fig = plt.figure(figsize=(8, 7))
+    centre_index = len(times) // 2 if times else 0
+    fig = plt.figure(figsize=(9, 8))
     ax = fig.add_subplot(111, projection="3d")
 
-    colours = {sat: colour for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3"])}
+    colour_cycle = plt.get_cmap("tab10")
+    colours = {
+        sat: colour_cycle(index % colour_cycle.N)
+        for index, sat in enumerate(sat_ids)
+    }
+
+    all_points = []
     for sat in sat_ids:
-        pos = summary.run.positions[sat]
-        ax.plot(pos[:, 0] / 1e3, pos[:, 1] / 1e3, pos[:, 2] / 1e3, color=colours[sat], label=sat)
+        pos = positions[sat]
+        ax.plot(
+            pos[:, 0],
+            pos[:, 1],
+            pos[:, 2],
+            color=colours[sat],
+            label=f"{sat} orbit",
+            linewidth=1.4,
+        )
+        if centre_index < len(pos):
+            ax.scatter(
+                pos[centre_index, 0],
+                pos[centre_index, 1],
+                pos[centre_index, 2],
+                color=colours[sat],
+                s=45,
+                depthshade=False,
+            )
+            ax.text(
+                pos[centre_index, 0],
+                pos[centre_index, 1],
+                pos[centre_index, 2],
+                f" {sat}",
+                color=colours[sat],
+            )
+        all_points.append(pos)
 
-    centroid = np.mean([summary.run.positions[sat][centre_index] for sat in sat_ids], axis=0)
-
-    normals = {}
     for sat in sat_ids:
-        pos = summary.run.positions[sat]
-        vel = _differentiate(pos, summary.run.time_step)
-        if len(vel) == 0:
+        pos = positions[sat]
+        vel = velocities.get(sat)
+        if vel is None or len(pos) == 0:
             continue
-        normal = np.cross(pos[centre_index], vel[centre_index])
-        normals[sat] = normal / np.linalg.norm(normal)
-
-    radius = np.linalg.norm(summary.run.positions[sat_ids[0]][centre_index]) / 1e3
-    grid_extent = radius * 0.2
-
-    for plane, members in {"Plane A": sat_ids[:2], "Plane B": sat_ids[2:]}.items():
-        if not members:
+        ref_index = min(centre_index, len(pos) - 1)
+        normal_vec = np.cross(pos[ref_index], vel[ref_index])
+        if np.linalg.norm(normal_vec) == 0.0:
             continue
-        mean_normal = np.mean([normals.get(s, np.zeros(3)) for s in members], axis=0)
-        if not np.any(mean_normal):
-            continue
-        mean_normal = mean_normal / np.linalg.norm(mean_normal)
-        plane_origin = centroid / 1e3
-        tangent = np.array([mean_normal[1], -mean_normal[0], 0.0])
+        normal_vec = normal_vec / np.linalg.norm(normal_vec)
+        origin = pos[ref_index]
+        tangent = np.cross(normal_vec, np.array([0.0, 0.0, 1.0]))
         if np.linalg.norm(tangent) == 0.0:
             tangent = np.array([1.0, 0.0, 0.0])
-        tangent /= np.linalg.norm(tangent)
-        bitangent = np.cross(mean_normal, tangent)
-        u = np.linspace(-grid_extent, grid_extent, 10)
-        v = np.linspace(-grid_extent, grid_extent, 10)
+        tangent = tangent / np.linalg.norm(tangent)
+        bitangent = np.cross(normal_vec, tangent)
+        orbit_radius = np.linalg.norm(origin)
+        grid_extent = orbit_radius * 0.35
+        u = np.linspace(-grid_extent, grid_extent, 12)
+        v = np.linspace(-grid_extent, grid_extent, 12)
         uu, vv = np.meshgrid(u, v)
         plane_points = (
-            plane_origin[None, None, :]
+            origin[None, None, :]
             + uu[..., None] * tangent[None, None, :]
             + vv[..., None] * bitangent[None, None, :]
         )
@@ -226,19 +348,52 @@ def generate_orbital_plane_figure(summary: SummaryData, plot_dir: Path) -> None:
             plane_points[:, :, 0],
             plane_points[:, :, 1],
             plane_points[:, :, 2],
-            alpha=0.2,
-            color="#66c2a5" if plane == "Plane A" else "#8da0cb",
+            alpha=0.18,
+            color=colours[sat],
+            linewidth=0,
+            edgecolor="none",
         )
+
+    earth_radius_km = EARTH_EQUATORIAL_RADIUS_M / 1e3
+    phi = np.linspace(0.0, math.pi, 60)
+    theta = np.linspace(0.0, 2.0 * math.pi, 120)
+    sphere_x = earth_radius_km * np.outer(np.sin(phi), np.cos(theta))
+    sphere_y = earth_radius_km * np.outer(np.sin(phi), np.sin(theta))
+    sphere_z = earth_radius_km * np.outer(np.cos(phi), np.ones_like(theta))
+    ax.plot_surface(
+        sphere_x,
+        sphere_y,
+        sphere_z,
+        rstride=2,
+        cstride=2,
+        color="#5dade2",
+        alpha=0.08,
+        linewidth=0,
+    )
 
     target_lat = float(summary.geometry.get("target", {}).get("latitude_deg", 35.6892))
     target_lon = float(summary.geometry.get("target", {}).get("longitude_deg", 51.3890))
     target_point = _geodetic_to_ecef(target_lat, target_lon, 0.0) / 1e3
-    ax.scatter(target_point[0], target_point[1], target_point[2], color="#000000", marker="*", s=120, label="Tehran target")
+    ax.scatter(
+        target_point[0],
+        target_point[1],
+        target_point[2],
+        color="#000000",
+        marker="*",
+        s=140,
+        label="Tehran",
+        depthshade=False,
+    )
+
+    combined_points = np.vstack(all_points) if all_points else np.empty((0, 3))
+    combined_points = np.vstack([combined_points, target_point])
+    _set_equal_3d_axes(ax, combined_points)
 
     ax.set_xlabel("X [km]")
     ax.set_ylabel("Y [km]")
     ax.set_zlabel("Z [km]")
-    ax.set_title("Orbital planes intersecting above Tehran")
+    ax.set_title("Orbital geometry of the Tehran triangle formation")
+    ax.view_init(elev=22, azim=35)
     ax.legend(loc="upper left", fontsize="small")
     fig.tight_layout()
     fig.savefig(plot_dir / "orbital_planes_3d.svg", format="svg")
@@ -559,6 +714,26 @@ def _geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_m: float) -> np.ndarra
     return np.array([x, y, z], dtype=float)
 
 
+def _wrap_longitudes(values: np.ndarray | Iterable[float]) -> np.ndarray:
+    wrapped = ((np.asarray(values, dtype=float) + 180.0) % 360.0) - 180.0
+    return wrapped
+
+
+def _set_equal_3d_axes(ax, points: np.ndarray) -> None:
+    if points.size == 0:
+        return
+    mins = points.min(axis=0)
+    maxs = points.max(axis=0)
+    span = max(maxs - mins)
+    if span == 0.0:
+        span = 1.0
+    centre = (maxs + mins) / 2.0
+    half = span / 2.0
+    ax.set_xlim(centre[0] - half, centre[0] + half)
+    ax.set_ylim(centre[1] - half, centre[1] + half)
+    ax.set_zlim(centre[2] - half, centre[2] + half)
+
+
 def _load_stk_groundtrack(path: Path) -> tuple[np.ndarray, np.ndarray]:
     lines = path.read_text(encoding="utf-8").splitlines()
     lon = []
@@ -583,8 +758,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     summary = load_summary(args.run_dir)
     plot_dir = ensure_output_directory(args.run_dir)
 
-    generate_ground_track_figure(summary, args.config, plot_dir)
-    generate_orbital_plane_figure(summary, plot_dir)
+    long_result = generate_ground_track_figure(summary, args.config, plot_dir)
+    generate_orbital_plane_figure(summary, long_result, plot_dir)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
