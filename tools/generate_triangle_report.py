@@ -456,7 +456,14 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
         times = list(summary.run.times)
     if not times:
         return
-    index = _find_nearest_epoch_index(times, start) if start else 0
+    index = None
+    if start:
+        for candidate, epoch in enumerate(times):
+            if epoch is not None and epoch >= start:
+                index = candidate
+                break
+    if index is None:
+        index = _find_nearest_epoch_index(times, start) if start else 0
     if index is None:
         index = 0
 
@@ -520,7 +527,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     polygon_y = [lvlh_coordinates[sat][1] for sat in cycle]
     polygon_x = [lvlh_coordinates[sat][0] for sat in cycle]
     ax.fill(polygon_y, polygon_x, color="#d0e2ff", alpha=0.18, zorder=1)
-    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="--", zorder=2)
+    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="-", zorder=2)
 
     for sat in ordered:
         coords = lvlh_coordinates[sat]
@@ -566,16 +573,20 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
 
     along = np.array([lvlh_coordinates[sat][1] for sat in sat_ids])
     radial = np.array([lvlh_coordinates[sat][0] for sat in sat_ids])
-    along_margin = max(0.1, (along.max() - along.min()) * 0.4)
-    radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
+    along_span = along.max() - along.min()
+    radial_span = radial.max() - radial.min()
+    dominant_span = max(along_span, radial_span)
+    margin = max(0.05, dominant_span * 0.2)
+    along_centre = 0.5 * (along.max() + along.min())
+    radial_centre = 0.5 * (radial.max() + radial.min())
 
     timestamp = times[index]
     timestamp_str = (
         timestamp.isoformat().replace("+00:00", "Z") if isinstance(timestamp, datetime) else "n/a"
     )
 
-    ax.set_xlim(along.min() - along_margin, along.max() + along_margin)
-    ax.set_ylim(radial.min() - radial_margin, radial.max() + radial_margin)
+    ax.set_xlim(along_centre - 0.5 * dominant_span - margin, along_centre + 0.5 * dominant_span + margin)
+    ax.set_ylim(radial_centre - 0.5 * dominant_span - margin, radial_centre + 0.5 * dominant_span + margin)
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
     ax.set_aspect("equal", adjustable="datalim")
