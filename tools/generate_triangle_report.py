@@ -16,6 +16,7 @@ import pandas as pd
 
 matplotlib.use("Agg")
 import matplotlib.patches as mpatches  # noqa: E402
+import matplotlib.patheffects as patheffects  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
@@ -148,8 +149,8 @@ def _select_local_segment(
     longitudes: np.ndarray,
     target_lat: float,
     target_lon: float,
-    lat_half_width: float = 2.0,
-    lon_half_width: float = 3.0,
+    lat_half_width: float = 0.6,
+    lon_half_width: float = 0.8,
 ) -> np.ndarray:
     if latitudes.size == 0 or longitudes.size == 0:
         return np.zeros_like(latitudes, dtype=bool)
@@ -265,14 +266,27 @@ def generate_ground_track_zoom_figure(
 
     combined_lat = np.concatenate(collected_lat)
     combined_lon = np.concatenate(collected_lon)
-    lat_margin = max(0.2, (combined_lat.max() - combined_lat.min()) * 0.25)
-    lon_margin = max(0.3, (combined_lon.max() - combined_lon.min()) * 0.25)
+    lat_span = combined_lat.max() - combined_lat.min()
+    lon_span = combined_lon.max() - combined_lon.min()
+    lat_margin = max(0.05, lat_span * 0.2)
+    lon_margin = max(0.08, lon_span * 0.2)
 
     fig, ax = plt.subplots(figsize=(6.5, 6.0))
     colours = {
         sat: colour
         for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
     }
+
+    stroke = [patheffects.Stroke(linewidth=4.0, foreground="#ffffff"), patheffects.Normal()]
+
+    window = summary.metrics.get("formation_window", {})
+    start = _parse_iso8601(window.get("start"))
+    end = _parse_iso8601(window.get("end"))
+    if isinstance(summary.run.times, np.ndarray):
+        times = list(summary.run.times)
+    else:
+        times = list(summary.run.times)
+    start_index = _find_nearest_epoch_index(times, start) if start else None
 
     for sat in sat_ids:
         if sat not in local_segments:
@@ -281,13 +295,45 @@ def generate_ground_track_zoom_figure(
             local_longitudes[sat],
             local_segments[sat],
             color=colours.get(sat, "#3182bd"),
-            linewidth=2.0,
+            linewidth=2.2,
+            zorder=3,
             label=f"{sat} ground track",
+            path_effects=stroke,
         )
 
-    window = summary.metrics.get("formation_window", {})
-    start = _parse_iso8601(window.get("start"))
-    end = _parse_iso8601(window.get("end"))
+        if start_index is not None:
+            lat_series = summary.run.latitudes.get(sat)
+            lon_series = summary.run.longitudes.get(sat)
+            if (
+                lat_series is not None
+                and lon_series is not None
+                and 0 <= start_index < len(lat_series)
+                and len(lat_series) == len(lon_series)
+            ):
+                start_lat = float(np.degrees(lat_series[start_index]))
+                start_lon = float(
+                    _wrap_longitudes(np.degrees(lon_series[start_index]), summary.geometry)
+                )
+                ax.scatter(
+                    start_lon,
+                    start_lat,
+                    s=75,
+                    marker="s",
+                    color=colours.get(sat, "#3182bd"),
+                    edgecolor="#1a1a1a",
+                    linewidths=0.6,
+                    zorder=5,
+                    label=f"{sat} window start",
+                )
+                ax.annotate(
+                    sat,
+                    (start_lon, start_lat),
+                    textcoords="offset points",
+                    xytext=(6, 5),
+                    fontsize="small",
+                    color="#1a1a1a",
+                    zorder=6,
+                )
     if start and end:
         mask = np.array([bool(t and start <= t <= end) for t in summary.run.times], dtype=bool)
         for sat, lats in summary.run.latitudes.items():
@@ -328,6 +374,150 @@ def generate_ground_track_zoom_figure(
     ax.legend(loc="best", fontsize="small")
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
+    plt.close(fig)
+
+
+def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
+    sat_ids = sorted(summary.run.positions)
+    if len(sat_ids) < 3:
+        return
+
+    window = summary.metrics.get("formation_window", {})
+    start = _parse_iso8601(window.get("start"))
+    if isinstance(summary.run.times, np.ndarray):
+        times = list(summary.run.times)
+    else:
+        times = list(summary.run.times)
+    if not times:
+        return
+    index = _find_nearest_epoch_index(times, start) if start else 0
+    if index is None:
+        index = 0
+
+    time_step = float(summary.run.time_step)
+    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+    if time_step > 0.0:
+        centroid_velocities = _differentiate(centroid_positions, time_step)
+        satellite_velocities = {
+            sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
+        }
+    else:
+        centroid_velocities = np.zeros_like(centroid_positions)
+        satellite_velocities = {
+            sat: np.zeros_like(summary.run.positions[sat]) for sat in sat_ids
+        }
+
+    centroid_position = centroid_positions[index]
+    centroid_velocity = centroid_velocities[index]
+
+    if np.linalg.norm(centroid_velocity) == 0.0:
+        for sat in sat_ids:
+            sat_velocity = satellite_velocities.get(sat)
+            if sat_velocity is not None and sat_velocity.shape[0] > index:
+                centroid_velocity = sat_velocity[index]
+                if np.linalg.norm(centroid_velocity) != 0.0:
+                    break
+    if np.linalg.norm(centroid_velocity) == 0.0:
+        radial = centroid_position / np.linalg.norm(centroid_position)
+        reference = np.array([0.0, 0.0, 1.0])
+        if np.allclose(np.cross(reference, radial), 0.0):
+            reference = np.array([0.0, 1.0, 0.0])
+        tangential = np.cross(reference, radial)
+        tangential_norm = np.linalg.norm(tangential)
+        if tangential_norm != 0.0:
+            tangential /= tangential_norm
+            speed = math.sqrt(MU_EARTH / np.linalg.norm(centroid_position))
+            centroid_velocity = tangential * speed
+
+    lvlh_coordinates: dict[str, np.ndarray] = {}
+    colours = {
+        sat: colour
+        for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
+    }
+
+    for sat in sat_ids:
+        rel_vec = summary.run.positions[sat][index] - centroid_position
+        try:
+            lvlh = eci_to_lvlh(centroid_position, centroid_velocity, rel_vec)
+        except ValueError:
+            lvlh = rel_vec
+        lvlh_coordinates[sat] = lvlh / 1e3
+
+    angles = {
+        sat: math.atan2(lvlh_coordinates[sat][1], lvlh_coordinates[sat][0]) for sat in sat_ids
+    }
+    ordered = sorted(sat_ids, key=lambda sat: angles[sat])
+    cycle = ordered + [ordered[0]]
+
+    fig, ax = plt.subplots(figsize=(6.0, 6.0))
+
+    polygon_y = [lvlh_coordinates[sat][1] for sat in cycle]
+    polygon_x = [lvlh_coordinates[sat][0] for sat in cycle]
+    ax.fill(polygon_y, polygon_x, color="#d0e2ff", alpha=0.18, zorder=1)
+    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="--", zorder=2)
+
+    for sat in ordered:
+        coords = lvlh_coordinates[sat]
+        ax.scatter(
+            coords[1],
+            coords[0],
+            s=170,
+            color=colours.get(sat, "#3182bd"),
+            edgecolor="#1a1a1a",
+            linewidths=0.8,
+            zorder=4,
+            label=sat,
+        )
+        ax.annotate(
+            sat,
+            (coords[1], coords[0]),
+            textcoords="offset points",
+            xytext=(8, 6),
+            fontsize="small",
+            color="#1a1a1a",
+            zorder=5,
+        )
+
+    for first, second in zip(ordered, ordered[1:] + ordered[:1]):
+        separation = (
+            np.linalg.norm(
+                summary.run.positions[first][index] - summary.run.positions[second][index]
+            )
+            / 1e3
+        )
+        midpoint = 0.5 * (lvlh_coordinates[first] + lvlh_coordinates[second])
+        ax.text(
+            midpoint[1],
+            midpoint[0],
+            f"{separation:.2f} km",
+            fontsize="x-small",
+            ha="center",
+            va="center",
+            color="#2f3b52",
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="#ffffff", alpha=0.7, linewidth=0.0),
+            zorder=6,
+        )
+
+    along = np.array([lvlh_coordinates[sat][1] for sat in sat_ids])
+    radial = np.array([lvlh_coordinates[sat][0] for sat in sat_ids])
+    along_margin = max(0.1, (along.max() - along.min()) * 0.4)
+    radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
+
+    timestamp = times[index]
+    timestamp_str = (
+        timestamp.isoformat().replace("+00:00", "Z") if isinstance(timestamp, datetime) else "n/a"
+    )
+
+    ax.set_xlim(along.min() - along_margin, along.max() + along_margin)
+    ax.set_ylim(radial.min() - radial_margin, radial.max() + radial_margin)
+    ax.set_xlabel("Along-track [km]")
+    ax.set_ylabel("Radial [km]")
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_title(f"Formation geometry at window start ({timestamp_str})")
+    ax.grid(True, linestyle=":", linewidth=0.6)
+    ax.legend(loc="upper right", fontsize="small")
+    fig.tight_layout()
+    fig.savefig(plot_dir / "formation_triangle_snapshot.svg", format="svg")
     plt.close(fig)
 
 
@@ -877,6 +1067,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
+    generate_formation_triangle_snapshot(summary, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
