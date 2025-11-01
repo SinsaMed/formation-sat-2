@@ -183,6 +183,95 @@ def _load_tehran_boundary_polygons() -> list[np.ndarray]:
     return polygons
 
 
+def _parse_stk_epoch(payload: str) -> datetime:
+    payload = payload.strip()
+    if not payload:
+        raise ValueError("Empty STK epoch string.")
+    if "." in payload:
+        base, fractional = payload.split(".", 1)
+    else:
+        base, fractional = payload, ""
+    base_dt = datetime.strptime(base.strip(), "%d %b %Y %H:%M:%S")
+    microseconds = int(fractional[:6].ljust(6, "0")) if fractional else 0
+    return base_dt.replace(microsecond=microseconds, tzinfo=timezone.utc)
+
+
+def _parse_stk_ephemeris_file(path: Path) -> tuple[list[datetime], np.ndarray]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    scenario_epoch: Optional[datetime] = None
+    times: list[datetime] = []
+    positions_km: list[list[float]] = []
+    in_section = False
+
+    for raw_line in lines:
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("ScenarioEpoch"):
+            scenario_epoch = _parse_stk_epoch(stripped[len("ScenarioEpoch") :].strip())
+            continue
+        if stripped.startswith("BEGIN EphemerisTimePosVel"):
+            in_section = True
+            continue
+        if stripped.startswith("END EphemerisTimePosVel"):
+            break
+        if not in_section:
+            continue
+
+        parts = stripped.split()
+        if len(parts) < 4 or scenario_epoch is None:
+            continue
+        try:
+            offset = float(parts[0])
+            x_km = float(parts[1])
+            y_km = float(parts[2])
+            z_km = float(parts[3])
+        except ValueError:
+            continue
+
+        epoch = scenario_epoch + timedelta(seconds=offset)
+        times.append(epoch)
+        positions_km.append([x_km, y_km, z_km])
+
+    return times, np.asarray(positions_km, dtype=float)
+
+
+def _load_stk_ephemeris(
+    run_dir: Path, sat_ids: Iterable[str]
+) -> Optional[tuple[list[datetime], dict[str, np.ndarray]]]:
+    ephemeris_dir = run_dir / "stk"
+    if not ephemeris_dir.exists():
+        return None
+
+    reference_times: Optional[list[datetime]] = None
+    positions_m: dict[str, np.ndarray] = {}
+
+    for sat_id in sat_ids:
+        file_name = f"{sat_id.replace('-', '_')}.e"
+        file_path = ephemeris_dir / file_name
+        if not file_path.exists():
+            return None
+
+        times, positions_km = _parse_stk_ephemeris_file(file_path)
+        if not times or positions_km.size == 0:
+            return None
+
+        if reference_times is None:
+            reference_times = times
+        else:
+            if len(times) != len(reference_times):
+                return None
+            if any(abs((a - b).total_seconds()) > 1e-3 for a, b in zip(times, reference_times)):
+                return None
+
+        positions_m[sat_id] = positions_km * 1e3
+
+    if reference_times is None:
+        return None
+
+    return reference_times, positions_m
+
+
 def _select_local_segment(
     latitudes: np.ndarray,
     longitudes: np.ndarray,
@@ -443,34 +532,47 @@ def generate_ground_track_zoom_figure(
     plt.close(fig)
 
 
-def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
+def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, plot_dir: Path) -> None:
     sat_ids = sorted(summary.run.positions)
     if len(sat_ids) < 3:
         return
 
     window = summary.metrics.get("formation_window", {})
     start = _parse_iso8601(window.get("start"))
-    if isinstance(summary.run.times, np.ndarray):
-        times = list(summary.run.times)
-    else:
-        times = list(summary.run.times)
+    positions = summary.run.positions
+    times: list[datetime] = []
+    time_step = float(summary.run.time_step)
+
+    stk_data = _load_stk_ephemeris(run_dir, sat_ids)
+    if stk_data is not None:
+        stk_times, stk_positions = stk_data
+        if stk_positions and all(sat in stk_positions for sat in sat_ids):
+            positions = stk_positions
+            times = list(stk_times)
+            if len(times) >= 2:
+                time_step = (times[1] - times[0]).total_seconds()
+
+    if not times:
+        if isinstance(summary.run.times, np.ndarray):
+            times = list(summary.run.times)
+        else:
+            times = list(summary.run.times)
     if not times:
         return
     index = _find_nearest_epoch_index(times, start) if start else 0
     if index is None:
         index = 0
 
-    time_step = float(summary.run.time_step)
-    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+    centroid_positions = np.mean([positions[sat] for sat in sat_ids], axis=0)
     if time_step > 0.0:
         centroid_velocities = _differentiate(centroid_positions, time_step)
         satellite_velocities = {
-            sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
+            sat: _differentiate(positions[sat], time_step) for sat in sat_ids
         }
     else:
         centroid_velocities = np.zeros_like(centroid_positions)
         satellite_velocities = {
-            sat: np.zeros_like(summary.run.positions[sat]) for sat in sat_ids
+            sat: np.zeros_like(positions[sat]) for sat in sat_ids
         }
 
     centroid_position = centroid_positions[index]
@@ -502,7 +604,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     }
 
     for sat in sat_ids:
-        rel_vec = summary.run.positions[sat][index] - centroid_position
+        rel_vec = positions[sat][index] - centroid_position
         try:
             lvlh = eci_to_lvlh(centroid_position, centroid_velocity, rel_vec)
         except ValueError:
@@ -547,7 +649,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     for first, second in zip(ordered, ordered[1:] + ordered[:1]):
         separation = (
             np.linalg.norm(
-                summary.run.positions[first][index] - summary.run.positions[second][index]
+                positions[first][index] - positions[second][index]
             )
             / 1e3
         )
@@ -1133,7 +1235,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
-    generate_formation_triangle_snapshot(summary, plot_dir)
+    generate_formation_triangle_snapshot(summary, args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
