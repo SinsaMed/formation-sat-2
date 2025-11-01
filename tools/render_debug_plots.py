@@ -1302,11 +1302,51 @@ def _set_3d_equal_aspect(ax: plt.Axes, points: np.ndarray) -> None:
         ax.set_box_aspect((1, 1, 1))
 
 
+def _build_formation_window_mask(
+    times: pd.Series | pd.Index | Iterable[pd.Timestamp],
+    formation_window: Tuple[pd.Timestamp, pd.Timestamp],
+) -> Optional[pd.Series]:
+    """Return a boolean mask selecting samples inside the formation window."""
+
+    if times is None:
+        return None
+
+    try:
+        time_series = times if isinstance(times, pd.Series) else pd.Series(times)
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+    if time_series.empty:
+        return None
+
+    time_values = pd.to_datetime(time_series, utc=True, errors="coerce")
+    if time_values.isna().all():
+        return None
+
+    try:
+        start, end = formation_window
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return None
+
+    start_utc = pd.to_datetime(start, utc=True, errors="coerce")
+    end_utc = pd.to_datetime(end, utc=True, errors="coerce")
+    if pd.isna(start_utc) or pd.isna(end_utc):
+        return None
+
+    if start_utc > end_utc:
+        start_utc, end_utc = end_utc, start_utc
+
+    mask = (time_values >= start_utc) & (time_values <= end_utc)
+    return mask
+
+
 def _render_formation_svg(
     positions: pd.DataFrame,
     satellites: list[str],
     earth_radius: float,
     output_path: Path,
+    time_index: pd.Series | pd.Index | Iterable[pd.Timestamp],
+    formation_window: Tuple[pd.Timestamp, pd.Timestamp],
 ) -> None:
     """Create a static SVG visualisation of the formation using Matplotlib."""
 
@@ -1336,10 +1376,27 @@ def _render_formation_svg(
         np.column_stack((earth_x.ravel(), earth_y.ravel(), earth_z.ravel()))
     ]
 
+    window_mask = _build_formation_window_mask(time_index, formation_window)
+    if window_mask is not None:
+        window_mask = window_mask.reindex(positions.index, fill_value=False)
+    has_window = bool(window_mask is not None and window_mask.any())
+
     for satellite in satellites:
-        x = positions[f"{satellite}_x_m"].to_numpy()
-        y = positions[f"{satellite}_y_m"].to_numpy()
-        z = positions[f"{satellite}_z_m"].to_numpy()
+        column_x = f"{satellite}_x_m"
+        column_y = f"{satellite}_y_m"
+        column_z = f"{satellite}_z_m"
+
+        if has_window:
+            subset = positions.loc[window_mask, [column_x, column_y, column_z]]
+        else:
+            subset = positions[[column_x, column_y, column_z]]
+
+        if subset.empty:
+            continue
+
+        x = subset[column_x].to_numpy()
+        y = subset[column_y].to_numpy()
+        z = subset[column_z].to_numpy()
         ax.plot(x, y, z, label=satellite, linewidth=2.0)
         point_clouds.append(np.column_stack((x, y, z)))
 
@@ -1443,48 +1500,63 @@ def _render_3d_formation(
         )
     )[0]
 
+    window_mask_series = _build_formation_window_mask(times, formation_window)
+    if window_mask_series is not None:
+        window_mask_series = window_mask_series.reindex(positions.index, fill_value=False)
+    has_window_samples = bool(window_mask_series is not None and window_mask_series.any())
+    window_mask_array = window_mask_series.to_numpy() if has_window_samples else None
+
     palette = qualitative.D3
     trace_colours: Dict[str, str] = {}
     for idx, satellite in enumerate(satellites):
         colour = palette[idx % len(palette)]
         trace_colours[satellite] = colour
+
+        def select_window(data):
+            if not has_window_samples:
+                return data
+            if isinstance(data, (pd.Series, pd.DataFrame)):
+                mask = window_mask_series.reindex(data.index, fill_value=False)
+                return data.loc[mask]
+            return data
+
+        track = select_window(positions[[f"{satellite}_x_m", f"{satellite}_y_m", f"{satellite}_z_m"]])
+        if track.empty:
+            continue
+
+        selected_times = select_window(iso_times)
+        labels = (
+            selected_times.tolist()
+            if isinstance(selected_times, pd.Series)
+            else list(selected_times)
+        )
         figure.add_trace(
             go.Scatter3d(
-                x=positions[f"{satellite}_x_m"],
-                y=positions[f"{satellite}_y_m"],
-                z=positions[f"{satellite}_z_m"],
+                x=track[f"{satellite}_x_m"],
+                y=track[f"{satellite}_y_m"],
+                z=track[f"{satellite}_z_m"],
                 mode="lines",
-                name=f"{satellite} formation",
-                legendgroup=f"{satellite}_orbit",
-                line=dict(color=colour, width=4),
-                text=[f"{satellite} @ {timestamp}" for timestamp in iso_times],
+                name=(
+                    f"{satellite} formation window"
+                    if has_window_samples
+                    else f"{satellite} formation"
+                ),
+                legendgroup=(
+                    f"{satellite}_window" if has_window_samples else f"{satellite}_orbit"
+                ),
+                line=dict(color=colour, width=6 if has_window_samples else 4),
+                text=[f"{satellite} @ {timestamp}" for timestamp in labels],
                 hovertemplate=(
                     "<b>%{text}</b><br>"
                     "x: %{x:.0f} m<br>"
                     "y: %{y:.0f} m<br>"
                     "z: %{z:.0f} m"
                 ),
+                showlegend=True,
             ),
             row=1,
             col=1,
         )
-
-        window_mask = (utc_times >= formation_start) & (utc_times <= formation_end)
-        if window_mask.any():
-            figure.add_trace(
-                go.Scatter3d(
-                    x=positions.loc[window_mask, f"{satellite}_x_m"],
-                    y=positions.loc[window_mask, f"{satellite}_y_m"],
-                    z=positions.loc[window_mask, f"{satellite}_z_m"],
-                    mode="lines",
-                    name=f"{satellite} formation window",
-                    legendgroup=f"{satellite}_window",
-                    line=dict(color=colour, width=6, dash="dot"),
-                    showlegend=True,
-                ),
-                row=1,
-                col=1,
-            )
 
         lat_deg = np.rad2deg(latitudes[satellite])
         lon_deg = np.rad2deg(longitudes[satellite])
@@ -1502,11 +1574,11 @@ def _render_3d_formation(
             col=2,
         )
 
-        if window_mask.any():
+        if has_window_samples and window_mask_array is not None:
             figure.add_trace(
                 go.Scattergeo(
-                    lat=lat_deg[window_mask.to_numpy()],
-                    lon=lon_deg[window_mask.to_numpy()],
+                    lat=lat_deg[window_mask_array],
+                    lon=lon_deg[window_mask_array],
                     mode="lines",
                     name=f"{satellite} window track",
                     legendgroup=f"{satellite}_window",
@@ -1744,7 +1816,14 @@ def _render_3d_formation(
     pio.write_html(figure, file=html_path, include_plotlyjs="cdn", auto_play=False, full_html=True)
 
     svg_path = output_dir / "formation_3d.svg"
-    _render_formation_svg(positions, satellites, earth_radius_m, svg_path)
+    _render_formation_svg(
+        positions,
+        satellites,
+        earth_radius_m,
+        svg_path,
+        times,
+        formation_window,
+    )
 
     return {"svg": svg_path, "html": html_path}
 
