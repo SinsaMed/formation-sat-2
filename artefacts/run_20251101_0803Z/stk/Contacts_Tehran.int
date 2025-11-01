@@ -1,0 +1,23 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN IntervalList
+    Name                Tehran_Contacts
+    NumberOfIntervals   3
+
+    BEGIN Interval
+        Asset       SAT_1
+        StartTime   21 Mar 2026 07:39:20.000000000
+        StopTime    21 Mar 2026 07:40:56.000000000
+    END Interval
+    BEGIN Interval
+        Asset       SAT_2
+        StartTime   21 Mar 2026 07:39:20.000000000
+        StopTime    21 Mar 2026 07:40:56.000000000
+    END Interval
+    BEGIN Interval
+        Asset       SAT_3
+        StartTime   21 Mar 2026 07:39:20.000000000
+        StopTime    21 Mar 2026 07:40:56.000000000
+    END Interval
+END IntervalList
