@@ -456,9 +456,15 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
         times = list(summary.run.times)
     if not times:
         return
-    index = _find_nearest_epoch_index(times, start) if start else 0
+
+    index = _find_first_valid_formation_index(summary)
+    title_context = "first valid formation epoch"
+    if index is None:
+        index = _find_nearest_epoch_index(times, start) if start else 0
+        title_context = "formation window start"
     if index is None:
         index = 0
+        title_context = "initial sample"
 
     time_step = float(summary.run.time_step)
     centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
@@ -520,7 +526,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     polygon_y = [lvlh_coordinates[sat][1] for sat in cycle]
     polygon_x = [lvlh_coordinates[sat][0] for sat in cycle]
     ax.fill(polygon_y, polygon_x, color="#d0e2ff", alpha=0.18, zorder=1)
-    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="--", zorder=2)
+    ax.plot(polygon_y, polygon_x, color="#374151", linewidth=1.8, linestyle="-", zorder=3)
 
     for sat in ordered:
         coords = lvlh_coordinates[sat]
@@ -566,8 +572,13 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
 
     along = np.array([lvlh_coordinates[sat][1] for sat in sat_ids])
     radial = np.array([lvlh_coordinates[sat][0] for sat in sat_ids])
-    along_margin = max(0.1, (along.max() - along.min()) * 0.4)
-    radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
+    along_range = along.max() - along.min()
+    radial_range = radial.max() - radial.min()
+    max_range = max(along_range, radial_range, 1e-9)
+    margin_scale = 0.05
+    min_margin = max_range * 0.03
+    along_margin = max(0.05, along_range * margin_scale, min_margin)
+    radial_margin = max(0.05, radial_range * margin_scale, min_margin)
 
     timestamp = times[index]
     timestamp_str = (
@@ -579,7 +590,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
     ax.set_aspect("equal", adjustable="datalim")
-    ax.set_title(f"Formation geometry at window start ({timestamp_str})")
+    ax.set_title(f"Formation geometry at {title_context} ({timestamp_str})")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="upper right", fontsize="small")
     fig.tight_layout()
@@ -1081,6 +1092,27 @@ def _find_nearest_epoch_index(times: list[datetime | None], target: datetime | N
         return None
     differences.sort(key=lambda item: item[0])
     return differences[0][1]
+
+
+def _find_first_valid_formation_index(summary: SummaryData) -> int | None:
+    for index, sample in enumerate(summary.samples):
+        if not isinstance(sample, dict):
+            continue
+        lengths = sample.get("triangle_side_lengths_m")
+        area = sample.get("triangle_area_m2")
+        if not lengths or area is None:
+            continue
+        try:
+            numeric_lengths = [float(length) for length in lengths]
+            numeric_area = float(area)
+        except (TypeError, ValueError):
+            continue
+        if not all(math.isfinite(length) and length > 0.0 for length in numeric_lengths):
+            continue
+        if not math.isfinite(numeric_area) or numeric_area <= 0.0:
+            continue
+        return index
+    return None
 
 
 def _parse_iso8601(value: str | None) -> datetime | None:
