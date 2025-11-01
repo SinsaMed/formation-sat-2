@@ -238,35 +238,47 @@ def generate_ground_track_zoom_figure(
     target_lat = float(target.get("latitude_deg", 35.6892))
     target_lon = float(target.get("longitude_deg", 51.3890))
 
-    latitudes = {
+    latitudes_deg = {
         sat: np.degrees(long_result.latitudes_rad[sat]) for sat in sat_ids
     }
-    longitudes = {
+    longitudes_deg = {
         sat: _wrap_longitudes(np.degrees(long_result.longitudes_rad[sat]), summary.geometry)
         for sat in sat_ids
     }
 
     local_segments: dict[str, np.ndarray] = {}
-    local_longitudes: dict[str, np.ndarray] = {}
-    collected_lat: list[np.ndarray] = []
-    collected_lon: list[np.ndarray] = []
+    east_offsets_km: dict[str, np.ndarray] = {}
+    north_offsets_km: dict[str, np.ndarray] = {}
+    collected_east: list[np.ndarray] = []
+    collected_north: list[np.ndarray] = []
+
+    target_lat_rad = math.radians(target_lat)
+    metres_per_deg_lat = (math.pi / 180.0) * EARTH_EQUATORIAL_RADIUS_M
+    metres_per_deg_lon = metres_per_deg_lat * math.cos(target_lat_rad)
 
     for sat in sat_ids:
-        mask = _select_local_segment(latitudes[sat], longitudes[sat], target_lat, target_lon)
+        mask = _select_local_segment(
+            latitudes_deg[sat], longitudes_deg[sat], target_lat, target_lon
+        )
         if not np.any(mask):
             continue
-        local_segments[sat] = latitudes[sat][mask]
-        local_longitudes[sat] = longitudes[sat][mask]
-        collected_lat.append(local_segments[sat])
-        collected_lon.append(local_longitudes[sat])
+        local_lat = latitudes_deg[sat][mask]
+        local_lon = longitudes_deg[sat][mask]
+        local_segments[sat] = local_lat
+        east_km = (local_lon - target_lon) * metres_per_deg_lon / 1e3
+        north_km = (local_lat - target_lat) * metres_per_deg_lat / 1e3
+        east_offsets_km[sat] = east_km
+        north_offsets_km[sat] = north_km
+        collected_east.append(east_km)
+        collected_north.append(north_km)
 
-    if not collected_lat:
+    if not collected_east:
         return
 
-    combined_lat = np.concatenate(collected_lat)
-    combined_lon = np.concatenate(collected_lon)
-    lat_margin = max(0.2, (combined_lat.max() - combined_lat.min()) * 0.25)
-    lon_margin = max(0.3, (combined_lon.max() - combined_lon.min()) * 0.25)
+    combined_east = np.concatenate(collected_east)
+    combined_north = np.concatenate(collected_north)
+    east_margin = max(2.0, (combined_east.max() - combined_east.min()) * 0.35)
+    north_margin = max(2.0, (combined_north.max() - combined_north.min()) * 0.35)
 
     fig, ax = plt.subplots(figsize=(6.5, 6.0))
     colours = {
@@ -278,11 +290,12 @@ def generate_ground_track_zoom_figure(
         if sat not in local_segments:
             continue
         ax.plot(
-            local_longitudes[sat],
-            local_segments[sat],
+            east_offsets_km[sat],
+            north_offsets_km[sat],
             color=colours.get(sat, "#3182bd"),
             linewidth=2.0,
             label=f"{sat} ground track",
+            zorder=2,
         )
 
     window = summary.metrics.get("formation_window", {})
@@ -298,36 +311,133 @@ def generate_ground_track_zoom_figure(
                 continue
             wrapped_lon = _wrap_longitudes(np.degrees(lon[mask]), summary.geometry)
             wrapped_lat = np.degrees(lats[mask])
+            east_window = (wrapped_lon - target_lon) * metres_per_deg_lon / 1e3
+            north_window = (wrapped_lat - target_lat) * metres_per_deg_lat / 1e3
             ax.scatter(
-                wrapped_lon,
-                wrapped_lat,
+                east_window,
+                north_window,
                 s=55,
                 edgecolor="#ffffff",
                 linewidths=0.5,
                 color=colours.get(sat, "#3182bd"),
                 marker="o",
                 label=f"{sat} window samples",
+                zorder=3,
             )
 
     ax.scatter(
-        target_lon,
-        target_lat,
+        0.0,
+        0.0,
         color="#000000",
         marker="*",
         s=140,
         label="Tehran",
+        zorder=4,
     )
 
-    ax.set_xlim(combined_lon.min() - lon_margin, combined_lon.max() + lon_margin)
-    ax.set_ylim(combined_lat.min() - lat_margin, combined_lat.max() + lat_margin)
-    ax.set_xlabel("Longitude [deg]")
-    ax.set_ylabel("Latitude [deg]")
+    ax.set_xlim(combined_east.min() - east_margin, combined_east.max() + east_margin)
+    ax.set_ylim(combined_north.min() - north_margin, combined_north.max() + north_margin)
+    ax.set_xlabel("East offset from Tehran [km]")
+    ax.set_ylabel("North offset from Tehran [km]")
     ax.set_title("Tehran-local ground tracks during overflight")
     ax.set_aspect("equal", adjustable="datalim")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="best", fontsize="small")
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
+    plt.close(fig)
+
+
+def generate_initial_triangle_closeup(summary: SummaryData, plot_dir: Path) -> None:
+    sat_ids = sorted(summary.run.positions)
+    if not sat_ids:
+        return
+
+    if summary.run.time_step <= 0.0:
+        return
+
+    initial_positions = {
+        sat: np.asarray(summary.run.positions[sat], dtype=float)
+        for sat in sat_ids
+        if summary.run.positions.get(sat) is not None
+    }
+    if not initial_positions:
+        return
+
+    velocities = {
+        sat: _differentiate(initial_positions[sat], summary.run.time_step)
+        for sat in sat_ids
+        if sat in initial_positions
+    }
+
+    first_positions = {sat: initial_positions[sat][0] for sat in initial_positions}
+    first_velocities = {sat: velocities[sat][0] for sat in velocities}
+    if not first_velocities:
+        return
+
+    centroid_position = np.mean(list(first_positions.values()), axis=0)
+    centroid_velocity = np.mean(list(first_velocities.values()), axis=0)
+
+    relative_coords: dict[str, np.ndarray] = {}
+    for sat in sat_ids:
+        if sat not in first_positions:
+            continue
+        offset = first_positions[sat] - centroid_position
+        lvlh = eci_to_lvlh(centroid_position, centroid_velocity, offset)
+        relative_coords[sat] = lvlh / 1e3  # convert to kilometres
+
+    if not relative_coords:
+        return
+
+    fig, ax = plt.subplots(figsize=(6.0, 6.0))
+    colours = {
+        sat: colour
+        for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
+    }
+
+    triangle_path: list[np.ndarray] = []
+    for sat in sat_ids:
+        if sat not in relative_coords:
+            continue
+        point = relative_coords[sat]
+        triangle_path.append(point)
+        ax.scatter(
+            point[1],
+            point[2],
+            color=colours.get(sat, "#3182bd"),
+            s=80,
+            label=sat,
+            zorder=3,
+        )
+        ax.annotate(
+            sat,
+            (point[1], point[2]),
+            textcoords="offset points",
+            xytext=(6, 6),
+            fontsize="small",
+            color=colours.get(sat, "#3182bd"),
+        )
+
+    if len(triangle_path) >= 3:
+        ordered = triangle_path + [triangle_path[0]]
+        xs = [p[1] for p in ordered]
+        ys = [p[2] for p in ordered]
+        ax.plot(xs, ys, color="#4d4d4d", linewidth=1.2, linestyle="-", zorder=2)
+
+    max_extent = max(
+        max(abs(coord[1]), abs(coord[2])) for coord in relative_coords.values()
+    )
+    margin = max(0.5, max_extent * 1.2)
+    ax.set_xlim(-margin, margin)
+    ax.set_ylim(-margin, margin)
+    ax.set_xlabel("Along-track offset [km]")
+    ax.set_ylabel("Cross-track offset [km]")
+    ax.set_title("Initial LVLH triangle configuration")
+    ax.grid(True, linestyle=":", linewidth=0.6)
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.legend(loc="upper right", fontsize="small")
+    fig.tight_layout()
+    fig.savefig(plot_dir / "triangle_initial_closeup.svg", format="svg")
     plt.close(fig)
 
 
@@ -875,6 +985,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     plot_dir = ensure_output_directory(args.run_dir)
 
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
+    generate_initial_triangle_closeup(summary, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
