@@ -456,7 +456,13 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
         times = list(summary.run.times)
     if not times:
         return
-    index = _find_nearest_epoch_index(times, start) if start else 0
+    index = 0
+    if start:
+        index = _find_first_epoch_index_on_or_after(times, start) or 0
+        if index >= len(times):
+            index = len(times) - 1
+        if index < 0:
+            index = 0
     if index is None:
         index = 0
 
@@ -520,7 +526,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     polygon_y = [lvlh_coordinates[sat][1] for sat in cycle]
     polygon_x = [lvlh_coordinates[sat][0] for sat in cycle]
     ax.fill(polygon_y, polygon_x, color="#d0e2ff", alpha=0.18, zorder=1)
-    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.4, linestyle="--", zorder=2)
+    ax.plot(polygon_y, polygon_x, color="#4c566a", linewidth=1.6, linestyle="-", zorder=2)
 
     for sat in ordered:
         coords = lvlh_coordinates[sat]
@@ -566,8 +572,11 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
 
     along = np.array([lvlh_coordinates[sat][1] for sat in sat_ids])
     radial = np.array([lvlh_coordinates[sat][0] for sat in sat_ids])
-    along_margin = max(0.1, (along.max() - along.min()) * 0.4)
-    radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
+    along_span = along.max() - along.min()
+    radial_span = radial.max() - radial.min()
+    max_span = max(along_span, radial_span, 1e-6)
+    along_margin = max(0.05 * max_span, 0.05)
+    radial_margin = max(0.05 * max_span, 0.05)
 
     timestamp = times[index]
     timestamp_str = (
@@ -1066,6 +1075,23 @@ def _differentiate(series: np.ndarray, step: float) -> np.ndarray:
     velocities[0] = (series[1] - series[0]) / step
     velocities[-1] = (series[-1] - series[-2]) / step
     return velocities
+
+
+def _find_first_epoch_index_on_or_after(
+    times: list[datetime | None], target: datetime | None
+) -> int | None:
+    if target is None:
+        return None
+    candidate: int | None = None
+    for index, epoch in enumerate(times):
+        if epoch is None:
+            continue
+        if epoch >= target:
+            return index
+        candidate = index
+    if candidate is not None:
+        return candidate
+    return None
 
 
 def _find_nearest_epoch_index(times: list[datetime | None], target: datetime | None) -> int | None:
