@@ -7,6 +7,7 @@ import math
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from itertools import combinations
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -16,6 +17,7 @@ import pandas as pd
 
 matplotlib.use("Agg")
 import matplotlib.patches as mpatches  # noqa: E402
+import matplotlib.patheffects as patheffects  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
@@ -29,6 +31,7 @@ J2_COEFFICIENT = 1.08262668e-3
 SOLAR_PRESSURE_PA = 4.56e-6
 REFLECTIVITY_COEFF = 1.3
 SECONDS_PER_DAY = 86_400
+PALETTE = ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"]
 
 
 @dataclass
@@ -47,6 +50,17 @@ class SummaryData:
     metrics: dict[str, object]
     geometry: dict[str, object]
     samples: list[dict[str, object]]
+
+
+@dataclass
+class LocalTrackData:
+    sat_ids: list[str]
+    latitudes: dict[str, np.ndarray]
+    longitudes: dict[str, np.ndarray]
+    window_samples: dict[str, tuple[np.ndarray, np.ndarray]]
+    target_lat: float
+    target_lon: float
+    colours: dict[str, str]
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
@@ -172,6 +186,68 @@ def _select_local_segment(
     return mask
 
 
+def _collect_local_ground_tracks(
+    summary: SummaryData, long_result: TriangleFormationResult
+) -> Optional[LocalTrackData]:
+    sat_ids = sorted(long_result.latitudes_rad)
+    if not sat_ids:
+        return None
+
+    target = summary.geometry.get("target", {})
+    target_lat = float(target.get("latitude_deg", 35.6892))
+    target_lon = float(target.get("longitude_deg", 51.3890))
+
+    local_latitudes: dict[str, np.ndarray] = {}
+    local_longitudes: dict[str, np.ndarray] = {}
+
+    for sat in sat_ids:
+        lat = np.degrees(long_result.latitudes_rad[sat])
+        lon = _wrap_longitudes(
+            np.degrees(long_result.longitudes_rad[sat]), summary.geometry
+        )
+        mask = _select_local_segment(lat, lon, target_lat, target_lon)
+        if not np.any(mask):
+            continue
+        local_latitudes[sat] = lat[mask]
+        local_longitudes[sat] = lon[mask]
+
+    if not local_latitudes:
+        return None
+
+    window_samples: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    window = summary.metrics.get("formation_window", {})
+    start = _parse_iso8601(window.get("start"))
+    end = _parse_iso8601(window.get("end"))
+    if start and end and summary.run.times.size:
+        mask = np.array(
+            [bool(t and start <= t <= end) for t in summary.run.times], dtype=bool
+        )
+        for sat, lats in summary.run.latitudes.items():
+            if sat not in summary.run.longitudes or not np.any(mask):
+                continue
+            lon = summary.run.longitudes[sat]
+            if len(lon) != len(mask):
+                continue
+            wrapped_lon = _wrap_longitudes(np.degrees(lon[mask]), summary.geometry)
+            wrapped_lat = np.degrees(lats[mask])
+            if wrapped_lon.size and wrapped_lat.size:
+                window_samples[sat] = (wrapped_lon, wrapped_lat)
+
+    colours = {
+        sat: PALETTE[index % len(PALETTE)] for index, sat in enumerate(sat_ids)
+    }
+
+    return LocalTrackData(
+        sat_ids=sat_ids,
+        latitudes=local_latitudes,
+        longitudes=local_longitudes,
+        window_samples=window_samples,
+        target_lat=target_lat,
+        target_lon=target_lon,
+        colours=colours,
+    )
+
+
 def generate_ground_track_figure(
     summary: SummaryData, config_path: Path, plot_dir: Path
 ) -> Optional[TriangleFormationResult]:
@@ -222,96 +298,61 @@ def generate_ground_track_figure(
     fig.savefig(plot_dir / "ground_tracks.svg", format="svg")
     plt.close(fig)
 
-    generate_ground_track_zoom_figure(summary, long_result, plot_dir)
+    local_tracks = generate_ground_track_zoom_figure(summary, long_result, plot_dir)
+    if local_tracks is not None:
+        generate_ground_track_detail_panels(local_tracks, plot_dir)
+    generate_formation_geometry_snapshot(summary, long_result, plot_dir, local_tracks)
 
     return long_result
 
 
 def generate_ground_track_zoom_figure(
-    summary: SummaryData, long_result: TriangleFormationResult, plot_dir: Path
-) -> None:
-    sat_ids = sorted(long_result.latitudes_rad)
-    if not sat_ids:
-        return
+    summary: SummaryData,
+    long_result: TriangleFormationResult,
+    plot_dir: Path,
+) -> Optional[LocalTrackData]:
+    local_tracks = _collect_local_ground_tracks(summary, long_result)
+    if local_tracks is None:
+        return None
 
-    target = summary.geometry.get("target", {})
-    target_lat = float(target.get("latitude_deg", 35.6892))
-    target_lon = float(target.get("longitude_deg", 51.3890))
-
-    latitudes = {
-        sat: np.degrees(long_result.latitudes_rad[sat]) for sat in sat_ids
-    }
-    longitudes = {
-        sat: _wrap_longitudes(np.degrees(long_result.longitudes_rad[sat]), summary.geometry)
-        for sat in sat_ids
-    }
-
-    local_segments: dict[str, np.ndarray] = {}
-    local_longitudes: dict[str, np.ndarray] = {}
-    collected_lat: list[np.ndarray] = []
-    collected_lon: list[np.ndarray] = []
-
-    for sat in sat_ids:
-        mask = _select_local_segment(latitudes[sat], longitudes[sat], target_lat, target_lon)
-        if not np.any(mask):
-            continue
-        local_segments[sat] = latitudes[sat][mask]
-        local_longitudes[sat] = longitudes[sat][mask]
-        collected_lat.append(local_segments[sat])
-        collected_lon.append(local_longitudes[sat])
-
-    if not collected_lat:
-        return
-
-    combined_lat = np.concatenate(collected_lat)
-    combined_lon = np.concatenate(collected_lon)
+    combined_lat = np.concatenate(list(local_tracks.latitudes.values()))
+    combined_lon = np.concatenate(list(local_tracks.longitudes.values()))
     lat_margin = max(0.2, (combined_lat.max() - combined_lat.min()) * 0.25)
     lon_margin = max(0.3, (combined_lon.max() - combined_lon.min()) * 0.25)
 
     fig, ax = plt.subplots(figsize=(6.5, 6.0))
-    colours = {
-        sat: colour
-        for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
-    }
 
-    for sat in sat_ids:
-        if sat not in local_segments:
+    for sat in local_tracks.sat_ids:
+        if sat not in local_tracks.latitudes:
             continue
         ax.plot(
-            local_longitudes[sat],
-            local_segments[sat],
-            color=colours.get(sat, "#3182bd"),
-            linewidth=2.0,
+            local_tracks.longitudes[sat],
+            local_tracks.latitudes[sat],
+            color=local_tracks.colours.get(sat, "#3182bd"),
+            linewidth=2.2,
+            path_effects=[
+                patheffects.Stroke(linewidth=3.6, foreground="white"),
+                patheffects.Normal(),
+            ],
             label=f"{sat} ground track",
         )
 
-    window = summary.metrics.get("formation_window", {})
-    start = _parse_iso8601(window.get("start"))
-    end = _parse_iso8601(window.get("end"))
-    if start and end:
-        mask = np.array([bool(t and start <= t <= end) for t in summary.run.times], dtype=bool)
-        for sat, lats in summary.run.latitudes.items():
-            if sat not in summary.run.longitudes:
-                continue
-            lon = summary.run.longitudes[sat]
-            if len(lon) != len(mask):
-                continue
-            wrapped_lon = _wrap_longitudes(np.degrees(lon[mask]), summary.geometry)
-            wrapped_lat = np.degrees(lats[mask])
-            ax.scatter(
-                wrapped_lon,
-                wrapped_lat,
-                s=55,
-                edgecolor="#ffffff",
-                linewidths=0.5,
-                color=colours.get(sat, "#3182bd"),
-                marker="o",
-                label=f"{sat} window samples",
-            )
+    for sat, (wrapped_lon, wrapped_lat) in local_tracks.window_samples.items():
+        ax.scatter(
+            wrapped_lon,
+            wrapped_lat,
+            s=60,
+            edgecolor="#ffffff",
+            linewidths=0.6,
+            color=local_tracks.colours.get(sat, "#3182bd"),
+            marker="o",
+            label=f"{sat} window samples",
+            zorder=5,
+        )
 
     ax.scatter(
-        target_lon,
-        target_lat,
+        local_tracks.target_lon,
+        local_tracks.target_lat,
         color="#000000",
         marker="*",
         s=140,
@@ -328,6 +369,179 @@ def generate_ground_track_zoom_figure(
     ax.legend(loc="best", fontsize="small")
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
+    plt.close(fig)
+
+    return local_tracks
+
+
+def generate_ground_track_detail_panels(
+    local_tracks: LocalTrackData, plot_dir: Path
+) -> None:
+    sat_ids = [sat for sat in local_tracks.sat_ids if sat in local_tracks.latitudes]
+    if not sat_ids:
+        return
+
+    combined_lat = np.concatenate([local_tracks.latitudes[sat] for sat in sat_ids])
+    combined_lon = np.concatenate([local_tracks.longitudes[sat] for sat in sat_ids])
+    lat_margin = max(0.2, (combined_lat.max() - combined_lat.min()) * 0.25)
+    lon_margin = max(0.3, (combined_lon.max() - combined_lon.min()) * 0.25)
+
+    fig, axes = plt.subplots(
+        len(sat_ids),
+        1,
+        sharex=True,
+        sharey=True,
+        figsize=(6.5, 2.4 * len(sat_ids)),
+    )
+    if not isinstance(axes, np.ndarray):
+        axes = np.array([axes])
+
+    for ax, sat in zip(axes, sat_ids):
+        ax.plot(
+            local_tracks.longitudes[sat],
+            local_tracks.latitudes[sat],
+            color=local_tracks.colours.get(sat, "#3182bd"),
+            linewidth=2.2,
+            path_effects=[
+                patheffects.Stroke(linewidth=3.6, foreground="white"),
+                patheffects.Normal(),
+            ],
+            label=f"{sat} ground track",
+        )
+        if sat in local_tracks.window_samples:
+            lon_samples, lat_samples = local_tracks.window_samples[sat]
+            ax.scatter(
+                lon_samples,
+                lat_samples,
+                s=60,
+                edgecolor="#ffffff",
+                linewidths=0.6,
+                color=local_tracks.colours.get(sat, "#3182bd"),
+                marker="o",
+                zorder=5,
+            )
+        ax.scatter(
+            local_tracks.target_lon,
+            local_tracks.target_lat,
+            color="#000000",
+            marker="*",
+            s=120,
+        )
+        ax.set_ylabel("Latitude [deg]")
+        ax.grid(True, linestyle=":", linewidth=0.6)
+        ax.legend(loc="upper right", fontsize="small")
+
+    axes[-1].set_xlabel("Longitude [deg]")
+    for ax in axes:
+        ax.set_xlim(combined_lon.min() - lon_margin, combined_lon.max() + lon_margin)
+        ax.set_ylim(combined_lat.min() - lat_margin, combined_lat.max() + lat_margin)
+
+    fig.suptitle("Tehran ground-track facets by spacecraft", fontsize="large")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(plot_dir / "ground_tracks_tehran_detail.svg", format="svg")
+    plt.close(fig)
+
+
+def generate_formation_geometry_snapshot(
+    summary: SummaryData,
+    long_result: TriangleFormationResult,
+    plot_dir: Path,
+    local_tracks: Optional[LocalTrackData] = None,
+) -> None:
+    times = list(long_result.times)
+    if not times:
+        return
+
+    window = summary.metrics.get("formation_window", {})
+    target_epoch = _parse_iso8601(window.get("start"))
+    if target_epoch is None:
+        target_epoch = times[0]
+
+    index = min(
+        range(len(times)),
+        key=lambda idx: abs((times[idx] - target_epoch).total_seconds()),
+    )
+
+    sat_ids = sorted(long_result.positions_m)
+    if not sat_ids:
+        return
+
+    colours = (
+        local_tracks.colours
+        if local_tracks is not None
+        else {
+            sat: PALETTE[index % len(PALETTE)]
+            for index, sat in enumerate(sat_ids)
+        }
+    )
+
+    positions = {sat: long_result.positions_m[sat][index] for sat in sat_ids}
+    velocities = {sat: long_result.velocities_mps[sat][index] for sat in sat_ids}
+
+    centroid_position = np.mean(np.stack(list(positions.values())), axis=0)
+    centroid_velocity = np.mean(np.stack(list(velocities.values())), axis=0)
+
+    lvlh_vectors: dict[str, np.ndarray] = {}
+    for sat in sat_ids:
+        relative_vec = positions[sat] - centroid_position
+        lvlh_vectors[sat] = eci_to_lvlh(
+            centroid_position,
+            centroid_velocity,
+            relative_vec,
+        )
+
+    fig, ax = plt.subplots(figsize=(6.2, 6.0))
+
+    for sat in sat_ids:
+        vector = lvlh_vectors[sat] / 1e3  # metres to kilometres
+        ax.scatter(
+            vector[1],
+            vector[2],
+            color=colours.get(sat, "#3182bd"),
+            s=70,
+            edgecolor="#ffffff",
+            linewidths=0.6,
+            label=f"{sat} position",
+            zorder=6,
+        )
+        ax.text(
+            vector[1] + 0.05,
+            vector[2] + 0.05,
+            sat,
+            fontsize="medium",
+            color=colours.get(sat, "#3182bd"),
+        )
+
+    for sat_a, sat_b in combinations(sat_ids, 2):
+        vec_a = lvlh_vectors[sat_a] / 1e3
+        vec_b = lvlh_vectors[sat_b] / 1e3
+        ax.plot(
+            [vec_a[1], vec_b[1]],
+            [vec_a[2], vec_b[2]],
+            color="#4d4d4d",
+            linewidth=1.4,
+            alpha=0.8,
+            path_effects=[
+                patheffects.Stroke(linewidth=2.4, foreground="white", alpha=0.6),
+                patheffects.Normal(),
+            ],
+            zorder=5,
+        )
+
+    ax.scatter(0.0, 0.0, color="#000000", marker="x", s=60, label="Centroid")
+    timestamp = times[index].isoformat().replace("+00:00", "Z")
+    ax.set_title(
+        "Formation geometry at Tehran window start\n"
+        f"Epoch: {timestamp}",
+        fontsize="large",
+    )
+    ax.set_xlabel("Along-track [km]")
+    ax.set_ylabel("Cross-track [km]")
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, linestyle=":", linewidth=0.6)
+    ax.legend(loc="lower right", fontsize="small")
+    fig.tight_layout()
+    fig.savefig(plot_dir / "formation_triangle_initial.svg", format="svg")
     plt.close(fig)
 
 
@@ -350,8 +564,7 @@ def generate_orbital_plane_figure(
     ax = fig.add_subplot(111, projection="3d")
 
     colours = {
-        sat: colour
-        for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
+        sat: PALETTE[index % len(PALETTE)] for index, sat in enumerate(sat_ids)
     }
 
     times = list(long_result.times)
