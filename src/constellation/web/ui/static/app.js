@@ -317,7 +317,7 @@
       renderGroundTrack(data.summary.geometry);
       renderFormationWindow(data.summary.geometry, data.summary.metrics);
       renderElementChart(data.summary.geometry);
-      renderThreeView(data.summary.geometry);
+      renderThreeView(data.summary.geometry, data.summary.metrics);
       updateStatus('سناریو با موفقیت اجرا شد.');
     } catch (error) {
       updateStatus(error.message || 'خطاى ناشناخته رخ داده است.', true);
@@ -876,11 +876,105 @@
     return perSatellite;
   }
 
-  function renderThreeView(geometry) {
+
+  function renderThreeView(geometry, metrics) {
     resetThreeView();
-    if (!geometry || !geometry.positions_m || !window.THREE) {
+    if (!geometry || !geometry.positions_m || !window.THREE || !threeContainer) {
       return;
     }
+
+    const satelliteIds = geometry.satellite_ids || [];
+    if (!satelliteIds.length) {
+      return;
+    }
+
+    const timeSeries = Array.isArray(geometry.times)
+      ? geometry.times.map((value) => Date.parse(value))
+      : [];
+    const windowInfo = metrics && metrics.formation_window;
+    let windowBounds = null;
+    if (
+      windowInfo &&
+      windowInfo.start &&
+      windowInfo.end &&
+      timeSeries.length &&
+      timeSeries.some((value) => Number.isFinite(value))
+    ) {
+      const startEpoch = Date.parse(windowInfo.start);
+      const endEpoch = Date.parse(windowInfo.end);
+      if (Number.isFinite(startEpoch) && Number.isFinite(endEpoch)) {
+        const indices = [];
+        timeSeries.forEach((epoch, index) => {
+          if (Number.isFinite(epoch) && epoch >= startEpoch && epoch <= endEpoch) {
+            indices.push(index);
+          }
+        });
+        if (indices.length) {
+          const minIndex = Math.min(...indices);
+          const maxIndex = Math.max(...indices);
+          const expandedMin = Math.max(minIndex - 1, 0);
+          const expandedMax = Math.min(maxIndex + 1, timeSeries.length - 1);
+          windowBounds = {
+            minIndex: expandedMin,
+            maxIndex: expandedMax,
+            enforce: true,
+          };
+        } else {
+          windowBounds = { minIndex: null, maxIndex: null, enforce: true };
+        }
+      }
+    }
+
+    const colours = [0x7fd0ff, 0xffb74d, 0xce93d8, 0x80cbc4];
+    const tracks = [];
+    satelliteIds.forEach((satId, index) => {
+      const samples = geometry.positions_m[satId] || [];
+      if (!Array.isArray(samples) || !samples.length) {
+        return;
+      }
+      let startIndex = 0;
+      let endIndex = samples.length;
+      if (windowBounds) {
+        if (
+          windowBounds.minIndex !== null &&
+          windowBounds.maxIndex !== null &&
+          windowBounds.maxIndex >= windowBounds.minIndex
+        ) {
+          const boundedStart = Math.max(Math.min(windowBounds.minIndex, samples.length - 1), 0);
+          const boundedEnd = Math.min(
+            Math.max(windowBounds.maxIndex + 1, boundedStart + 1),
+            samples.length
+          );
+          startIndex = boundedStart;
+          endIndex = boundedEnd;
+        } else if (windowBounds.enforce) {
+          return;
+        }
+      }
+      const subset = samples
+        .slice(startIndex, endIndex)
+        .filter(
+          (point) =>
+            Array.isArray(point) &&
+            point.length >= 3 &&
+            point.every((value) => Number.isFinite(value))
+        );
+      if (!subset.length) {
+        return;
+      }
+      tracks.push({
+        satId,
+        colour: colours[index % colours.length],
+        samples: subset,
+      });
+    });
+
+    if (!tracks.length) {
+      threeContainer.innerHTML =
+        '<span class="placeholder">نمونه‌اى براى بازهٔ فورمیشن در دسترس نیست.</span>';
+      return;
+    }
+
     const width = threeContainer.clientWidth || 480;
     const height = threeContainer.clientHeight || 360;
     const scene = new THREE.Scene();
@@ -907,30 +1001,43 @@
     });
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     scene.add(earth);
-    const colours = [0x7fd0ff, 0xffb74d, 0xce93d8, 0x80cbc4];
-    (geometry.satellite_ids || []).forEach((satId, index) => {
-      const samples = geometry.positions_m[satId] || [];
-      const points = samples.map((point) => {
-        return new THREE.Vector3(point[0] / EARTH_RADIUS_M, point[1] / EARTH_RADIUS_M, point[2] / EARTH_RADIUS_M);
+
+    tracks.forEach((track) => {
+      const points = track.samples.map((point) => {
+        return new THREE.Vector3(
+          point[0] / EARTH_RADIUS_M,
+          point[1] / EARTH_RADIUS_M,
+          point[2] / EARTH_RADIUS_M
+        );
       });
-      if (!points.length) return;
+      if (!points.length) {
+        return;
+      }
       const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMaterial = new THREE.LineBasicMaterial({ color: colours[index % colours.length], linewidth: 2 });
+      const lineMaterial = new THREE.LineBasicMaterial({ color: track.colour, linewidth: 2 });
       const orbitLine = new THREE.Line(lineGeometry, lineMaterial);
       scene.add(orbitLine);
-      const satelliteMesh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 16), new THREE.MeshBasicMaterial({ color: colours[index % colours.length] }));
+      const satelliteMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.035, 16, 16),
+        new THREE.MeshBasicMaterial({ color: track.colour })
+      );
       satelliteMesh.position.copy(points[points.length - 1]);
       scene.add(satelliteMesh);
     });
+
     const lat = CITY_LATITUDE * (Math.PI / 180);
     const lon = CITY_LONGITUDE * (Math.PI / 180);
-    const tehranMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffd54f }));
+    const tehranMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffd54f })
+    );
     tehranMarker.position.set(
       Math.cos(lat) * Math.cos(lon),
       Math.cos(lat) * Math.sin(lon),
       Math.sin(lat)
     );
     scene.add(tehranMarker);
+
     function animate() {
       state.threeAnimation = requestAnimationFrame(animate);
       earth.rotation.y += 0.0008;
