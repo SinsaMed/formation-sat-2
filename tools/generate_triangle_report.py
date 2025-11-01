@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import warnings
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,18 @@ import matplotlib.patches as mpatches  # noqa: E402
 import matplotlib.patheffects as patheffects  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
+try:  # noqa: E402
+    import cartopy.crs as ccrs
+    from cartopy.io import img_tiles
+    from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
+
+    _CARTOPY_AVAILABLE = True
+except ImportError:  # pragma: no cover - Cartopy is an optional dependency at runtime.
+    ccrs = None  # type: ignore[assignment]
+    img_tiles = None  # type: ignore[assignment]
+    LatitudeFormatter = LongitudeFormatter = None  # type: ignore[assignment]
+    _CARTOPY_AVAILABLE = False
+
 from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
 from src.constellation.frames import eci_to_lvlh
 from src.constellation.orbit import (
@@ -30,6 +43,73 @@ J2_COEFFICIENT = 1.08262668e-3
 SOLAR_PRESSURE_PA = 4.56e-6
 REFLECTIVITY_COEFF = 1.3
 SECONDS_PER_DAY = 86_400
+
+
+def _select_city_zoom(lat_span: float, lon_span: float) -> int:
+    """Choose a Web Mercator zoom level that keeps Tehran within view."""
+
+    footprint = max(lat_span, lon_span)
+    if footprint <= 0.15:
+        return 14
+    if footprint <= 0.25:
+        return 13
+    if footprint <= 0.4:
+        return 12
+    if footprint <= 0.7:
+        return 11
+    if footprint <= 1.2:
+        return 10
+    return 9
+
+
+def _configure_geo_axes(ax, lon_limits: tuple[float, float], lat_limits: tuple[float, float]) -> None:
+    """Format Cartopy axes with Tehran-centric tick marks."""
+
+    if not (_CARTOPY_AVAILABLE and ccrs and LatitudeFormatter and LongitudeFormatter):
+        return
+
+    lon_min, lon_max = lon_limits
+    lat_min, lat_max = lat_limits
+    lon_ticks = np.linspace(lon_min, lon_max, 5)
+    lat_ticks = np.linspace(lat_min, lat_max, 5)
+    ax.set_xticks(lon_ticks, crs=ccrs.PlateCarree())
+    ax.set_yticks(lat_ticks, crs=ccrs.PlateCarree())
+    ax.xaxis.set_major_formatter(LongitudeFormatter(number_format=".2f", degree_symbol="°"))
+    ax.yaxis.set_major_formatter(LatitudeFormatter(number_format=".2f", degree_symbol="°"))
+    ax.tick_params(labelsize="small")
+
+
+def _prepare_tehran_axes(
+    lon_limits: tuple[float, float],
+    lat_limits: tuple[float, float],
+    figsize: tuple[float, float],
+):
+    """Create an axes object over Tehran with an OpenStreetMap basemap."""
+
+    if _CARTOPY_AVAILABLE and ccrs and img_tiles:
+        tiler = img_tiles.OSM()
+        fig = plt.figure(figsize=figsize)
+        ax = plt.axes(projection=tiler.crs)
+        zoom = _select_city_zoom(lat_limits[1] - lat_limits[0], lon_limits[1] - lon_limits[0])
+        try:
+            ax.add_image(tiler, zoom)
+        except Exception as exc:  # pragma: no cover - network-dependent branch
+            warnings.warn(
+                f"Falling back to plain background for Tehran basemap: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            ax.set_facecolor("#f5f5f5")
+        ax.set_extent((*lon_limits, *lat_limits), crs=ccrs.PlateCarree())
+        _configure_geo_axes(ax, lon_limits, lat_limits)
+        ax.gridlines(draw_labels=False, linewidth=0.6, linestyle=":", color="#6b6b6b", alpha=0.6)
+        return fig, ax, ccrs.PlateCarree()
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_facecolor("#f5f5f5")
+    ax.set_xlim(*lon_limits)
+    ax.set_ylim(*lat_limits)
+    return fig, ax, None
 
 
 @dataclass
@@ -271,7 +351,13 @@ def generate_ground_track_zoom_figure(
     lat_margin = max(0.05, lat_span * 0.2)
     lon_margin = max(0.08, lon_span * 0.2)
 
-    fig, ax = plt.subplots(figsize=(6.5, 6.0))
+    lat_limits = (float(combined_lat.min() - lat_margin), float(combined_lat.max() + lat_margin))
+    lon_limits = (float(combined_lon.min() - lon_margin), float(combined_lon.max() + lon_margin))
+
+    fig, ax, data_crs = _prepare_tehran_axes(lon_limits, lat_limits, figsize=(6.5, 6.0))
+    transform_args = {"transform": data_crs} if data_crs is not None else {}
+    annotate_coords = data_crs._as_mpl_transform(ax) if data_crs is not None else "data"
+
     colours = {
         sat: colour
         for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
@@ -299,6 +385,7 @@ def generate_ground_track_zoom_figure(
             zorder=3,
             label=f"{sat} ground track",
             path_effects=stroke,
+            **transform_args,
         )
 
         if start_index is not None:
@@ -324,6 +411,7 @@ def generate_ground_track_zoom_figure(
                     linewidths=0.6,
                     zorder=5,
                     label=f"{sat} window start",
+                    **transform_args,
                 )
                 ax.annotate(
                     sat,
@@ -333,6 +421,7 @@ def generate_ground_track_zoom_figure(
                     fontsize="small",
                     color="#1a1a1a",
                     zorder=6,
+                    xycoords=annotate_coords,
                 )
     if start and end:
         mask = np.array([bool(t and start <= t <= end) for t in summary.run.times], dtype=bool)
@@ -353,6 +442,7 @@ def generate_ground_track_zoom_figure(
                 color=colours.get(sat, "#3182bd"),
                 marker="o",
                 label=f"{sat} window samples",
+                **transform_args,
             )
 
     ax.scatter(
@@ -362,16 +452,17 @@ def generate_ground_track_zoom_figure(
         marker="*",
         s=140,
         label="Tehran",
+        **transform_args,
     )
 
-    ax.set_xlim(combined_lon.min() - lon_margin, combined_lon.max() + lon_margin)
-    ax.set_ylim(combined_lat.min() - lat_margin, combined_lat.max() + lat_margin)
+    if data_crs is None:
+        ax.grid(True, linestyle=":", linewidth=0.6)
     ax.set_xlabel("Longitude [deg]")
     ax.set_ylabel("Latitude [deg]")
     ax.set_title("Tehran-local ground tracks during overflight")
-    ax.set_aspect("equal", adjustable="datalim")
-    ax.grid(True, linestyle=":", linewidth=0.6)
-    ax.legend(loc="best", fontsize="small")
+    handles, labels = ax.get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+    ax.legend(list(unique.values()), list(unique.keys()), loc="best", fontsize="small")
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
     plt.close(fig)
