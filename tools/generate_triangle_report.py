@@ -7,6 +7,7 @@ import math
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from itertools import cycle
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -17,6 +18,7 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.patches as mpatches  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.lines as mlines  # noqa: E402
 
 from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
 from src.constellation.frames import eci_to_lvlh
@@ -265,25 +267,40 @@ def generate_ground_track_zoom_figure(
 
     combined_lat = np.concatenate(collected_lat)
     combined_lon = np.concatenate(collected_lon)
-    lat_margin = max(0.2, (combined_lat.max() - combined_lat.min()) * 0.25)
-    lon_margin = max(0.3, (combined_lon.max() - combined_lon.min()) * 0.25)
 
     fig, ax = plt.subplots(figsize=(6.5, 6.0))
     colours = {
         sat: colour
         for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
     }
+    line_styles = cycle(["solid", "dashed", "dashdot", (0, (5, 1)), (0, (3, 1, 1, 1))])
+    marker_styles = cycle(["o", "s", "^", "D", "P"])
+    linestyle_map: dict[str, object] = {}
+    marker_map: dict[str, str] = {}
+
+    track_handles: list[mlines.Line2D] = []
+    window_handles: list[mlines.Line2D] = []
 
     for sat in sat_ids:
         if sat not in local_segments:
             continue
+        if sat not in linestyle_map:
+            linestyle_map[sat] = next(line_styles)
+        if sat not in marker_map:
+            marker_map[sat] = next(marker_styles)
+        linestyle = linestyle_map[sat]
+        marker = marker_map[sat]
         ax.plot(
             local_longitudes[sat],
             local_segments[sat],
             color=colours.get(sat, "#3182bd"),
-            linewidth=2.0,
+            linewidth=2.4,
+            linestyle=linestyle,
+            solid_capstyle="round",
             label=f"{sat} ground track",
+            zorder=2,
         )
+        track_handles.append(ax.lines[-1])
 
     window = summary.metrics.get("formation_window", {})
     start = _parse_iso8601(window.get("start"))
@@ -296,18 +313,52 @@ def generate_ground_track_zoom_figure(
             lon = summary.run.longitudes[sat]
             if len(lon) != len(mask):
                 continue
+            if sat not in marker_map:
+                marker_map[sat] = next(marker_styles)
+            marker = marker_map[sat]
             wrapped_lon = _wrap_longitudes(np.degrees(lon[mask]), summary.geometry)
             wrapped_lat = np.degrees(lats[mask])
             ax.scatter(
                 wrapped_lon,
                 wrapped_lat,
-                s=55,
+                s=60,
                 edgecolor="#ffffff",
-                linewidths=0.5,
+                linewidths=0.6,
                 color=colours.get(sat, "#3182bd"),
-                marker="o",
-                label=f"{sat} window samples",
+                marker=marker,
+                label=None,
+                zorder=3,
             )
+            window_handles.append(
+                mlines.Line2D(
+                    [],
+                    [],
+                    color=colours.get(sat, "#3182bd"),
+                    marker=marker,
+                    linestyle="None",
+                    markersize=7,
+                    markeredgecolor="#ffffff",
+                    markeredgewidth=0.6,
+                    label=f"{sat} window samples",
+                )
+            )
+
+    for sat in sat_ids:
+        if sat not in local_segments:
+            continue
+        points = local_segments[sat]
+        lon_points = local_longitudes[sat]
+        if points.size == 0:
+            continue
+        centre_index = int(points.size // 2)
+        ax.annotate(
+            sat,
+            (lon_points[centre_index], points[centre_index]),
+            textcoords="offset points",
+            xytext=(6, 6),
+            fontsize=9,
+            bbox={"boxstyle": "round,pad=0.2", "fc": "#ffffff", "alpha": 0.8},
+        )
 
     ax.scatter(
         target_lon,
@@ -315,9 +366,25 @@ def generate_ground_track_zoom_figure(
         color="#000000",
         marker="*",
         s=140,
-        label="Tehran",
+        label=None,
+        zorder=4,
+    )
+    window_handles.append(
+        mlines.Line2D(
+            [],
+            [],
+            color="#000000",
+            marker="*",
+            linestyle="None",
+            markersize=10,
+            label="Tehran",
+        )
     )
 
+    lat_span = combined_lat.max() - combined_lat.min()
+    lon_span = combined_lon.max() - combined_lon.min()
+    lat_margin = max(0.05, lat_span * 0.6)
+    lon_margin = max(0.08, lon_span * 0.6)
     ax.set_xlim(combined_lon.min() - lon_margin, combined_lon.max() + lon_margin)
     ax.set_ylim(combined_lat.min() - lat_margin, combined_lat.max() + lat_margin)
     ax.set_xlabel("Longitude [deg]")
@@ -325,9 +392,133 @@ def generate_ground_track_zoom_figure(
     ax.set_title("Tehran-local ground tracks during overflight")
     ax.set_aspect("equal", adjustable="datalim")
     ax.grid(True, linestyle=":", linewidth=0.6)
-    ax.legend(loc="best", fontsize="small")
+    if track_handles:
+        track_legend = ax.legend(
+            track_handles,
+            [handle.get_label() for handle in track_handles],
+            loc="upper left",
+            fontsize="small",
+            title="Ground tracks",
+        )
+        ax.add_artist(track_legend)
+    if window_handles:
+        window_legend = ax.legend(
+            window_handles,
+            [handle.get_label() for handle in window_handles],
+            loc="lower right",
+            fontsize="small",
+            title="Window samples",
+        )
+        ax.add_artist(window_legend)
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
+    plt.close(fig)
+
+
+def generate_initial_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
+    sat_ids = sorted(summary.run.positions)
+    if len(sat_ids) < 3:
+        return
+
+    raw_times = summary.run.times
+    if isinstance(raw_times, np.ndarray):
+        candidate_times = list(raw_times.tolist())
+    else:
+        candidate_times = list(raw_times)
+    times: list[datetime | None] = []
+    for value in candidate_times:
+        if isinstance(value, datetime):
+            times.append(value)
+        elif hasattr(value, "to_pydatetime"):
+            times.append(value.to_pydatetime())  # type: ignore[call-arg]
+        else:
+            times.append(None)
+
+    window = summary.metrics.get("formation_window", {})
+    window_start = _parse_iso8601(window.get("start"))
+    start_index = _find_nearest_epoch_index(times, window_start)
+    if start_index is None:
+        start_index = 0
+
+    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+    if summary.run.time_step <= 0.0 and len(times) > 1:
+        time_step = (times[1] - times[0]).total_seconds()
+    else:
+        time_step = summary.run.time_step
+    centroid_velocities = _differentiate(centroid_positions, float(time_step))
+
+    if not centroid_velocities.any() and len(centroid_positions) > 1:
+        fallback_velocity = (centroid_positions[1] - centroid_positions[0])
+        centroid_velocities[0] = fallback_velocity / max(time_step, 1.0)
+
+    reference_position = centroid_positions[start_index]
+    reference_velocity = centroid_velocities[start_index]
+    if np.linalg.norm(reference_velocity) == 0.0 and len(centroid_positions) > 1:
+        neighbour = min(start_index + 1, len(centroid_positions) - 1)
+        delta_t = 0.0
+        if times and isinstance(times[neighbour], datetime) and isinstance(times[start_index], datetime):
+            delta_t = (times[neighbour] - times[start_index]).total_seconds()
+        if delta_t == 0.0:
+            delta_t = max(time_step, 1.0)
+        reference_velocity = (centroid_positions[neighbour] - centroid_positions[start_index]) / delta_t
+
+    lvlh_coords: dict[str, np.ndarray] = {}
+    for sat in sat_ids:
+        rel_vec = summary.run.positions[sat][start_index] - reference_position
+        lvlh = eci_to_lvlh(reference_position, reference_velocity, rel_vec)
+        lvlh_coords[sat] = lvlh / 1e3
+
+    plane_points = np.array([[coords[1], coords[2]] for coords in lvlh_coords.values()])
+    if plane_points.size == 0:
+        return
+
+    centre = plane_points.mean(axis=0)
+    angles = np.arctan2(plane_points[:, 1] - centre[1], plane_points[:, 0] - centre[0])
+    ordering = np.argsort(angles)
+
+    ordered_ids = [sat_ids[i] for i in ordering]
+    ordered_points = plane_points[ordering]
+
+    fig, ax = plt.subplots(figsize=(6.0, 5.5))
+    polygon_x = np.append(ordered_points[:, 0], ordered_points[0, 0])
+    polygon_y = np.append(ordered_points[:, 1], ordered_points[0, 1])
+    ax.plot(polygon_x, polygon_y, color="#4c72b0", linewidth=1.6, linestyle="-", zorder=1)
+
+    for sat, point in zip(ordered_ids, ordered_points):
+        ax.scatter(
+            point[0],
+            point[1],
+            color="#dd8452",
+            edgecolor="#ffffff",
+            linewidths=0.8,
+            s=90,
+            zorder=2,
+        )
+        ax.annotate(
+            sat,
+            (point[0], point[1]),
+            textcoords="offset points",
+            xytext=(6, 6),
+            fontsize=10,
+            bbox={"boxstyle": "round,pad=0.2", "fc": "#ffffff", "alpha": 0.85},
+        )
+
+    extent = max(np.ptp(polygon_x), np.ptp(polygon_y))
+    margin = max(extent * 0.35, 0.2)
+    ax.set_xlim(centre[0] - extent / 2 - margin, centre[0] + extent / 2 + margin)
+    ax.set_ylim(centre[1] - extent / 2 - margin, centre[1] + extent / 2 + margin)
+    ax.set_xlabel("Along-track [km]")
+    ax.set_ylabel("Cross-track [km]")
+    timestamp = times[start_index]
+    timestamp_str = timestamp.isoformat().replace("+00:00", "Z") if timestamp else "n/a"
+    ax.set_title(
+        "Formation geometry at window start\n"
+        f"Snapshot: {timestamp_str}"
+    )
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.grid(True, linestyle=":", linewidth=0.6)
+    fig.tight_layout()
+    fig.savefig(plot_dir / "formation_triangle_initial.svg", format="svg")
     plt.close(fig)
 
 
@@ -877,6 +1068,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
+    generate_initial_triangle_snapshot(summary, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
