@@ -10,6 +10,7 @@ This register consolidates the simulation and analysis run identifiers that unde
 | `run_20251020_1900Z_tehran_daily_pass_locked` | Locked Tehran daily-pass alignment | `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/` | `scenario_summary.json`, `deterministic_summary.json`, `monte_carlo_summary.json`, `stk_export/` ephemeris suite | Establishes the \(350.7885044642857^{\circ}\) optimised RAAN with the 07:39:25–07:40:55Z imaging window and the 20:55:00–21:08:00Z downlink, forming the authoritative evidence cited across the compliance matrix and STK validation guide.[Ref2][Ref3] |
 | `artefacts/triangle_run/` snapshot | Curated triangle formation rerun | `artefacts/triangle_run/` | Mirrors the `run_20251018_1207Z` data products together with `run_metadata.json` | Provides a convenient analyst-ready bundle for familiarisation and demonstrations; the underlying evidence remains the `run_20251018_1207Z` dataset listed above.[Ref1] |
 | `run_20260321_0740Z_tehran_daily_pass_resampled` | Exploratory resampling of the locked daily pass | `artefacts/run_20260321_0740Z_tehran_daily_pass_resampled/` | `scenario_summary.json`, `monte_carlo_summary.json`, `stk_export/` ephemeris suite | Retains the locked geometry while exercising the resampling workflow; marked as non-baseline but kept for methodological comparison.[Ref4] |
+| `run_20251101_0803Z` | Tehran triangular formation analytical refresh | `artefacts/run_20251101_0803Z/` | `triangle_summary.json`, diagnostics CSVs, STK export, `plots/` analytical figures | Supplements the baseline with publication-ready visual analytics, perturbation estimates, and validation overlays captured in `docs/run_20251101_0803Z_triangle_report.md`.[Ref5] |
 
 ## Maintenance Guidance
 1. Update this ledger whenever a new run supersedes an existing compliance reference. Note whether the previous dataset remains available for historical comparison.
@@ -21,3 +22,4 @@ This register consolidates the simulation and analysis run identifiers that unde
 - [Ref2] `docs/tehran_daily_pass_scenario.md` – Tehran daily-pass scenario overview and validation record.
 - [Ref3] `docs/how_to_import_tehran_daily_pass_into_stk.md` – STK 11.2 validation workflow aligned with the locked daily-pass artefacts.
 - [Ref4] `artefacts/run_20260321_0740Z_tehran_daily_pass_resampled/scenario_summary.json` – Exploratory resampled daily-pass dataset for methodological comparison.
+- [Ref5] `docs/run_20251101_0803Z_triangle_report.md` – Analytical memorandum for the `run_20251101_0803Z` triangle refresh and derived figures.

@@ -1,0 +1,17 @@
+{
+  "run_id": "run_20251101_0803Z",
+  "timestamp_utc": "2025-11-01T08:08:01.319716Z",
+  "scenario_path": "/workspace/formation-sat-2/config/scenarios/tehran_triangle.json",
+  "notes": "Tehran formation refresh with expanded analytical figures and documentation.",
+  "formation_window_s": 96.0,
+  "artefacts": {
+    "summary_path": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/triangle_summary.json",
+    "stk_directory": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/stk",
+    "maintenance_csv": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/maintenance_summary.csv",
+    "command_windows_csv": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/command_windows.csv",
+    "injection_recovery_csv": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/injection_recovery.csv",
+    "drag_dispersion_csv": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/drag_dispersion.csv",
+    "orbital_elements_csv": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/orbital_elements.csv",
+    "plots_directory": "/workspace/formation-sat-2/artefacts/run_20251101_0803Z/plots"
+  }
+}
