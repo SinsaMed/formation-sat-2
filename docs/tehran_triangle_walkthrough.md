@@ -17,7 +17,7 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 ## Output Interpretation
 1. **Validate temporal coverage.** Within either the archived or regenerated summary JSON, ensure the `formation_window.duration_s` field exceeds the ninety-second threshold mandated by the mission requirement set.[Ref1]
 2. **Check geometric fidelity.** Review the `triangle.aspect_ratio_max` and `triangle.mean_side_lengths_m` entries to confirm the equilateral geometry is preserved across the access interval.[Ref1]
-3. **Review ground-track alignment.** Inspect the `samples` entries within `triangle_summary.json` whose timestamps fall between the `metrics.formation_window.start` and `metrics.formation_window.end` markers. Confirm that the maximum of those windowed `max_ground_distance_km` values remains below the \(350\,\text{km}\) tolerance, demonstrating that all three spacecraft remain within the observation corridor above Tehran. The global propagation also exposes a \(641.89\,\text{km}\) maximum outside the validated window, so capturing the filtered figure in compliance reports prevents ambiguity.[Ref1]
+3. **Review ground-track alignment.** Inspect the `samples` entries within `triangle_summary.json` whose timestamps fall between the `metrics.formation_window.start` and `metrics.formation_window.end` markers. Confirm that the maximum of those windowed `max_ground_distance_km` values remains below the \(350\,\text{km}\) tolerance, demonstrating that all three spacecraft remain within the observation corridor above Tehran. The global propagation also exposes a \(658.41\,\text{km}\) maximum outside the validated window, so capturing the filtered figure in compliance reports prevents ambiguity.[Ref1]
 
 ## STK Verification
 1. **Prepare the STK workspace.** Open STK 11.2 and create a new scenario matching the start and stop epochs reported in the JSON summary.
@@ -26,13 +26,13 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 4. **Cross-check metrics.** Use STK's built-in measurement tools to confirm that the triangle side lengths and centroid altitude match the analytical results to within numerical tolerance.[Ref1]
 
 ## RAAN Provenance and Traceability
-The \(18.880656^{\circ}\) right-ascension-of-the-ascending-node value that surfaces in the triangle artefacts belongs to the validated ninety-second window generated on 21 March 2026 between 09:31:12Z and 09:32:48Z, as archived in both `artefacts/triangle_run/triangle_summary.json` and the reproduced `run_20251018_1207Z` catalogue.[Ref1][Ref3] These files retain the equilateral-formation solution that satisfied the Tehran access and geometry constraints during the dedicated triangle campaign, so the RAAN figure is deliberately preserved for historical replay and Systems Tool Kit ingestion.
+The \(350.983817^{\circ}\) right-ascension-of-the-ascending-node value that surfaces in the triangle artefacts belongs to the validated ninety-six-second window generated on 21 March 2026 between 07:39:20Z and 07:40:56Z, as archived in both `artefacts/triangle_run/triangle_summary.json` and the refreshed `run_20251101_0803Z_tehran_triangle` catalogue.[Ref1][Ref3] These files retain the equilateral-formation solution that satisfied the Tehran access and geometry constraints during the dedicated triangle campaign, so the RAAN figure is deliberately preserved for historical replay and Systems Tool Kit ingestion.
 
 By contrast, the daily pass scenario file `config/scenarios/tehran_daily_pass.json` and its locked alignment artefact `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/scenario_summary.json` document the \(350.788504^{\circ}\) RAAN derived from the repeat-ground-track optimisation conducted later in the programme.[Ref4][Ref5] Keeping both data sets in the repository clarifies that the triangle demonstration remained successful while the daily operations baseline migrated to the refined nodal alignment; analysts selecting inputs for renewed studies should therefore choose the RAAN that matches the mission thread they are reproducing rather than assuming the \(18.880656^{\circ}\) entry represents a failure case.
 
 ## References
 - [Ref1] `docs/triangle_formation_results.md`.
 - [Ref2] `docs/stk_export.md`.
-- [Ref3] `artefacts/run_20251018_1207Z/triangle_summary.json` – Triangle run catalogue confirming the 96 s formation window and \(18.880656^{\circ}\) RAAN.
+- [Ref3] `artefacts/run_20251101_0803Z_tehran_triangle/triangle_summary.json` – Triangle run catalogue confirming the 96 s formation window and \(18.880656^{\circ}\) RAAN.
 - [Ref4] `config/scenarios/tehran_daily_pass.json` – Daily pass configuration capturing the \(350.788504^{\circ}\) RAAN used for routine operations.
 - [Ref5] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/scenario_summary.json` – Locked alignment ledger documenting the optimised RAAN lineage and solver sweep.
