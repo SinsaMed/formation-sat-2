@@ -483,6 +483,7 @@
 
     const boundsPoints = [];
     const legendEntries = [];
+    const formationVertices = [];
 
     (geometry.satellite_ids || []).forEach((satId, index) => {
       const lats = geometry.latitudes_rad[satId];
@@ -616,6 +617,7 @@
         }
       }
       const segments = buildTrackSegments(maskedLatitudes, maskedLongitudes);
+      const firstPoint = findFirstValidPoint(maskedLatitudes, maskedLongitudes);
       if (!segments.length) {
         return;
       }
@@ -628,26 +630,13 @@
         registerOverlay('formation', polyline);
         segment.forEach((point) => boundsPoints.push([point[0], point[1]]));
       });
-      const firstSegment = segments[0];
-      const lastSegment = segments[segments.length - 1];
-      const startPoint = firstSegment[0];
-      const endPoint = lastSegment[lastSegment.length - 1];
-      const startMarker = L.circleMarker(startPoint, {
-        radius: 4,
-        color: '#ffffff',
-        weight: 1,
-        fillColor: TRACK_COLOURS[index % TRACK_COLOURS.length],
-        fillOpacity: 0.9,
-      }).addTo(map);
-      registerOverlay('formation', startMarker);
-      const endMarker = L.circleMarker(endPoint, {
-        radius: 4,
-        color: '#121b2c',
-        weight: 2,
-        fillColor: TRACK_COLOURS[index % TRACK_COLOURS.length],
-        fillOpacity: 1,
-      }).addTo(map);
-      registerOverlay('formation', endMarker);
+      if (firstPoint) {
+        formationVertices.push({
+          position: firstPoint,
+          colour: TRACK_COLOURS[index % TRACK_COLOURS.length],
+          label: satId,
+        });
+      }
       legendEntries.push({ colour: TRACK_COLOURS[index % TRACK_COLOURS.length], label: satId });
     });
 
@@ -675,6 +664,37 @@
     if (legend) {
       legend.addTo(map);
       registerOverlay('formation', legend);
+    }
+
+    if (formationVertices.length >= 3) {
+      const polygon = L.polygon(
+        formationVertices.map((vertex) => vertex.position),
+        {
+          color: '#ffd54f',
+          weight: 2,
+          opacity: 0.85,
+          dashArray: '8 6',
+          fill: false,
+        },
+      ).addTo(map);
+      registerOverlay('formation', polygon);
+      formationVertices.forEach((vertex) => {
+        const marker = L.marker(vertex.position, {
+          icon: L.divIcon({
+            className: 'formation-vertex-icon',
+            html: [
+              '<div class="formation-vertex-wrapper">',
+              `<span class="formation-vertex-dot" style="background-color: ${vertex.colour}; box-shadow: 0 0 8px ${vertex.colour}80;"></span>`,
+              `<span class="formation-vertex-label">${escapeHtml(vertex.label)}</span>`,
+              '</div>',
+            ].join(''),
+            iconSize: [48, 48],
+            iconAnchor: [24, 24],
+          }),
+          interactive: false,
+        }).addTo(map);
+        registerOverlay('formation', marker);
+      });
     }
 
     togglePlaceholder(formationWindowPlaceholder, false);
@@ -848,6 +868,20 @@
       segments.push(current);
     }
     return segments;
+  }
+
+  function findFirstValidPoint(latitudes, longitudes) {
+    if (!Array.isArray(latitudes) || !Array.isArray(longitudes)) {
+      return null;
+    }
+    for (let i = 0; i < latitudes.length; i += 1) {
+      const lat = latitudes[i];
+      const lon = longitudes[i];
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        return [lat * RAD2DEG, normaliseLongitude(lon * RAD2DEG)];
+      }
+    }
+    return null;
   }
 
   function buildOrbitalElementSeries(geometry, timeSeconds) {
@@ -1156,6 +1190,18 @@
       return '—';
     }
     return Number(value).toFixed(digits);
+  }
+
+  function escapeHtml(value) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   if (scenarioForm) {

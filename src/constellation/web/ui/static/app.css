@@ -325,6 +325,43 @@ figcaption {
   white-space: nowrap;
 }
 
+.formation-vertex-icon {
+  background: transparent;
+  border: none;
+  text-align: center;
+  pointer-events: none;
+}
+
+.formation-vertex-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.formation-vertex-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  transform: rotate(45deg);
+}
+
+.formation-vertex-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(6, 22, 40, 0.9);
+  border: 1px solid rgba(126, 185, 255, 0.5);
+  color: #e6f0ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 18px rgba(4, 12, 26, 0.6);
+}
+
 .leaflet-tooltip.map-tooltip {
   background: rgba(12, 32, 58, 0.9);
   color: #ffe082;
