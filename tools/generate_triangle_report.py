@@ -443,8 +443,9 @@ def generate_ground_track_zoom_figure(
     plt.close(fig)
 
 
-def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
-    sat_ids = sorted(summary.run.positions)
+def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, plot_dir: Path) -> None:
+    original_sat_ids = sorted(summary.run.positions)
+    sat_ids = list(original_sat_ids)
     if len(sat_ids) < 3:
         return
 
@@ -454,46 +455,103 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
         times = list(summary.run.times)
     else:
         times = list(summary.run.times)
-    if not times:
+    if not times and start is None:
         return
-    index = _find_nearest_epoch_index(times, start) if start else 0
-    if index is None:
-        index = 0
 
-    time_step = float(summary.run.time_step)
-    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
-    if time_step > 0.0:
-        centroid_velocities = _differentiate(centroid_positions, time_step)
-        satellite_velocities = {
-            sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
-        }
-    else:
-        centroid_velocities = np.zeros_like(centroid_positions)
-        satellite_velocities = {
-            sat: np.zeros_like(summary.run.positions[sat]) for sat in sat_ids
-        }
+    stk_dir = run_dir / "stk"
+    stk_ephemerides = _load_stk_ephemerides(stk_dir)
+    available_ids = sorted(set(sat_ids) & set(stk_ephemerides))
+    use_stk = len(available_ids) >= 3
+    if use_stk:
+        sat_ids = available_ids
 
-    centroid_position = centroid_positions[index]
-    centroid_velocity = centroid_velocities[index]
-
-    if np.linalg.norm(centroid_velocity) == 0.0:
+    if use_stk:
+        sample_positions: dict[str, np.ndarray] = {}
+        sample_velocities: dict[str, np.ndarray] = {}
+        sample_times: list[datetime] = []
         for sat in sat_ids:
-            sat_velocity = satellite_velocities.get(sat)
-            if sat_velocity is not None and sat_velocity.shape[0] > index:
-                centroid_velocity = sat_velocity[index]
-                if np.linalg.norm(centroid_velocity) != 0.0:
-                    break
-    if np.linalg.norm(centroid_velocity) == 0.0:
-        radial = centroid_position / np.linalg.norm(centroid_position)
-        reference = np.array([0.0, 0.0, 1.0])
-        if np.allclose(np.cross(reference, radial), 0.0):
-            reference = np.array([0.0, 1.0, 0.0])
-        tangential = np.cross(reference, radial)
-        tangential_norm = np.linalg.norm(tangential)
-        if tangential_norm != 0.0:
-            tangential /= tangential_norm
-            speed = math.sqrt(MU_EARTH / np.linalg.norm(centroid_position))
-            centroid_velocity = tangential * speed
+            series = stk_ephemerides.get(sat)
+            if series is None or series.empty:
+                use_stk = False
+                break
+            record = _select_stk_record(series, start)
+            position = np.array([record["x_m"], record["y_m"], record["z_m"]], dtype=float)
+            velocity = np.array(
+                [record["vx_m_s"], record["vy_m_s"], record["vz_m_s"]], dtype=float
+            )
+            sample_positions[sat] = position
+            sample_velocities[sat] = velocity
+            timestamp = record["time_utc"]
+            if isinstance(timestamp, pd.Timestamp):
+                sample_times.append(timestamp.to_pydatetime())
+            elif isinstance(timestamp, datetime):
+                sample_times.append(timestamp)
+
+        if not sample_positions or not sample_velocities:
+            use_stk = False
+            sat_ids = list(original_sat_ids)
+
+    if use_stk:
+        centroid_position = np.mean(list(sample_positions.values()), axis=0)
+        centroid_velocity = np.mean(list(sample_velocities.values()), axis=0)
+        if np.linalg.norm(centroid_velocity) == 0.0:
+            centroid_velocity = _fallback_velocity_from_samples(
+                centroid_position, list(sample_velocities.values())
+            )
+        representative_time = _select_representative_time(sample_times, start)
+    else:
+        sat_ids = list(original_sat_ids)
+        if not times:
+            return
+        index = _find_nearest_epoch_index(times, start) if start else 0
+        if index is None:
+            index = 0
+
+        time_step = float(summary.run.time_step)
+        centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+        if time_step > 0.0:
+            centroid_velocities = _differentiate(centroid_positions, time_step)
+            satellite_velocities = {
+                sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
+            }
+        else:
+            centroid_velocities = np.zeros_like(centroid_positions)
+            satellite_velocities = {
+                sat: np.zeros_like(summary.run.positions[sat]) for sat in sat_ids
+            }
+
+        centroid_position = centroid_positions[index]
+        centroid_velocity = centroid_velocities[index]
+
+        if np.linalg.norm(centroid_velocity) == 0.0:
+            for sat in sat_ids:
+                sat_velocity = satellite_velocities.get(sat)
+                if sat_velocity is not None and sat_velocity.shape[0] > index:
+                    centroid_velocity = sat_velocity[index]
+                    if np.linalg.norm(centroid_velocity) != 0.0:
+                        break
+        if np.linalg.norm(centroid_velocity) == 0.0:
+            radial = centroid_position / np.linalg.norm(centroid_position)
+            reference = np.array([0.0, 0.0, 1.0])
+            if np.allclose(np.cross(reference, radial), 0.0):
+                reference = np.array([0.0, 1.0, 0.0])
+            tangential = np.cross(reference, radial)
+            tangential_norm = np.linalg.norm(tangential)
+            if tangential_norm != 0.0:
+                tangential /= tangential_norm
+                speed = math.sqrt(MU_EARTH / np.linalg.norm(centroid_position))
+                centroid_velocity = tangential * speed
+
+        sample_positions = {
+            sat: summary.run.positions[sat][index] for sat in sat_ids
+        }
+        sample_velocities = {
+            sat: satellite_velocities[sat][index]
+            if sat in satellite_velocities and satellite_velocities[sat].shape[0] > index
+            else np.zeros(3)
+            for sat in sat_ids
+        }
+        representative_time = times[index] if 0 <= index < len(times) else None
 
     lvlh_coordinates: dict[str, np.ndarray] = {}
     colours = {
@@ -502,7 +560,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     }
 
     for sat in sat_ids:
-        rel_vec = summary.run.positions[sat][index] - centroid_position
+        rel_vec = sample_positions[sat] - centroid_position
         try:
             lvlh = eci_to_lvlh(centroid_position, centroid_velocity, rel_vec)
         except ValueError:
@@ -546,10 +604,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
 
     for first, second in zip(ordered, ordered[1:] + ordered[:1]):
         separation = (
-            np.linalg.norm(
-                summary.run.positions[first][index] - summary.run.positions[second][index]
-            )
-            / 1e3
+            np.linalg.norm(sample_positions[first] - sample_positions[second]) / 1e3
         )
         midpoint = 0.5 * (lvlh_coordinates[first] + lvlh_coordinates[second])
         ax.text(
@@ -569,20 +624,32 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     along_margin = max(0.1, (along.max() - along.min()) * 0.4)
     radial_margin = max(0.1, (radial.max() - radial.min()) * 0.4)
 
-    timestamp = times[index]
-    timestamp_str = (
-        timestamp.isoformat().replace("+00:00", "Z") if isinstance(timestamp, datetime) else "n/a"
-    )
+    if isinstance(representative_time, datetime):
+        timestamp = representative_time.astimezone(timezone.utc)
+        timestamp_str = timestamp.isoformat().replace("+00:00", "Z")
+    else:
+        timestamp_str = "n/a"
 
+    title_suffix = "STK export" if use_stk else "analytical propagation"
     ax.set_xlim(along.min() - along_margin, along.max() + along_margin)
     ax.set_ylim(radial.min() - radial_margin, radial.max() + radial_margin)
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
     ax.set_aspect("equal", adjustable="datalim")
-    ax.set_title(f"Formation geometry at window start ({timestamp_str})")
+    ax.set_title(f"Formation geometry at window start ({timestamp_str}, {title_suffix})")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="upper right", fontsize="small")
     fig.tight_layout()
+    ax.text(
+        0.02,
+        0.02,
+        "Derived in the LVLH frame using centroid-aligned states.",
+        transform=ax.transAxes,
+        fontsize="x-small",
+        color="#4a4a4a",
+        ha="left",
+        va="bottom",
+    )
     fig.savefig(plot_dir / "formation_triangle_snapshot.svg", format="svg")
     plt.close(fig)
 
@@ -1106,6 +1173,135 @@ def _geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_m: float) -> np.ndarra
     return np.array([x, y, z], dtype=float)
 
 
+def _parse_stk_epoch(value: str) -> datetime | None:
+    value = value.strip()
+    formats = ["%d %b %Y %H:%M:%S.%f", "%d %b %Y %H:%M:%S"]
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(value, fmt)
+            return parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def _load_stk_ephemerides(stk_dir: Path) -> dict[str, pd.DataFrame]:
+    if not stk_dir.exists() or not stk_dir.is_dir():
+        return {}
+    ephemerides: dict[str, pd.DataFrame] = {}
+    for ephemeris_file in sorted(stk_dir.glob("*.e")):
+        rows: list[tuple[datetime, float, float, float, float, float, float]] = []
+        epoch: datetime | None = None
+        with ephemeris_file.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("ScenarioEpoch"):
+                    epoch_candidate = stripped.split("ScenarioEpoch", 1)[1].strip()
+                    epoch = _parse_stk_epoch(epoch_candidate)
+                elif stripped.startswith("BEGIN EphemerisTimePosVel"):
+                    break
+        if epoch is None:
+            continue
+        with ephemeris_file.open("r", encoding="utf-8") as handle:
+            in_block = False
+            for line in handle:
+                stripped = line.strip()
+                if stripped.startswith("BEGIN EphemerisTimePosVel"):
+                    in_block = True
+                    continue
+                if stripped.startswith("END EphemerisTimePosVel"):
+                    break
+                if not in_block or not stripped or stripped.startswith("#"):
+                    continue
+                parts = stripped.split()
+                if len(parts) < 7:
+                    continue
+                try:
+                    offset = float(parts[0])
+                    px_km, py_km, pz_km = map(float, parts[1:4])
+                    vx_kms, vy_kms, vz_kms = map(float, parts[4:7])
+                except ValueError:
+                    continue
+                timestamp = epoch + timedelta(seconds=offset)
+                rows.append(
+                    (
+                        timestamp,
+                        px_km * 1000.0,
+                        py_km * 1000.0,
+                        pz_km * 1000.0,
+                        vx_kms * 1000.0,
+                        vy_kms * 1000.0,
+                        vz_kms * 1000.0,
+                    )
+                )
+        if rows:
+            frame = pd.DataFrame(
+                rows,
+                columns=[
+                    "time_utc",
+                    "x_m",
+                    "y_m",
+                    "z_m",
+                    "vx_m_s",
+                    "vy_m_s",
+                    "vz_m_s",
+                ],
+            )
+            ephemerides[ephemeris_file.stem] = frame
+    return ephemerides
+
+
+def _select_stk_record(series: pd.DataFrame, target: datetime | None) -> pd.Series:
+    if series.empty:
+        raise ValueError("Empty STK ephemeris series supplied.")
+    if target is None:
+        return series.iloc[0]
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
+    target_ts = pd.Timestamp(target)
+    times = pd.to_datetime(series["time_utc"], utc=True)
+    deltas = (times - target_ts).abs()
+    idx = int(deltas.idxmin())
+    return series.loc[idx]
+
+
+def _fallback_velocity_from_samples(
+    centroid_position: np.ndarray, velocities: list[np.ndarray]
+) -> np.ndarray:
+    for candidate in velocities:
+        if np.linalg.norm(candidate) != 0.0:
+            return candidate
+    radial = centroid_position / np.linalg.norm(centroid_position)
+    reference = np.array([0.0, 0.0, 1.0])
+    if np.allclose(np.cross(reference, radial), 0.0):
+        reference = np.array([0.0, 1.0, 0.0])
+    tangential = np.cross(reference, radial)
+    tangential_norm = np.linalg.norm(tangential)
+    if tangential_norm == 0.0:
+        return np.zeros_like(centroid_position)
+    tangential /= tangential_norm
+    speed = math.sqrt(MU_EARTH / np.linalg.norm(centroid_position))
+    return tangential * speed
+
+
+def _select_representative_time(times: list[datetime], target: datetime | None) -> datetime | None:
+    if not times:
+        return target
+    if target is None:
+        return times[0]
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
+    differences: list[tuple[float, datetime]] = []
+    for entry in times:
+        entry_utc = entry if entry.tzinfo is not None else entry.replace(tzinfo=timezone.utc)
+        delta = abs((entry_utc - target).total_seconds())
+        differences.append((delta, entry_utc))
+    if not differences:
+        return target
+    differences.sort(key=lambda item: item[0])
+    return differences[0][1]
+
+
 def _load_stk_groundtrack(path: Path) -> tuple[np.ndarray, np.ndarray]:
     lines = path.read_text(encoding="utf-8").splitlines()
     lon = []
@@ -1133,7 +1329,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
-    generate_formation_triangle_snapshot(summary, plot_dir)
+    generate_formation_triangle_snapshot(summary, args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
