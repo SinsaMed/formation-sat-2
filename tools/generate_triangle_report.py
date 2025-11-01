@@ -443,34 +443,42 @@ def generate_ground_track_zoom_figure(
     plt.close(fig)
 
 
-def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
+def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, plot_dir: Path) -> None:
     sat_ids = sorted(summary.run.positions)
     if len(sat_ids) < 3:
         return
 
     window = summary.metrics.get("formation_window", {})
     start = _parse_iso8601(window.get("start"))
-    if isinstance(summary.run.times, np.ndarray):
-        times = list(summary.run.times)
+    stk_ephemeris = _load_stk_ephemerides(run_dir / "stk", sat_ids)
+    if stk_ephemeris is not None:
+        times, satellite_positions = stk_ephemeris
     else:
-        times = list(summary.run.times)
+        times = list(summary.run.times) if isinstance(summary.run.times, np.ndarray) else list(summary.run.times)
+        satellite_positions = {sat: summary.run.positions[sat] for sat in sat_ids}
+
     if not times:
         return
+
     index = _find_nearest_epoch_index(times, start) if start else 0
     if index is None:
         index = 0
 
-    time_step = float(summary.run.time_step)
-    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+    if stk_ephemeris is not None:
+        time_step = _infer_time_step(times)
+    else:
+        time_step = float(summary.run.time_step)
+
+    centroid_positions = np.mean([satellite_positions[sat] for sat in sat_ids], axis=0)
     if time_step > 0.0:
         centroid_velocities = _differentiate(centroid_positions, time_step)
         satellite_velocities = {
-            sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
+            sat: _differentiate(satellite_positions[sat], time_step) for sat in sat_ids
         }
     else:
         centroid_velocities = np.zeros_like(centroid_positions)
         satellite_velocities = {
-            sat: np.zeros_like(summary.run.positions[sat]) for sat in sat_ids
+            sat: np.zeros_like(satellite_positions[sat]) for sat in sat_ids
         }
 
     centroid_position = centroid_positions[index]
@@ -502,7 +510,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     }
 
     for sat in sat_ids:
-        rel_vec = summary.run.positions[sat][index] - centroid_position
+        rel_vec = satellite_positions[sat][index] - centroid_position
         try:
             lvlh = eci_to_lvlh(centroid_position, centroid_velocity, rel_vec)
         except ValueError:
@@ -547,7 +555,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     for first, second in zip(ordered, ordered[1:] + ordered[:1]):
         separation = (
             np.linalg.norm(
-                summary.run.positions[first][index] - summary.run.positions[second][index]
+                satellite_positions[first][index] - satellite_positions[second][index]
             )
             / 1e3
         )
@@ -1106,6 +1114,128 @@ def _geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_m: float) -> np.ndarra
     return np.array([x, y, z], dtype=float)
 
 
+def _load_stk_ephemerides(
+    stk_dir: Path, sat_ids: list[str]
+) -> tuple[list[datetime | None], dict[str, np.ndarray]] | None:
+    if not stk_dir.exists() or not sat_ids:
+        return None
+
+    reference_times: list[datetime | None] | None = None
+    satellite_positions: dict[str, np.ndarray] = {}
+
+    for sat in sat_ids:
+        dataset = None
+        for candidate in _candidate_stk_names(sat):
+            path = stk_dir / f"{candidate}.e"
+            if path.exists():
+                dataset = _read_stk_ephemeris(path)
+                if dataset is not None:
+                    break
+        if dataset is None:
+            return None
+        times, positions = dataset
+        if not times:
+            return None
+
+        if reference_times is None:
+            reference_times = list(times)
+        else:
+            min_len = min(len(reference_times), len(times))
+            if min_len == 0:
+                return None
+            reference_times = reference_times[:min_len]
+            times = times[:min_len]
+            for existing in list(satellite_positions):
+                satellite_positions[existing] = satellite_positions[existing][:min_len]
+
+        satellite_positions[sat] = positions[: len(reference_times)]
+
+    if reference_times is None or len(satellite_positions) != len(sat_ids):
+        return None
+
+    return reference_times, satellite_positions
+
+
+def _candidate_stk_names(sat_id: str) -> list[str]:
+    cleaned = sat_id.strip()
+    candidates = [
+        cleaned,
+        cleaned.replace("-", "_"),
+        cleaned.replace("-", ""),
+        cleaned.lower(),
+        cleaned.upper(),
+    ]
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for variant in candidates:
+        if not variant or variant in seen:
+            continue
+        seen.add(variant)
+        ordered.append(variant)
+    return ordered
+
+
+def _read_stk_ephemeris(path: Path) -> tuple[list[datetime | None], np.ndarray] | None:
+    epoch: datetime | None = None
+    offsets: list[float] = []
+    positions: list[tuple[float, float, float]] = []
+
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if stripped.startswith("ScenarioEpoch"):
+                epoch_string = stripped.split("ScenarioEpoch", 1)[1].strip()
+                epoch = _parse_stk_epoch(epoch_string)
+            elif stripped.startswith("BEGIN EphemerisTimePosVel"):
+                break
+
+        for line in handle:
+            stripped = line.strip()
+            if stripped.startswith("END EphemerisTimePosVel"):
+                break
+            if not stripped or stripped.startswith("#"):
+                continue
+            parts = stripped.split()
+            if len(parts) < 4:
+                continue
+            try:
+                offset = float(parts[0])
+                x_km, y_km, z_km = map(float, parts[1:4])
+            except ValueError:
+                continue
+            offsets.append(offset)
+            positions.append((x_km * 1_000.0, y_km * 1_000.0, z_km * 1_000.0))
+
+    if epoch is None or not offsets or not positions:
+        return None
+
+    times = [epoch + timedelta(seconds=offset) for offset in offsets]
+    return times, np.asarray(positions, dtype=float)
+
+
+def _parse_stk_epoch(value: str) -> datetime | None:
+    if not value:
+        return None
+    base, _, fractional = value.partition(".")
+    try:
+        parsed = datetime.strptime(base.strip(), "%d %b %Y %H:%M:%S")
+    except ValueError:
+        return None
+    digits = "".join(ch for ch in fractional if ch.isdigit()) if fractional else ""
+    microseconds = int((digits + "000000")[:6]) if digits else 0
+    return parsed.replace(microsecond=microseconds, tzinfo=timezone.utc)
+
+
+def _infer_time_step(times: list[datetime | None]) -> float:
+    for earlier, later in zip(times, times[1:]):
+        if earlier is None or later is None:
+            continue
+        delta = (later - earlier).total_seconds()
+        if delta > 0.0:
+            return float(delta)
+    return 0.0
+
+
 def _load_stk_groundtrack(path: Path) -> tuple[np.ndarray, np.ndarray]:
     lines = path.read_text(encoding="utf-8").splitlines()
     lon = []
@@ -1133,7 +1263,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
-    generate_formation_triangle_snapshot(summary, plot_dir)
+    generate_formation_triangle_snapshot(summary, args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
