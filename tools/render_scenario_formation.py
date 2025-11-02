@@ -18,6 +18,8 @@ from typing import Dict, Iterable, Tuple
 
 import numpy as np
 import pandas as pd
+from matplotlib import dates as mdates
+from matplotlib import pyplot as plt
 
 from tools import render_debug_plots as rdp
 
@@ -167,6 +169,217 @@ def _estimate_design_altitude_km(
 def render_scenario_formation(run_directory: Path) -> dict[str, Path | dict[str, Path]]:
     """Generate the formation visualisations for an STK-only scenario run."""
 
+    def _load_deterministic_cross_track() -> pd.DataFrame:
+        csv_path = run_directory / "deterministic_cross_track.csv"
+        if not csv_path.exists():
+            raise FileNotFoundError(
+                f"Deterministic cross-track catalogue {csv_path} not found."
+            )
+        dataframe = pd.read_csv(csv_path)
+        if "time_iso" not in dataframe.columns:
+            raise ValueError("deterministic_cross_track.csv missing time_iso column")
+        dataframe["time_utc"] = pd.to_datetime(dataframe["time_iso"], utc=True)
+        return dataframe
+
+    def _load_relative_cross_track() -> pd.DataFrame:
+        csv_path = run_directory / "relative_cross_track.csv"
+        if not csv_path.exists():
+            raise FileNotFoundError(
+                f"Relative cross-track catalogue {csv_path} not found."
+            )
+        dataframe = pd.read_csv(csv_path)
+        if "time_iso" not in dataframe.columns:
+            raise ValueError("relative_cross_track.csv missing time_iso column")
+        dataframe["time_utc"] = pd.to_datetime(dataframe["time_iso"], utc=True)
+        return dataframe
+
+    def _load_deterministic_summary() -> dict:
+        summary_path = run_directory / "deterministic_summary.json"
+        if not summary_path.exists():
+            raise FileNotFoundError(
+                f"Deterministic summary {summary_path} not found."
+            )
+        with summary_path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _load_monte_carlo_summary() -> dict:
+        summary_path = run_directory / "monte_carlo_summary.json"
+        if not summary_path.exists():
+            raise FileNotFoundError(
+                f"Monte Carlo summary {summary_path} not found."
+            )
+        with summary_path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _plot_cross_track_timeseries(
+        deterministic: pd.DataFrame,
+        formation_window: Tuple[pd.Timestamp, pd.Timestamp],
+        limits: dict,
+        output_dir: Path,
+    ) -> Path:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        time_index = deterministic["time_utc"]
+        satellite_columns = [
+            column for column in deterministic.columns if column not in {"time_iso", "time_utc"}
+        ]
+        for column in sorted(satellite_columns):
+            ax.plot(time_index, deterministic[column], label=column)
+
+        primary_limit = limits.get("primary")
+        waiver_limit = limits.get("waiver")
+        if primary_limit is not None:
+            ax.axhline(primary_limit, color="#1b9e77", linestyle="--", linewidth=1.5, label="±30 km limit")
+            ax.axhline(-primary_limit, color="#1b9e77", linestyle="--", linewidth=1.5)
+        if waiver_limit is not None:
+            ax.axhline(waiver_limit, color="#d95f02", linestyle=":", linewidth=1.2, label="±70 km waiver")
+            ax.axhline(-waiver_limit, color="#d95f02", linestyle=":", linewidth=1.2)
+
+        window_start, window_end = formation_window
+        ax.axvspan(window_start, window_end, color="#7570b3", alpha=0.1, label="Imaging window")
+
+        ax.set_title("Deterministic cross-track offsets during locked daily pass")
+        ax.set_xlabel("Time (UTC)")
+        ax.set_ylabel("Cross-track offset (km)")
+        ax.grid(True, linestyle=":", linewidth=0.5)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+        ax.legend(loc="upper right")
+        fig.autofmt_xdate()
+
+        output_path = output_dir / "cross_track_timeseries.svg"
+        fig.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        return output_path
+
+    def _plot_centroid_timeseries(
+        deterministic: pd.DataFrame,
+        formation_window: Tuple[pd.Timestamp, pd.Timestamp],
+        limits: dict,
+        output_dir: Path,
+    ) -> Path:
+        satellite_columns = [
+            column for column in deterministic.columns if column not in {"time_iso", "time_utc"}
+        ]
+        centroid = deterministic[satellite_columns].mean(axis=1)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(deterministic["time_utc"], centroid, color="#2c7fb8", linewidth=2.0, label="Centroid cross-track")
+
+        primary_limit = limits.get("primary")
+        waiver_limit = limits.get("waiver")
+        if primary_limit is not None:
+            ax.axhline(primary_limit, color="#1b9e77", linestyle="--", linewidth=1.5, label="±30 km limit")
+            ax.axhline(-primary_limit, color="#1b9e77", linestyle="--", linewidth=1.5)
+        if waiver_limit is not None:
+            ax.axhline(waiver_limit, color="#d95f02", linestyle=":", linewidth=1.2, label="±70 km waiver")
+            ax.axhline(-waiver_limit, color="#d95f02", linestyle=":", linewidth=1.2)
+
+        window_start, window_end = formation_window
+        ax.axvspan(window_start, window_end, color="#7570b3", alpha=0.1, label="Imaging window")
+
+        ax.set_title("Formation centroid cross-track closure")
+        ax.set_xlabel("Time (UTC)")
+        ax.set_ylabel("Cross-track offset (km)")
+        ax.grid(True, linestyle=":", linewidth=0.5)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+        ax.legend(loc="upper right")
+        fig.autofmt_xdate()
+
+        output_path = output_dir / "centroid_cross_track.svg"
+        fig.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        return output_path
+
+    def _plot_relative_cross_track(
+        relative: pd.DataFrame,
+        formation_window: Tuple[pd.Timestamp, pd.Timestamp],
+        output_dir: Path,
+    ) -> Path:
+        fig, ax = plt.subplots(figsize=(10, 5))
+        separations = relative["relative_cross_track_km"].abs()
+        ax.plot(
+            relative["time_utc"],
+            separations,
+            color="#7570b3",
+            linewidth=2.0,
+            label="Max pairwise separation",
+        )
+
+        window_start, window_end = formation_window
+        ax.axvspan(window_start, window_end, color="#1b9e77", alpha=0.1, label="Imaging window")
+
+        ax.set_title("Relative cross-track envelope across constellation")
+        ax.set_xlabel("Time (UTC)")
+        ax.set_ylabel("Absolute separation (km)")
+        ax.grid(True, linestyle=":", linewidth=0.5)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+        ax.legend(loc="upper right")
+        fig.autofmt_xdate()
+
+        output_path = output_dir / "relative_cross_track.svg"
+        fig.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        return output_path
+
+    def _plot_monte_carlo_statistics(
+        summary: dict,
+        limits: dict,
+        output_dir: Path,
+    ) -> Path:
+        evaluation = summary.get("evaluation_abs_cross_track_km", {})
+        vehicles = sorted(evaluation.keys())
+        means = [evaluation[vehicle]["mean"] for vehicle in vehicles]
+        p95s = [evaluation[vehicle]["p95"] for vehicle in vehicles]
+        centroid_stats = summary.get("centroid_abs_cross_track_km", {})
+        centroid_mean = centroid_stats.get("mean")
+        centroid_p95 = centroid_stats.get("p95")
+        worst_stats = summary.get("worst_vehicle_abs_cross_track_km", {})
+        worst_mean = worst_stats.get("mean")
+        worst_p95 = worst_stats.get("p95")
+
+        x = np.arange(len(vehicles))
+        width = 0.35
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.bar(x - width / 2, means, width, label="Mean at evaluation", color="#1f78b4")
+        ax.bar(x + width / 2, p95s, width, label="95th percentile", color="#33a02c")
+
+        # Append centroid and worst-spacecraft annotations on the right-hand axis.
+        annotation_lines = []
+        if centroid_mean is not None and centroid_p95 is not None:
+            annotation_lines.append(f"Centroid: mean {centroid_mean:.2f} km, p95 {centroid_p95:.2f} km")
+        if worst_mean is not None and worst_p95 is not None:
+            annotation_lines.append(f"Worst spacecraft: mean {worst_mean:.2f} km, p95 {worst_p95:.2f} km")
+
+        primary_limit = limits.get("primary")
+        waiver_limit = limits.get("waiver")
+        if primary_limit is not None:
+            ax.axhline(primary_limit, color="#1b9e77", linestyle="--", linewidth=1.5, label="±30 km limit")
+        if waiver_limit is not None:
+            ax.axhline(waiver_limit, color="#d95f02", linestyle=":", linewidth=1.2, label="±70 km waiver")
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(vehicles)
+        ax.set_ylabel("Absolute cross-track at evaluation (km)")
+        ax.set_title("Monte Carlo dispersion at access midpoint")
+        ax.grid(True, axis="y", linestyle=":", linewidth=0.5)
+        ax.legend(loc="upper left")
+
+        if annotation_lines:
+            text = "\n".join(annotation_lines)
+            ax.text(
+                0.99,
+                0.02,
+                text,
+                transform=ax.transAxes,
+                ha="right",
+                va="bottom",
+                fontsize=9,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7, edgecolor="#cccccc"),
+            )
+
+        output_path = output_dir / "monte_carlo_statistics.svg"
+        fig.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        return output_path
+
     stk_dir = run_directory / "stk_export"
     if not stk_dir.exists():
         raise FileNotFoundError(f"STK export directory {stk_dir} not found.")
@@ -219,6 +432,34 @@ def render_scenario_formation(run_directory: Path) -> dict[str, Path | dict[str,
     # The renderer already accounts for these when provided through global state,
     # so no further action is required here beyond signalling availability.
     _ = facilities, contacts  # Preserve lint satisfaction for future extensions.
+
+    deterministic = _load_deterministic_cross_track()
+    relative = _load_relative_cross_track()
+    deterministic_summary = _load_deterministic_summary()
+    monte_carlo_summary = _load_monte_carlo_summary()
+
+    cross_track_limits = deterministic_summary.get("metrics", {}).get(
+        "cross_track_limits_km", {}
+    )
+
+    outputs.update(
+        {
+            "cross_track_timeseries": _plot_cross_track_timeseries(
+                deterministic, formation_window, cross_track_limits, output_dir
+            ),
+            "centroid_cross_track": _plot_centroid_timeseries(
+                deterministic, formation_window, cross_track_limits, output_dir
+            ),
+            "relative_cross_track": _plot_relative_cross_track(
+                relative, formation_window, output_dir
+            ),
+            "monte_carlo_statistics": _plot_monte_carlo_statistics(
+                monte_carlo_summary,
+                monte_carlo_summary.get("cross_track_limits_km", cross_track_limits),
+                output_dir,
+            ),
+        }
+    )
 
     return outputs
 
