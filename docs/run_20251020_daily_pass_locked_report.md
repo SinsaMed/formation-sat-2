@@ -31,6 +31,15 @@ Running `python -m tools.render_scenario_formation artefacts/run_20251020_1900Z_
 - `plots/monte_carlo_statistics.svg` – bar chart summarising mean and 95th-percentile absolute offsets for each spacecraft at the access midpoint, annotated with centroid and worst-spacecraft statistics.[Ref4]
 - `plots/formation_3d.svg` – canonical STK-aligned three-dimensional overview with facilities and access cones, unchanged from the previous release.[Ref4]
 
+Invoking `python -m tools.generate_daily_pass_report artefacts/run_20251020_1900Z_tehran_daily_pass_locked` supplements this baseline with publication-ready analytics aligned to the triangular formation dossier:
+
+- `plots/ground_tracks.svg` and `plots/ground_tracks_tehran.svg` – global and city-scale ground tracks reconstructed from the STK ephemeris with the cross-track offsets applied to all three spacecraft.[Ref4]
+- `plots/analytical_vs_stk_groundtrack.svg` – comparison of the two-body propagation and the STK \(J_2\)+drag solution, evidencing the perturbation-driven ground-track displacement.[Ref4]
+- `plots/access_timeline.svg` and `plots/access_sensitivity_contour.svg` – mission timeline and RAAN-sensitivity visualisations derived from the scenario access ledger and optimisation sweep.[Ref4]
+- `plots/pairwise_distances.svg`, `plots/relative_positions.svg`, and `plots/formation_triangle_snapshot.svg` – LVLH-relative separations and midpoint geometry inferred from the deterministic cross-track ledger.[Ref4]
+- `plots/performance_metrics.svg`, `plots/maintenance_delta_v.svg`, and `plots/monte_carlo_sensitivity.svg` – compliance summaries combining deterministic, Monte Carlo, and RAAN-alignment statistics.[Ref4]
+- `plots/orbital_elements_timeseries.svg`, `plots/orbital_planes_3d.svg`, and `plots/perturbation_effects.svg` – orbital element reconstructions and perturbation diagnostics anchored to the STK export and two-body baseline.[Ref4]
+
 ## References
 - [Ref1] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/scenario_summary.json`.
 - [Ref2] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/deterministic_summary.json`.
