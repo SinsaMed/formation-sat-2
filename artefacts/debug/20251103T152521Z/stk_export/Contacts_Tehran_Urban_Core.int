@@ -1,0 +1,13 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN IntervalList
+    Name                Tehran_Urban_Core_Contacts
+    NumberOfIntervals   1
+
+    BEGIN Interval
+        Asset       tehran_daily_pass
+        StartTime   21 Mar 2026 07:39:25.000000000
+        StopTime    21 Mar 2026 07:40:55.000000000
+    END Interval
+END IntervalList

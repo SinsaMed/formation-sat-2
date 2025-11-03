@@ -1,0 +1,13 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN IntervalList
+    Name                Svalbard_Contacts
+    NumberOfIntervals   1
+
+    BEGIN Interval
+        Asset       tehran_daily_pass
+        StartTime   21 Mar 2026 20:55:00.000000000
+        StopTime    21 Mar 2026 21:08:00.000000000
+    END Interval
+END IntervalList

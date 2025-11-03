@@ -13,6 +13,9 @@ from typing import Iterable, Mapping, MutableMapping, Sequence, TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover - used only for static typing
     from sim.formation.triangle import TriangleFormationResult
 
+from tools.render_debug_plots import generate_visualisations as generate_debug_visualisations
+from tools.generate_triangle_report import main as generate_triangle_report_main
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_TRIANGLE_CONFIG = PROJECT_ROOT / "config" / "scenarios" / "tehran_triangle.json"
@@ -225,6 +228,34 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
             f"  - Peak aspect ratio: {aspect_ratio_max:.3f}",
         ]
     )
+
+    # Generate plots using render_debug_plots.py
+    LOGGER.info("Generating debug visualisations...")
+    debug_plot_outputs = generate_debug_visualisations(output_directory)
+    for label, artefact in debug_plot_outputs.items():
+        if isinstance(artefact, dict):
+            canonical = artefact.get("svg")
+            if canonical is not None:
+                LOGGER.info(f"Generated {label} visualisation at {canonical} (canonical SVG)")
+            for fmt, path in artefact.items():
+                if fmt == "svg":
+                    continue
+                LOGGER.info(f"Generated {label} visualisation at {path} ({fmt})")
+        else:
+            LOGGER.info(f"Generated {label} visualisation at {artefact}")
+
+    # Generate plots using generate_triangle_report.py
+    LOGGER.info("Generating triangle report plots...")
+    import sys
+    original_argv = sys.argv
+    try:
+        sys.argv = ['generate_triangle_report.py', '--run-dir', str(output_directory), '--config', str(config_path)]
+        generate_triangle_report_main()
+        LOGGER.info("Triangle report plots generated successfully.")
+    except Exception as e:
+        LOGGER.error(f"Failed to generate triangle report plots: {e}")
+    finally:
+        sys.argv = original_argv
 
     return summary
 

@@ -19,7 +19,7 @@
     "mean_anomaly_deg": 36.06454701821796
   },
   "formation": {
-    "side_length_m": 6000.0,
+    "side_length_m": 50000.0,
     "duration_s": 180.0,
     "time_step_s": 1.0,
     "ground_tolerance_km": 350.0,
@@ -67,4 +67,3 @@
     }
   }
 }
-

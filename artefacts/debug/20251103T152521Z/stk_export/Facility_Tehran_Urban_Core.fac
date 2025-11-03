@@ -1,0 +1,14 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN Facility
+
+    Name            Tehran_Urban_Core
+    CentralBody     Earth
+
+    BEGIN Location
+        Latitude    35.689200000
+        Longitude   51.389000000
+        Altitude    1.200000
+    END Location
+END Facility

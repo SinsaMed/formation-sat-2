@@ -1,3 +1,28 @@
+Metadata-Version: 2.4
+Name: formation-sat-tools
+Version: 0.1.0
+Summary: Export utilities that serialise formation flying simulation artefacts into Systems Tool Kit 11.2 text products.
+Author: Formation Design Team
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: License :: Other/Proprietary License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24
+Provides-Extra: analysis
+Requires-Dist: scipy>=1.11; extra == "analysis"
+Requires-Dist: astropy>=5; extra == "analysis"
+Requires-Dist: poliastro>=0.17; python_version < "3.11" and extra == "analysis"
+Requires-Dist: numba>=0.58; extra == "analysis"
+Requires-Dist: jplephem>=2.20; extra == "analysis"
+Provides-Extra: visualisation
+Requires-Dist: matplotlib>=3.7; extra == "visualisation"
+Requires-Dist: plotly>=5.15; extra == "visualisation"
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: pytest-cov>=6; extra == "dev"
+
 # Conceptual Design of a Three-Satellite LEO Constellation
 
 [![Continuous integration status](https://github.com/<owner>/formation-sat-2/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/formation-sat-2/actions/workflows/ci.yml)
@@ -14,7 +39,6 @@ Further elaboration on the mission statement, objectives, and derived requiremen
 The numerical verification of the triangular formation above Tehran is documented in [`docs/triangle_formation_results.md`](docs/triangle_formation_results.md).
 A step-by-step walkthrough for regenerating the artefacts and validating them inside Systems Tool Kit (STK 11.2) is available in [`docs/tehran_triangle_walkthrough.md`](docs/tehran_triangle_walkthrough.md).
 The consolidated delivery package, including reproduction instructions and artefact register, is summarised in [`docs/final_delivery_manifest.md`](docs/final_delivery_manifest.md).
-For details on the automated plot generation, refer to [`docs/automated_plotting.md`](docs/automated_plotting.md).
 
 ## Repository Layout
 - `AGENTS.md` – house style and collaboration guidelines for this codebase.

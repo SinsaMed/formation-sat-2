@@ -70,12 +70,12 @@ orbit:
       phase_angle_deg: 0.0  # Leader reference phase.
     deputies:
       - identifier: "FSAT-DP1"
-        along_track_offset_km: 20.0  # Deputy separation along the flight path.
-        cross_track_offset_km: 0.2  # Deputy cross-track displacement.
+        along_track_offset_km: 25.0  # Deputy separation along the flight path for 50km equilateral triangle.
+        cross_track_offset_km: 43.3  # Deputy cross-track displacement for 50km equilateral triangle.
         radial_offset_km: -0.05  # Deputy radial displacement.
       - identifier: "FSAT-DP2"
-        along_track_offset_km: -20.0
-        cross_track_offset_km: -0.2
+        along_track_offset_km: -25.0
+        cross_track_offset_km: -43.3
         radial_offset_km: 0.05
   maintenance_strategy:
     manoeuvre_cadence_days: 14  # Routine station-keeping cadence.
