@@ -19,6 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.patches as mpatches  # noqa: E402
 import matplotlib.patheffects as patheffects  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+import plotly.graph_objects as go  # noqa: E402
 
 from sim.formation.triangle import TriangleFormationResult, simulate_triangle_formation
 from src.constellation.frames import eci_to_lvlh
@@ -263,6 +264,7 @@ def generate_ground_track_figure(
     plt.close(fig)
 
     generate_ground_track_zoom_figure(summary, long_result, plot_dir)
+    generate_ground_track_animation(summary, plot_dir)
 
     return long_result
 
@@ -441,6 +443,269 @@ def generate_ground_track_zoom_figure(
     fig.tight_layout()
     fig.savefig(plot_dir / "ground_tracks_tehran.svg", format="svg")
     plt.close(fig)
+
+
+def generate_ground_track_animation(summary: SummaryData, plot_dir: Path) -> None:
+    sat_ids = sorted(summary.run.latitudes)
+    if not sat_ids:
+        return
+
+    if isinstance(summary.run.times, np.ndarray):
+        times = list(summary.run.times)
+    else:
+        times = list(summary.run.times)
+    if not times:
+        return
+
+    target = summary.geometry.get("target", {})
+    target_lat = float(target.get("latitude_deg", 35.6892))
+    target_lon = float(target.get("longitude_deg", 51.3890))
+
+    latitudes = {
+        sat: np.degrees(summary.run.latitudes.get(sat, np.array([]))) for sat in sat_ids
+    }
+    longitudes = {
+        sat: _wrap_longitudes(
+            np.degrees(summary.run.longitudes.get(sat, np.array([]))), summary.geometry
+        )
+        for sat in sat_ids
+    }
+
+    valid_length = len(times)
+    for sat in sat_ids:
+        valid_length = min(
+            valid_length,
+            len(latitudes.get(sat, [])),
+            len(longitudes.get(sat, [])),
+        )
+    if valid_length == 0:
+        return
+
+    time_array = np.asarray(times[:valid_length], dtype=object)
+    for sat in sat_ids:
+        latitudes[sat] = latitudes[sat][:valid_length]
+        longitudes[sat] = longitudes[sat][:valid_length]
+
+    boundary_polygons = _load_tehran_boundary_polygons()
+
+    global_mask = np.zeros(valid_length, dtype=bool)
+    for sat in sat_ids:
+        mask = _select_local_segment(
+            latitudes[sat], longitudes[sat], target_lat, target_lon
+        )
+        if mask.size != global_mask.size:
+            resized = np.zeros_like(global_mask)
+            resized[: mask.size] = mask
+            mask = resized
+        global_mask |= mask
+
+    if np.any(global_mask):
+        active_indices = np.where(global_mask)[0]
+        start_index = int(active_indices[0])
+        end_index = int(active_indices[-1])
+        selected_indices = np.arange(start_index, end_index + 1, dtype=int)
+    else:
+        selected_indices = np.arange(valid_length, dtype=int)
+
+    if selected_indices.size <= 1:
+        return
+
+    time_labels: list[str] = []
+    for epoch in time_array[selected_indices]:
+        if isinstance(epoch, datetime):
+            label = epoch.isoformat().replace("+00:00", "Z")
+        else:
+            label = str(epoch)
+        time_labels.append(label)
+
+    lat_series = {sat: latitudes[sat][selected_indices] for sat in sat_ids}
+    lon_series = {sat: longitudes[sat][selected_indices] for sat in sat_ids}
+
+    collected_lat = [lat_series[sat] for sat in sat_ids if lat_series[sat].size > 0]
+    collected_lon = [lon_series[sat] for sat in sat_ids if lon_series[sat].size > 0]
+    if not collected_lat or not collected_lon:
+        return
+
+    combined_lat = np.concatenate(collected_lat)
+    combined_lon = np.concatenate(collected_lon)
+    lat_span = combined_lat.max() - combined_lat.min()
+    lon_span = combined_lon.max() - combined_lon.min()
+    lat_margin = max(0.05, lat_span * 0.2)
+    lon_margin = max(0.08, lon_span * 0.2)
+
+    colours = {
+        sat: colour
+        for sat, colour in zip(
+            sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"]
+        )
+    }
+
+    dynamic_traces: list[go.Scatter] = []
+    for sat in sat_ids:
+        if lon_series[sat].size == 0:
+            continue
+        colour = colours.get(sat, "#3182bd")
+        dynamic_traces.append(
+            go.Scatter(
+                x=lon_series[sat][:1],
+                y=lat_series[sat][:1],
+                mode="lines",
+                line=dict(color=colour, width=3.0),
+                name=f"{sat} ground track",
+                legendgroup=sat,
+                showlegend=True,
+            )
+        )
+        dynamic_traces.append(
+            go.Scatter(
+                x=lon_series[sat][:1],
+                y=lat_series[sat][:1],
+                mode="markers",
+                marker=dict(color=colour, size=11, line=dict(color="#ffffff", width=1.5)),
+                name=f"{sat} position",
+                legendgroup=sat,
+                showlegend=True,
+            )
+        )
+
+    if not dynamic_traces:
+        return
+
+    boundary_traces: list[go.Scatter] = []
+    for index, polygon in enumerate(boundary_polygons):
+        if polygon.size == 0:
+            continue
+        boundary_traces.append(
+            go.Scatter(
+                x=polygon[:, 0],
+                y=polygon[:, 1],
+                mode="lines",
+                fill="toself",
+                fillcolor="rgba(244, 239, 232, 0.85)",
+                line=dict(color="#b07d62", width=1.0),
+                name="Tehran boundary" if index == 0 else "",
+                hoverinfo="skip",
+                showlegend=index == 0,
+            )
+        )
+
+    target_trace = go.Scatter(
+        x=[target_lon],
+        y=[target_lat],
+        mode="markers",
+        marker=dict(color="#000000", size=14, symbol="star"),
+        name="Tehran",
+        hovertemplate="Tehran",
+    )
+
+    dynamic_count = len(dynamic_traces)
+    fig = go.Figure(data=dynamic_traces + boundary_traces + [target_trace])
+
+    frames: list[go.Frame] = []
+    for frame_index, time_label in enumerate(time_labels):
+        frame_data: list[go.Scatter] = []
+        for sat in sat_ids:
+            if lon_series[sat].size == 0:
+                continue
+            path_lon = lon_series[sat][: frame_index + 1]
+            path_lat = lat_series[sat][: frame_index + 1]
+            head_lon = lon_series[sat][frame_index]
+            head_lat = lat_series[sat][frame_index]
+            frame_data.append(go.Scatter(x=path_lon, y=path_lat))
+            frame_data.append(go.Scatter(x=[head_lon], y=[head_lat]))
+        frames.append(
+            go.Frame(
+                data=frame_data,
+                name=time_label,
+                traces=list(range(dynamic_count)),
+            )
+        )
+
+    fig.frames = frames
+
+    slider_steps = [
+        {
+            "args": [[label], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
+            "label": label,
+            "method": "animate",
+        }
+        for label in time_labels
+    ]
+
+    fig.update_layout(
+        title="Tehran-local ground tracks during overflight (animated)",
+        xaxis=dict(
+            title="Longitude [deg]",
+            range=[combined_lon.min() - lon_margin, combined_lon.max() + lon_margin],
+            scaleanchor="y",
+            scaleratio=1.0,
+            gridcolor="rgba(0,0,0,0.15)",
+            zeroline=False,
+        ),
+        yaxis=dict(
+            title="Latitude [deg]",
+            range=[combined_lat.min() - lat_margin, combined_lat.max() + lat_margin],
+            gridcolor="rgba(0,0,0,0.15)",
+            zeroline=False,
+        ),
+        paper_bgcolor="#f5f5f5",
+        plot_bgcolor="#f5f5f5",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+        margin=dict(l=60, r=20, t=80, b=80),
+        updatemenus=[
+            {
+                "type": "buttons",
+                "buttons": [
+                    {
+                        "label": "Play",
+                        "method": "animate",
+                        "args": [
+                            None,
+                            {
+                                "frame": {"duration": 150, "redraw": True},
+                                "fromcurrent": True,
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                    },
+                    {
+                        "label": "Pause",
+                        "method": "animate",
+                        "args": [
+                            [None],
+                            {
+                                "frame": {"duration": 0, "redraw": False},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                    },
+                ],
+                "direction": "left",
+                "pad": {"r": 10, "t": 55},
+                "showactive": False,
+                "x": 0.0,
+                "y": 1.18,
+                "xanchor": "left",
+                "yanchor": "top",
+            }
+        ],
+        sliders=[
+            {
+                "active": 0,
+                "pad": {"l": 60, "r": 40, "t": 70, "b": 0},
+                "len": 0.9,
+                "x": 0.05,
+                "y": 0.0,
+                "xanchor": "left",
+                "yanchor": "top",
+                "steps": slider_steps,
+            }
+        ],
+    )
+
+    output_path = plot_dir / "ground_tracks_tehran_animation.html"
+    fig.write_html(output_path, include_plotlyjs="cdn", full_html=True)
 
 
 def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
