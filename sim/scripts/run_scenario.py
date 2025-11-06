@@ -33,6 +33,7 @@ from pathlib import Path
 from statistics import fmean
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
+from tools.render_scenario_plots import generate_visualisations as generate_scenario_plots
 from tools.stk_export import (
     FacilityDefinition,
     GroundContactInterval,
@@ -197,6 +198,20 @@ def run_scenario(
     artefacts: MutableMapping[str, Optional[str] | object] = {"summary_path": None}
     artefacts.update(propagation_artefacts)
     artefacts.update(stk_export_summary)
+    if output_directory:
+        try:
+            scenario_plots = generate_scenario_plots(Path(output_directory))
+        except Exception as exc:  # pragma: no cover - defensive guard
+            LOGGER.warning(
+                "Scenario plot generation failed for %s: %s",
+                output_directory,
+                exc,
+            )
+        else:
+            if scenario_plots:
+                artefacts["scenario_plots"] = {
+                    key: str(path) for key, path in scenario_plots.items()
+                }
     if output_directory:
         output_dir = Path(output_directory)
         artefacts["summary_path"] = str(output_dir / "scenario_summary.json")
