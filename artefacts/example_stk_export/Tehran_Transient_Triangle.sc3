@@ -461,7 +461,7 @@ EndCentralBody
             GridVertTextAlign        Border
             IsShowingPickAnnotation  Yes
             UsePickAnnoPosition      No
-            PickAnnoPosition         618 730
+            PickAnnoPosition         10 65
             PickAttachX              Min
             PickAttachY              Min
             PickAnnoFontSize         1
@@ -726,8 +726,8 @@ EndCentralBody
                 UseLayer                Yes
                 FromName                "Earth"
                 FromRegPosAttView       "Point"
-                FromPosition            1230711.202748468844220042  3150373.576414686627686024  8227440.829504529945552349
-                FromOffset              1230711.202748468844220042  3150373.576414686627686024  8227440.829504529945552349
+                FromPosition            1230711.202748468611389399  3150373.576414685230702162  8227440.829504529945552349
+                FromOffset              1230711.202748468611389399  3150373.576414685230702162  8227440.829504529945552349
                 FromOffsetLLR           1.180764765240289060  1.198371297560215876  8895520.577152336016297340
                 ToName                  "Earth"
                 ToRegPosAttView         "Point"
@@ -736,8 +736,8 @@ EndCentralBody
                 ToOffsetLLR             0.000000000000000000  0.000000000000000000  0.000000000000000000
                 ConstantDistanceType    None
                 ConstantDistanceValue   1.000000
-                UpVector                -0.336547183665504346  -0.861493218123633109  0.380217606501597527
-                ViewRad                 8895520.577152334153652191
+                UpVector                -0.336547183665504512  -0.861493218123633220  0.380217606501597472
+                ViewRad                 8895520.577152336016297340
                 ViewQuat                0.4685057 0.4597026 0.3139502 -0.6860111
                 ViewCoordSystem         From
                 ViewFromToMode          FromTo

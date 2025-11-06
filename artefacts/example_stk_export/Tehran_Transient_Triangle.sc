@@ -154,8 +154,8 @@ BEGIN Extensions
 		LaunchWindowUseEntireTraj               Yes
 		LaunchWindowTrajMETStart                0.000
 		LaunchWindowTrajMETStop                 900.000
-		LaunchWindowStart                       -12369865.000
-		LaunchWindowStop                        -12287755.000
+		LaunchWindowStart                       -12411000.000
+		LaunchWindowStop                        -12929400.000
 		LaunchMETOffset                         0.000
 		LaunchWindowUseSecEphem                 No 
 		LaunchWindowUseScenFolderForSecEphem    Yes
@@ -563,12 +563,6 @@ BEGIN Extensions
     END ExportDataFile
     
     BEGIN Desc
-    Begin ShortText
-
-    End ShortText
-    Begin LongText
-
-    End LongText
     END Desc
     
     BEGIN RfEnv

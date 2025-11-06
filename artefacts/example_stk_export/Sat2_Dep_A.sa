@@ -10516,8 +10516,8 @@ BEGIN Extensions
 		LaunchWindowUseEntireTraj               Yes
 		LaunchWindowTrajMETStart                0.000
 		LaunchWindowTrajMETStop                 900.000
-		LaunchWindowStart                       -12372900.000
-		LaunchWindowStop                        -12377190.000
+		LaunchWindowStart                       -12414035.000
+		LaunchWindowStop                        -13018835.000
 		LaunchMETOffset                         0.000
 		LaunchWindowUseSecEphem                 No 
 		LaunchWindowUseScenFolderForSecEphem    Yes
@@ -10707,12 +10707,6 @@ BEGIN Extensions
     END ObjectCoverage
     
     BEGIN Desc
-    Begin ShortText
-
-    End ShortText
-    Begin LongText
-
-    End LongText
     END Desc
     
     BEGIN RadarCrossSection

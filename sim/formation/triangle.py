@@ -554,11 +554,17 @@ def _lvlh_frame(position: Sequence[float], velocity: Sequence[float]) -> np.ndar
 
 
 def _formation_offsets(side_length_m: float) -> Mapping[str, np.ndarray]:
+    """Return equilateral offsets constrained to the local horizontal plane."""
+
     sqrt_three = math.sqrt(3.0)
     return {
-        "SAT-1": np.array([-sqrt_three / 6.0 * side_length_m, -0.5 * side_length_m, 0.0]),
-        "SAT-2": np.array([-sqrt_three / 6.0 * side_length_m, 0.5 * side_length_m, 0.0]),
-        "SAT-3": np.array([sqrt_three / 3.0 * side_length_m, 0.0, 0.0]),
+        "SAT-1": np.array(
+            [0.0, -0.5 * side_length_m, -sqrt_three / 6.0 * side_length_m]
+        ),
+        "SAT-2": np.array(
+            [0.0, 0.5 * side_length_m, -sqrt_three / 6.0 * side_length_m]
+        ),
+        "SAT-3": np.array([0.0, 0.0, sqrt_three / 3.0 * side_length_m]),
     }
 
 

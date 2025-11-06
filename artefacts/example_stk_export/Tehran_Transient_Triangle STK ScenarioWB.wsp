@@ -11,8 +11,8 @@ ptn_Child1=Frames
 ptn_Child1=MainFrame
 ptn_Child2=ChildFrames
 [WorkState_v1_2.Frames.MainFrame]
-WindowPlacement=MCAAAAAACAAAAAAADAAAAAAAAADIPPPPAADIPPPPPPPPPPPPPPPPPPPPLEAAAAAACAAAAAAALJFAAAAAGDDAAAAA
-Title=Tehran_Transient_Triangle - STK 11 - 3D Graphics 1 - Earth
+WindowPlacement=MCAAAAAACAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAPPPPPPPPPPPPPPPPLEAAAAAACAAAAAAALJFAAAAAGDDAAAAA
+Title=Tehran_Transient_Triangle - STK 11 - 2D Graphics 1 - Earth
 [WorkState_v1_2.Frames.ChildFrames]
 ptn_Child1=Document-0
 ptn_Child2=Document-1
@@ -25,7 +25,7 @@ DocPathName=D:\Uni\Project\ML-pr1\formation-sat-2\artefacts\example_stk_export\A
 DocumentString=AgUi3DGfxView.AgUiPi3DGfxView.1
 DocTemplateIndex=0
 WindowPlacement=MCAAAAAAAAAAAAAABAAAAAAAPPPPPPPPPPPPPPPPGPPPPPPPAOPPPPPPGAAAAAAADAAAAAAAPFFAAAAAIMEAAAAA
-IsActiveChildFrame=True
+IsActiveChildFrame=False
 IsFrameVisible=True
 ptn_Child1=AGI Custom Node Data
 [WorkState_v1_2.Frames.ChildFrames.Document-0.ViewFrame-0.AGI Custom Node Data]
@@ -37,8 +37,8 @@ ptn_Child1=ViewFrame-0
 DocPathName=D:\Uni\Project\ML-pr1\formation-sat-2\artefacts\example_stk_export\AgUi2DGfxView11.AgUiPi2DGfxView.1
 DocumentString=AgUi2DGfxView.AgUiPi2DGfxView.1
 DocTemplateIndex=0
-WindowPlacement=MCAAAAAAAAAAAAAABAAAAAAAPPPPPPPPPPPPPPPPIPPPPPPPCOPPPPPPGGFAAAAAKAAAAAAAAFMAAAAAMPDAAAAA
-IsActiveChildFrame=False
+WindowPlacement=MCAAAAAAAAAAAAAABAAAAAAAPPPPPPPPPPPPPPPPIPPPPPPPCOPPPPPPLGFAAAAABAAAAAAAFFMAAAAADPDAAAAA
+IsActiveChildFrame=True
 IsFrameVisible=True
 ptn_Child1=AGI Custom Node Data
 [WorkState_v1_2.Frames.ChildFrames.Document-1.ViewFrame-0.AGI Custom Node Data]

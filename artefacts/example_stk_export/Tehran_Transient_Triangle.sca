@@ -1,6 +1,108 @@
 stk.v.11.0
 WrittenBy    STK_v11.2.0
 BEGIN Access 
+        Scenario/Tehran_Transient_Triangle/Satellite/Sat1_Chief
+        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
+
+    IsComputed               Yes
+    UpdateOnReference        Yes
+    DupIsDifferent           No
+    UIOrderReversed          No
+    UITimePeriod             Custom
+    CustomTimeInterval
+		BEGIN	EVENTINTERVAL
+				BEGIN Interval
+					Start	1 Jan 2025 00:00:00.000000000
+					Stop	2 Jan 2025 00:00:00.000000000
+				END Interval
+				IntervalState	Explicit
+		END	EVENTINTERVAL
+
+    UseLightTimeDelay        Yes
+    ClockHost                Base
+    TimeSense                Transmit
+    AberrationType           Annual
+    TimeDelayConvergence     5.000000e-05
+    MaxTimeStep              3.600000e+02
+    MinTimeStep              1.000000e-02
+    TimeConvergence          5.000000e-03
+    AbsValueConvergence      1.000000e-14
+    RelValueConvergence      1.000000e-08
+    DetectEventsUsingSamplesOnly No
+    Show                     Yes
+    Inherit                  Yes
+    ShowIV                   Yes
+    ShowLineGfx              Yes
+    ShowHiliteGfx            Yes
+    LineWidth                1.000000e+00
+    BEGIN  Crdn
+    END  Crdn
+
+END Access
+
+BEGIN Access 
+        Scenario/Tehran_Transient_Triangle/Satellite/Sat2_Dep_A
+        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
+
+    IsComputed               Yes
+    UpdateOnReference        Yes
+    DupIsDifferent           No
+    UIOrderReversed          No
+    UITimePeriod             Object
+    UseLightTimeDelay        Yes
+    ClockHost                Base
+    TimeSense                Transmit
+    AberrationType           Annual
+    TimeDelayConvergence     5.000000e-05
+    MaxTimeStep              3.600000e+02
+    MinTimeStep              1.000000e-02
+    TimeConvergence          5.000000e-03
+    AbsValueConvergence      1.000000e-14
+    RelValueConvergence      1.000000e-08
+    DetectEventsUsingSamplesOnly No
+    Show                     Yes
+    Inherit                  Yes
+    ShowIV                   Yes
+    ShowLineGfx              Yes
+    ShowHiliteGfx            Yes
+    LineWidth                1.000000e+00
+    BEGIN  Crdn
+    END  Crdn
+
+END Access
+
+BEGIN Access 
+        Scenario/Tehran_Transient_Triangle/Satellite/Sat3_Dep_B
+        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
+
+    IsComputed               Yes
+    UpdateOnReference        Yes
+    DupIsDifferent           No
+    UIOrderReversed          No
+    UITimePeriod             Object
+    UseLightTimeDelay        Yes
+    ClockHost                Base
+    TimeSense                Transmit
+    AberrationType           Annual
+    TimeDelayConvergence     5.000000e-05
+    MaxTimeStep              3.600000e+02
+    MinTimeStep              1.000000e-02
+    TimeConvergence          5.000000e-03
+    AbsValueConvergence      1.000000e-14
+    RelValueConvergence      1.000000e-08
+    DetectEventsUsingSamplesOnly No
+    Show                     Yes
+    Inherit                  Yes
+    ShowIV                   Yes
+    ShowLineGfx              Yes
+    ShowHiliteGfx            Yes
+    LineWidth                1.000000e+00
+    BEGIN  Crdn
+    END  Crdn
+
+END Access
+
+BEGIN Access 
         Scenario/Tehran_Transient_Triangle/Satellite/Sat1_Chief/Sensor/Sat1_Cone
         Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
 
@@ -71,108 +173,6 @@ BEGIN Access
     DupIsDifferent           No
     UIOrderReversed          No
     UITimePeriod             Object
-    UseLightTimeDelay        Yes
-    ClockHost                Base
-    TimeSense                Transmit
-    AberrationType           Annual
-    TimeDelayConvergence     5.000000e-05
-    MaxTimeStep              3.600000e+02
-    MinTimeStep              1.000000e-02
-    TimeConvergence          5.000000e-03
-    AbsValueConvergence      1.000000e-14
-    RelValueConvergence      1.000000e-08
-    DetectEventsUsingSamplesOnly No
-    Show                     Yes
-    Inherit                  Yes
-    ShowIV                   Yes
-    ShowLineGfx              Yes
-    ShowHiliteGfx            Yes
-    LineWidth                1.000000e+00
-    BEGIN  Crdn
-    END  Crdn
-
-END Access
-
-BEGIN Access 
-        Scenario/Tehran_Transient_Triangle/Satellite/Sat3_Dep_B
-        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
-
-    IsComputed               Yes
-    UpdateOnReference        Yes
-    DupIsDifferent           No
-    UIOrderReversed          No
-    UITimePeriod             Object
-    UseLightTimeDelay        Yes
-    ClockHost                Base
-    TimeSense                Transmit
-    AberrationType           Annual
-    TimeDelayConvergence     5.000000e-05
-    MaxTimeStep              3.600000e+02
-    MinTimeStep              1.000000e-02
-    TimeConvergence          5.000000e-03
-    AbsValueConvergence      1.000000e-14
-    RelValueConvergence      1.000000e-08
-    DetectEventsUsingSamplesOnly No
-    Show                     Yes
-    Inherit                  Yes
-    ShowIV                   Yes
-    ShowLineGfx              Yes
-    ShowHiliteGfx            Yes
-    LineWidth                1.000000e+00
-    BEGIN  Crdn
-    END  Crdn
-
-END Access
-
-BEGIN Access 
-        Scenario/Tehran_Transient_Triangle/Satellite/Sat2_Dep_A
-        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
-
-    IsComputed               Yes
-    UpdateOnReference        Yes
-    DupIsDifferent           No
-    UIOrderReversed          No
-    UITimePeriod             Object
-    UseLightTimeDelay        Yes
-    ClockHost                Base
-    TimeSense                Transmit
-    AberrationType           Annual
-    TimeDelayConvergence     5.000000e-05
-    MaxTimeStep              3.600000e+02
-    MinTimeStep              1.000000e-02
-    TimeConvergence          5.000000e-03
-    AbsValueConvergence      1.000000e-14
-    RelValueConvergence      1.000000e-08
-    DetectEventsUsingSamplesOnly No
-    Show                     Yes
-    Inherit                  Yes
-    ShowIV                   Yes
-    ShowLineGfx              Yes
-    ShowHiliteGfx            Yes
-    LineWidth                1.000000e+00
-    BEGIN  Crdn
-    END  Crdn
-
-END Access
-
-BEGIN Access 
-        Scenario/Tehran_Transient_Triangle/Satellite/Sat1_Chief
-        Scenario/Tehran_Transient_Triangle/Facility/Tehran_Target
-
-    IsComputed               Yes
-    UpdateOnReference        Yes
-    DupIsDifferent           No
-    UIOrderReversed          No
-    UITimePeriod             Custom
-    CustomTimeInterval
-		BEGIN	EVENTINTERVAL
-				BEGIN Interval
-					Start	1 Jan 2025 00:00:00.000000000
-					Stop	2 Jan 2025 00:00:00.000000000
-				END Interval
-				IntervalState	Explicit
-		END	EVENTINTERVAL
-
     UseLightTimeDelay        Yes
     ClockHost                Base
     TimeSense                Transmit
