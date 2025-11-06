@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import re
 import sys
 from contextlib import asynccontextmanager
@@ -24,6 +25,8 @@ from sim.scripts.run_scenario import run_scenario
 from sim.scripts import extract_metrics as metrics_module
 from src.constellation.orbit import EARTH_EQUATORIAL_RADIUS_M
 from src.constellation.web.jobs import JobManager, SubprocessJob
+from tools.generate_triangle_report import main as generate_triangle_report_main
+from tools.render_debug_plots import generate_visualisations as generate_debug_visualisations
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCENARIO_DIR = PROJECT_ROOT / "config" / "scenarios"
@@ -36,6 +39,8 @@ RUN_LOG_PATH = WEB_ARTEFACT_DIR / "run_log.jsonl"
 DEBUG_LOG_PATH = PROJECT_ROOT / "debug.txt"
 DEFAULT_TRIANGLE_SCENARIO = "tehran_triangle"
 DEFAULT_PIPELINE_SCENARIO = "tehran_daily_pass"
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _load_json(path: Path) -> Mapping[str, Any]:
@@ -64,6 +69,113 @@ def _load_gravitational_parameter() -> float:
         return 398_600.4418 * 1e9
     value_km3 = float(match.group(1))
     return value_km3 * 1e9
+
+
+def _ensure_mutable_triangle_artefacts(
+    result: TriangleFormationResult,
+) -> MutableMapping[str, Any]:
+    """Return a mutable artefact mapping for *result*, cloning if required."""
+
+    artefacts = result.artefacts
+    if isinstance(artefacts, MutableMapping):
+        return artefacts
+    mutable: MutableMapping[str, Any] = dict(artefacts)
+    setattr(result, "artefacts", mutable)
+    return mutable
+
+
+def _serialise_plot_outputs(
+    outputs: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Convert plot artefact mappings into JSON-serialisable structures."""
+
+    serialised: Dict[str, Any] = {}
+    for key, value in outputs.items():
+        if isinstance(value, Mapping):
+            serialised[key] = {inner_key: str(inner_value) for inner_key, inner_value in value.items()}
+        else:
+            serialised[key] = str(value)
+    return serialised
+
+
+def _persist_triangle_configuration(
+    configuration_source: Mapping[str, Any] | Path | str,
+    output_directory: Path,
+) -> Optional[Path]:
+    """Ensure a configuration file exists for supplementary plot generation."""
+
+    if isinstance(configuration_source, Mapping):
+        config_path = output_directory / "triangle_configuration.json"
+        config_path.write_text(json.dumps(configuration_source, indent=2), encoding="utf-8")
+        return config_path
+
+    candidate: Optional[Path] = None
+    if isinstance(configuration_source, Path):
+        candidate = configuration_source
+    elif isinstance(configuration_source, str):
+        candidate = Path(configuration_source)
+
+    if candidate is None:
+        return None
+
+    if not candidate.is_absolute():
+        potential = (PROJECT_ROOT / candidate).resolve()
+        if potential.exists():
+            candidate = potential
+
+    return candidate if candidate.exists() else None
+
+
+def _generate_triangle_documentation(
+    result: TriangleFormationResult,
+    output_directory: Path,
+    configuration_source: Mapping[str, Any] | Path | str,
+) -> None:
+    """Generate comprehensive artefact documentation for web-triggered runs."""
+
+    artefacts = _ensure_mutable_triangle_artefacts(result)
+
+    try:
+        debug_outputs = generate_debug_visualisations(output_directory)
+    except Exception as exc:  # pragma: no cover - defensive
+        LOGGER.warning(
+            "Debug visualisation generation failed for %s: %s",
+            output_directory,
+            exc,
+        )
+        debug_outputs = {}
+    else:
+        if debug_outputs:
+            artefacts["debug_plots"] = _serialise_plot_outputs(debug_outputs)
+
+    config_path = _persist_triangle_configuration(configuration_source, output_directory)
+    if config_path is None:
+        LOGGER.warning(
+            "Triangle configuration could not be resolved for supplementary plots in %s.",
+            output_directory,
+        )
+    else:
+        argv = ["--run-dir", str(output_directory), "--config", str(config_path)]
+        try:
+            generate_triangle_report_main(argv)
+        except Exception as exc:  # pragma: no cover - defensive
+            LOGGER.warning(
+                "Triangle report generation failed for %s using %s: %s",
+                output_directory,
+                config_path,
+                exc,
+            )
+
+    plots_dir = output_directory / "plots"
+    if plots_dir.exists():
+        artefacts["plots_directory"] = str(plots_dir)
+        plot_entries = {
+            path.name: str(path)
+            for path in sorted(plots_dir.iterdir())
+            if path.is_file()
+        }
+        if plot_entries:
+            artefacts["plot_files"] = plot_entries
 
 
 def _persian_digits(value: str) -> str:
@@ -386,6 +498,8 @@ def run_triangle(request: TriangleRunRequest) -> Mapping[str, Any]:
             error=str(error),
         )
         raise HTTPException(status_code=500, detail=str(error)) from error
+
+    _generate_triangle_documentation(result, output_directory, configuration_source)
 
     summary = result.to_summary()
     artefacts = _collect_triangle_artefacts(result, output_directory)
