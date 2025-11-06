@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from sim.formation import simulate_triangle_formation
 from sim.formation.triangle import TriangleFormationResult
+from sim.formation.triangle_artefacts import export_triangle_time_series
 from sim.scripts.configuration import resolve_scenario_path
 from sim.scripts.run_scenario import run_scenario
 from sim.scripts import extract_metrics as metrics_module
@@ -134,6 +135,17 @@ def _generate_triangle_documentation(
     """Generate comprehensive artefact documentation for web-triggered runs."""
 
     artefacts = _ensure_mutable_triangle_artefacts(result)
+
+    csv_bundle = export_triangle_time_series(result, output_directory)
+    artefacts.setdefault(
+        "time_series_csv",
+        {key: str(path) for key, path in sorted(csv_bundle.csv_paths.items())},
+    )
+    if csv_bundle.per_satellite_csvs:
+        artefacts.setdefault(
+            "orbital_elements_per_satellite",
+            {sat_id: str(path) for sat_id, path in sorted(csv_bundle.per_satellite_csvs.items())},
+        )
 
     try:
         debug_outputs = generate_debug_visualisations(output_directory)
