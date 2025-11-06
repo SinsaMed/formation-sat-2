@@ -302,6 +302,13 @@ def _handle_scenario_run(scenario_id: str, output_directory: Path) -> Sequence[s
         f"  - Perturbation delta: {orbital_delta:.3f} s",
     ]
 
+    artefact_map = _extract_mapping(summary, "artefacts")
+    scenario_plots = _extract_mapping(artefact_map, "scenario_plots")
+    if scenario_plots:
+        summary_lines.append("Generated plots:")
+        for label, path in sorted(scenario_plots.items()):
+            summary_lines.append(f"  - {label}: {path}")
+
     return summary_lines
 
 
