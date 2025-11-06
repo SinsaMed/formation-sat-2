@@ -3,7 +3,7 @@ WrittenBy    formation-sat-exporter
 
 BEGIN Ephemeris
     NumberOfEphemerisPoints 181
-    ScenarioEpoch 21 Mar 2026 07:38:40.000000000
+    ScenarioEpoch 21 Mar 2026 07:38:40.000000000 UTCG
     InterpolationMethod     Lagrange
     InterpolationOrder      7
     CentralBody             Earth

@@ -165,10 +165,18 @@ class SimulationResults:
 def _format_epoch(epoch: datetime) -> str:
     """Format datetimes using the STK 11.2 nanosecond precision layout."""
 
-    base = epoch.strftime("%d %b %Y %H:%M:%S")
+    # A locale-independent month map is used to prevent strftime from producing
+    # non-English month names on systems with different locale settings. STK
+    # expects English month abbreviations for its textual formats.
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    month_str = months[epoch.month - 1]
+
+    # The " UTCG" suffix is appended to ensure STK interprets the time as UTC,
+    # preventing any ambiguity or unwanted local time zone conversions.
+    base = f"{epoch.day:02d} {month_str} {epoch.year} {epoch.strftime('%H:%M:%S')}"
     fractional_microseconds = epoch.strftime("%f")
     fractional_nanoseconds = int(fractional_microseconds) * 1000
-    return f"{base}.{fractional_nanoseconds:09d}"
+    return f"{base}.{fractional_nanoseconds:09d} UTCG"
 
 
 def _offset_seconds(start: datetime, epoch: datetime) -> float:

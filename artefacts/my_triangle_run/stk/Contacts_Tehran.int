@@ -7,17 +7,17 @@ BEGIN IntervalList
 
     BEGIN Interval
         Asset       SAT_1
-        StartTime   21 Mar 2026 07:39:20.000000000
-        StopTime    21 Mar 2026 07:40:56.000000000
+        StartTime   21 Mar 2026 07:39:20.000000000 UTCG
+        StopTime    21 Mar 2026 07:40:56.000000000 UTCG
     END Interval
     BEGIN Interval
         Asset       SAT_2
-        StartTime   21 Mar 2026 07:39:20.000000000
-        StopTime    21 Mar 2026 07:40:56.000000000
+        StartTime   21 Mar 2026 07:39:20.000000000 UTCG
+        StopTime    21 Mar 2026 07:40:56.000000000 UTCG
     END Interval
     BEGIN Interval
         Asset       SAT_3
-        StartTime   21 Mar 2026 07:39:20.000000000
-        StopTime    21 Mar 2026 07:40:56.000000000
+        StartTime   21 Mar 2026 07:39:20.000000000 UTCG
+        StopTime    21 Mar 2026 07:40:56.000000000 UTCG
     END Interval
 END IntervalList
