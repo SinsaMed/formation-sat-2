@@ -5,10 +5,10 @@ BEGIN Scenario
 
 BEGIN Epoch
 
-    Epoch        21 Mar 2026 00:00:00.000000000
+    Epoch        21 Mar 2026 13:36:00.000000000
     SmartEpoch
 	BEGIN	EVENT
-			Epoch	21 Mar 2026 00:00:00.000000000
+			Epoch	21 Mar 2026 13:36:00.000000000
 			EventEpoch
 				BEGIN	EVENT
 					Type	EVENT_LINKTO
@@ -22,13 +22,13 @@ END Epoch
 
 BEGIN Interval
 
-Start                   21 Mar 2026 00:00:00.000000000
-Stop                    28 Mar 2026 00:00:00.000000000
+Start                   21 Mar 2026 13:36:00.000000000
+Stop                    21 Mar 2026 13:47:00.000000000
     SmartInterval
 	BEGIN	EVENTINTERVAL
 			BEGIN Interval
-				Start	21 Mar 2026 00:00:00.000000000
-				Stop	28 Mar 2026 00:00:00.000000000
+				Start	21 Mar 2026 13:36:00.000000000
+				Stop	21 Mar 2026 13:47:00.000000000
 			END Interval
 			IntervalState	Explicit
 	END	EVENTINTERVAL
@@ -68,7 +68,6 @@ BEGIN CentralBodyTerrain
 
         BEGIN StreamingTerrain
             UseCurrentStreamingTerrainServer     Yes
-            CurrentStreamingTerrainServerName    http://twsusecovacc01.agi.com/stk-terrain
             StreamingTerrainTilesetName    world
             StreamingTerrainServerName           assets.agi.com/stk-terrain/
             StreamingTerrainAzimuthElevationMaskEnabled       No
@@ -563,6 +562,12 @@ BEGIN Extensions
     END ExportDataFile
     
     BEGIN Desc
+    Begin ShortText
+
+    End ShortText
+    Begin LongText
+
+    End LongText
     END Desc
     
     BEGIN RfEnv
@@ -1074,9 +1079,9 @@ BEGIN Extensions
 
 BEGIN Animation
 
-    StartTime          21 Mar 2026 00:00:00.000000000
-    EndTime            28 Mar 2026 00:00:00.000000000
-    CurrentTime        26 Mar 2026 09:57:35.133000000
+    StartTime          21 Mar 2026 13:36:00.000000000
+    EndTime            21 Mar 2026 13:47:00.000000000
+    CurrentTime        21 Mar 2026 13:41:25.102000000
     Direction          Forward
     UpdateDelta        10.000000
     RefreshDelta       0.010000
@@ -1159,8 +1164,8 @@ BEGIN MapData
         BEGIN MapAttributes
             PrimaryBody          Earth
             SecondaryBody        Sun
-            CenterLatitude       33.245543
-            CenterLongitude      54.978684
+            CenterLatitude       35.954915
+            CenterLongitude      53.394520
             ProjectionAltitude   63621860.000000
             FieldOfView          35.000000
             OrthoDisplayDistance 20000000.000000
@@ -1186,7 +1191,7 @@ BEGIN MapData
             Resolution           High
             CoordinateSys        ECF
             UseBackgroundImage   On
-            UseBingForBackground On
+            UseBingForBackground Off
             BingType             Aerial
             BingLogoHorizAlign   Right
             BingLogoVertAlign    Bottom
@@ -1196,10 +1201,10 @@ BEGIN MapData
             UseCloudsFile        Off
             BEGIN ZoomLocations
                 BEGIN ZoomLocation
-                    CenterLat    33.245543
-                    CenterLon    54.978684
-                    ZoomWidth    82.356453
-                    ZoomHeight   42.365603
+                    CenterLat    35.954915
+                    CenterLon    53.394520
+                    ZoomWidth    10.012622
+                    ZoomHeight   5.150668
                 End ZoomLocation
             END ZoomLocations
             UseVarAspectRatio    No
@@ -1373,7 +1378,7 @@ BEGIN MapData
 
         BEGIN Style
         Name                DefaultWithBing
-        Time                -12411000.000000
+        Time                -12459960.000000
         UpdateDelta         10.000000
 
         BEGIN MapAttributes
@@ -1406,7 +1411,7 @@ BEGIN MapData
             Resolution           VeryLow
             CoordinateSys        ECF
             UseBackgroundImage   On
-            UseBingForBackground On
+            UseBingForBackground Off
             BingType             Aerial
             BingLogoHorizAlign   Right
             BingLogoVertAlign    Bottom
@@ -1560,7 +1565,7 @@ BEGIN MapData
 
         BEGIN Style
         Name                DefaultWithoutBing
-        Time                -12411000.000000
+        Time                -12459960.000000
         UpdateDelta         10.000000
 
         BEGIN MapAttributes
