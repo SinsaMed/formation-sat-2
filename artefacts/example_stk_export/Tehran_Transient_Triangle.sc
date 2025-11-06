@@ -1081,7 +1081,7 @@ BEGIN Animation
 
     StartTime          21 Mar 2026 13:36:00.000000000
     EndTime            21 Mar 2026 13:47:00.000000000
-    CurrentTime        21 Mar 2026 13:41:25.102000000
+    CurrentTime        21 Mar 2026 13:40:00.314000000
     Direction          Forward
     UpdateDelta        10.000000
     RefreshDelta       0.010000
