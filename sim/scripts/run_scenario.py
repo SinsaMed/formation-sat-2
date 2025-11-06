@@ -53,7 +53,11 @@ LOGGER = logging.getLogger(__name__)
 
 MU_EARTH_KM3_S2 = 398_600.4418
 EARTH_RADIUS_KM = 6_378.1363
-EARTH_ROTATION_RATE_RAD_S = 7.2921159e-5
+EARTH_FLATTENING = 1.0 / 298.257_223_563
+EARTH_ECCENTRICITY_SQUARED = 2.0 * EARTH_FLATTENING - EARTH_FLATTENING**2
+EARTH_SECOND_ECCENTRICITY_SQUARED = (
+    EARTH_ECCENTRICITY_SQUARED / (1.0 - EARTH_ECCENTRICITY_SQUARED)
+)
 
 
 @dataclass
@@ -1368,15 +1372,56 @@ def _pqw_to_eci(
     return (x, y, z)
 
 
+def _julian_date(epoch: datetime) -> float:
+    """Return the Julian date corresponding to *epoch* (UTC)."""
+
+    moment = epoch.astimezone(timezone.utc)
+    year = moment.year
+    month = moment.month
+    day = moment.day + (
+        moment.hour
+        + (moment.minute + (moment.second + moment.microsecond / 1_000_000.0) / 60.0) / 60.0
+    ) / 24.0
+
+    if month <= 2:
+        year -= 1
+        month += 12
+
+    a = math.floor(year / 100)
+    b = 2 - a + math.floor(a / 4)
+
+    jd = (
+        math.floor(365.25 * (year + 4716))
+        + math.floor(30.6001 * (month + 1))
+        + day
+        + b
+        - 1524.5
+    )
+    return jd
+
+
+def _greenwich_sidereal_angle(epoch: datetime) -> float:
+    """Compute the Greenwich mean sidereal angle for *epoch* in radians."""
+
+    jd = _julian_date(epoch)
+    t = (jd - 2_451_545.0) / 36_525.0
+    gmst_deg = (
+        280.46061837
+        + 360.98564736629 * (jd - 2_451_545.0)
+        + 0.000387933 * t**2
+        - (t**3) / 38_710_000.0
+    )
+    return math.radians(gmst_deg % 360.0)
+
+
 def _eci_to_geodetic(
     position_eci: Sequence[float],
-    reference_epoch: datetime,
+    _reference_epoch: datetime,
     epoch: datetime,
 ) -> tuple[float, float, float]:
-    """Approximate conversion from ECI to geodetic latitude, longitude, and altitude."""
+    """Convert ECI coordinates to geodetic latitude, longitude, and altitude."""
 
-    dt = (epoch - reference_epoch).total_seconds()
-    angle = EARTH_ROTATION_RATE_RAD_S * dt
+    angle = _greenwich_sidereal_angle(epoch)
     cos_angle = math.cos(angle)
     sin_angle = math.sin(angle)
 
@@ -1385,12 +1430,35 @@ def _eci_to_geodetic(
     y_ecef = -sin_angle * x_eci + cos_angle * y_eci
     z_ecef = z_eci
 
-    horizontal_distance = math.sqrt(x_ecef**2 + y_ecef**2)
-    latitude = math.degrees(math.atan2(z_ecef, horizontal_distance))
     longitude = math.degrees(math.atan2(y_ecef, x_ecef))
     longitude = ((longitude + 180.0) % 360.0) - 180.0
-    radius = math.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2)
-    altitude = max(radius - EARTH_RADIUS_KM, 0.0)
+
+    p = math.hypot(x_ecef, y_ecef)
+    if p < 1.0e-9:
+        latitude = 90.0 if z_ecef >= 0.0 else -90.0
+        altitude = abs(z_ecef) - EARTH_RADIUS_KM * (1.0 - EARTH_FLATTENING)
+        return latitude, longitude, altitude
+
+    a = EARTH_RADIUS_KM
+    b = a * (1.0 - EARTH_FLATTENING)
+    theta = math.atan2(z_ecef * a, p * b)
+    sin_theta = math.sin(theta)
+    cos_theta = math.cos(theta)
+
+    latitude_rad = math.atan2(
+        z_ecef + EARTH_SECOND_ECCENTRICITY_SQUARED * b * sin_theta**3,
+        p - EARTH_ECCENTRICITY_SQUARED * a * cos_theta**3,
+    )
+    sin_lat = math.sin(latitude_rad)
+    cos_lat = math.cos(latitude_rad)
+    n = a / math.sqrt(1.0 - EARTH_ECCENTRICITY_SQUARED * sin_lat**2)
+
+    if abs(cos_lat) > 1.0e-12:
+        altitude = p / cos_lat - n
+    else:
+        altitude = z_ecef / sin_lat - n * (1.0 - EARTH_ECCENTRICITY_SQUARED)
+
+    latitude = math.degrees(latitude_rad)
     return latitude, longitude, altitude
 
 
