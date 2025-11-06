@@ -1,0 +1,13 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN Satellite
+
+    Name            SAT_2
+    CentralBody     Earth
+
+    BEGIN Ephemeris
+        Type    External
+        File    "SAT_2.e"
+    END Ephemeris
+END Satellite

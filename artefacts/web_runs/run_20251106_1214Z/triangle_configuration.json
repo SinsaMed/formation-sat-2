@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "scenario_name": "Tehran Triangle Formation",
+    "description": "Three-satellite equilateral formation centred on Tehran with 6 km side length.",
+    "author": "Formation Dynamics Team",
+    "validated_against_stk_export": true,
+    "alignment_validation": {
+      "run_id": "run_20260321_0740Z",
+      "epoch_utc": "2026-03-21T07:40:10Z"
+    },
+    "notes": [
+      "Duration selected in UI: 1 days"
+    ]
+  },
+  "reference_orbit": {
+    "epoch_utc": "2026-03-21T07:40:10Z",
+    "semi_major_axis_km": 6898.137,
+    "eccentricity": 0,
+    "inclination_deg": 97.7,
+    "raan_deg": 350.9838169642857,
+    "argument_of_perigee_deg": 0,
+    "mean_anomaly_deg": 36.06454701821796
+  },
+  "formation": {
+    "side_length_m": 50000,
+    "duration_s": 86400,
+    "time_step_s": 60,
+    "ground_tolerance_km": 350,
+    "aspect_ratio_tolerance": 1.02,
+    "target": {
+      "latitude_deg": 35.6892,
+      "longitude_deg": 51.389
+    },
+    "plane_allocations": {
+      "SAT-1": "Plane A",
+      "SAT-2": "Plane A",
+      "SAT-3": "Plane B"
+    },
+    "maintenance": {
+      "burn_duration_s": 32,
+      "interval_days": 7,
+      "delta_v_budget_mps": 15
+    },
+    "command": {
+      "contact_range_km": 2200,
+      "station": {
+        "latitude_deg": 30.283,
+        "longitude_deg": 57.083
+      }
+    },
+    "monte_carlo": {
+      "samples": 300,
+      "position_sigma_m": 250,
+      "velocity_sigma_mmps": 5,
+      "recovery_time_s": 43200,
+      "delta_v_budget_mps": 15,
+      "seed": 314159
+    },
+    "drag_dispersion": {
+      "samples": 200,
+      "density_sigma": 0.25,
+      "drag_coefficient_sigma": 0.05,
+      "reference_density_kg_m3": 3.2e-12,
+      "drag_coefficient": 2.2,
+      "reference_area_m2": 1.1,
+      "spacecraft_mass_kg": 165,
+      "time_horizon_orbits": 12,
+      "integration_step_s": 120,
+      "seed": 20260321
+    }
+  }
+}
