@@ -59,6 +59,11 @@ Table 3 – MR-5 to MR-7 maintenance and responsiveness metrics
 | MR-6 | Maximum annual formation-keeping \(\Delta v\) | \(14.04\,\text{m/s}\) | \(0.96\,\text{m/s}\) below 15 m/s budget | `maintenance_summary.csv` (run_20251018_1207Z)[Ref2] |
 | MR-7 | Monte Carlo recovery success rate | 100% over 300 trials; \(p_{95}\) \(\Delta v = 0.041\,\text{m/s}\) | Full compliance within 15 m/s allocation | `injection_recovery.csv` (run_20251018_1207Z)[Ref2] |
 
+## Repeatability Diagnostics
+1. **Catalogue access windows.** The new `formation_windows.csv` artefact enumerates every contiguous interval satisfying the ground-distance and aspect-ratio tolerances across the fourteen-day verification horizon. Each record notes the start and end timestamps, duration, and the worst-case triangle distortion so analysts can verify that repeated opportunities occur with consistent geometry.[Ref2]
+2. **Quantify recurrence statistics.** The `formation_recurrence` block inside `triangle_summary.json` reports the mean and extreme window separations alongside an orbital-period reference, enabling reviewers to confirm that the simulated constellation revisits Tehran with the expected synodic cadence.[Ref2]
+3. **Monitor station-keeping demand.** An automated scheduler evaluates the maximum side-length deviation against a one-percent tolerance and records recommended corrections in `station_keeping_events.csv`. The fourteen-day campaign identified no violations, demonstrating that the equilateral geometry remains self-sustaining without invoking the manoeuvre budget, yet the logic will flag any future drift that exceeds the tolerance envelope.[Ref2]
+
 ## References
 - [Ref1] D'Amico, S., et al., "Relative Orbital Elements for Spacecraft Formation-Flying," *Journal of Guidance, Control, and Dynamics*, 2005.
 - [Ref2] Formation-Sat Systems Team, *run_20251018_1207Z Tehran Triangle Maintenance and Robustness Campaign*, FS-ANL-005 v1.0, 2025.

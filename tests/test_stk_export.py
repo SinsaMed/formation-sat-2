@@ -122,7 +122,7 @@ def test_exporter_generates_stk_files(tmp_path: Path) -> None:
     contact_lines = [line.strip() for line in contact_path.read_text(encoding="utf-8").splitlines()]
     assert "BEGIN IntervalList" in contact_lines
     start_line = next(line for line in contact_lines if line.startswith("StartTime"))
-    assert start_line.endswith("12:03:00.000000000")
+    assert start_line.endswith("12:03:00.000000000 UTCG")
 
     event_path = tmp_path / "formation_events.evt"
     event_lines = [line.strip() for line in event_path.read_text(encoding="utf-8").splitlines()]

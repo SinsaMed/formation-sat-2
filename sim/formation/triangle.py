@@ -7,7 +7,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Mapping, MutableMapping, Optional, Sequence
+from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -339,7 +339,7 @@ def simulate_triangle_formation(
         inclination,
     )
 
-    window = _formation_window(
+    window, window_series = _formation_window(
         triangle_aspect_series,
         max_ground_distance,
         time_step_s,
@@ -347,10 +347,25 @@ def simulate_triangle_formation(
         times,
     )
 
+    recurrence = _summarise_window_recurrence(
+        window_series,
+        semi_major_axis_m,
+    )
+
+    station_keeping = _assess_station_keeping(
+        times,
+        triangle_sides_series,
+        formation,
+        maintenance,
+        time_step_s,
+    )
+
     metrics: MutableMapping[str, object] = {
         "triangle": triangle_stats,
         "ground_track": ground_stats,
         "formation_window": window,
+        "formation_windows": window_series,
+        "formation_recurrence": recurrence,
         "orbital_elements": {
             "per_satellite": orbital_elements,
             "plane_assignments": plane_allocations,
@@ -369,6 +384,7 @@ def simulate_triangle_formation(
             },
         },
         "maintenance": maintenance,
+        "station_keeping": station_keeping,
         "command_latency": command_latency,
         "injection_recovery": injection_recovery,
         "drag_dispersion": drag_dispersion,
@@ -382,6 +398,8 @@ def simulate_triangle_formation(
         "injection_recovery_csv": None,
         "injection_recovery_plot": None,
         "drag_dispersion_csv": None,
+        "formation_windows_csv": None,
+        "station_keeping_csv": None,
         "orbital_elements_csv": None,
         "orbital_elements_directory": None,
     }
@@ -480,6 +498,14 @@ def simulate_triangle_formation(
             ],
         )
         artefacts["drag_dispersion_csv"] = str(drag_path)
+
+        windows_path = output_path / "formation_windows.csv"
+        _write_formation_windows_csv(windows_path, window_series)
+        artefacts["formation_windows_csv"] = str(windows_path)
+
+        station_path = output_path / "station_keeping_events.csv"
+        _write_station_keeping_csv(station_path, station_keeping)
+        artefacts["station_keeping_csv"] = str(station_path)
 
         plot_path = output_path / "injection_recovery_cdf.svg"
         _write_injection_recovery_plot(injection_samples, plot_path)
@@ -715,37 +741,416 @@ def _formation_window(
     step: float,
     formation: Mapping[str, object],
     times: Sequence[datetime],
-) -> Mapping[str, object]:
+) -> tuple[Mapping[str, object], Sequence[Mapping[str, object]]]:
+    """Derive the principal formation window together with the full schedule."""
+
+    windows = list(
+        _enumerate_formation_windows(
+            aspects,
+            distances_km,
+            step,
+            formation,
+            times,
+        )
+    )
+    if not windows:
+        primary: Mapping[str, object] = {
+            "duration_s": 0.0,
+            "start": None,
+            "end": None,
+            "sample_count": 0,
+        }
+        return primary, windows
+
+    primary = max(windows, key=lambda item: float(item.get("duration_s", 0.0)))
+    return primary, windows
+
+
+def _enumerate_formation_windows(
+    aspects: np.ndarray,
+    distances_km: np.ndarray,
+    step: float,
+    formation: Mapping[str, object],
+    times: Sequence[datetime],
+) -> Iterable[Mapping[str, object]]:
+    """Yield contiguous access windows that satisfy the ground-track criteria."""
+
     tolerance = float(formation.get("ground_tolerance_km", 350.0))
     aspect_limit = float(formation.get("aspect_ratio_tolerance", 1.02))
     mask = (distances_km <= tolerance) & (aspects <= aspect_limit)
 
-    longest = 0
-    current = 0
-    start_index = 0
-    window_start = window_end = 0
-
+    start_index: Optional[int] = None
     for index, valid in enumerate(mask):
-        if valid:
-            if current == 0:
-                start_index = index
-            current += 1
-            if current > longest:
-                longest = current
-                window_start = start_index
-                window_end = index
-        else:
-            current = 0
+        if valid and start_index is None:
+            start_index = index
+            continue
+        if not valid and start_index is not None:
+            yield _describe_window(
+                start_index,
+                index - 1,
+                times,
+                distances_km,
+                aspects,
+                step,
+            )
+            start_index = None
 
-    duration = max(longest - 1, 0) * step
-    if longest == 0:
-        return {"duration_s": 0.0, "start": None, "end": None}
+    if start_index is not None:
+        yield _describe_window(
+            start_index,
+            len(mask) - 1,
+            times,
+            distances_km,
+            aspects,
+            step,
+        )
+
+
+def _describe_window(
+    start: int,
+    end: int,
+    times: Sequence[datetime],
+    distances_km: np.ndarray,
+    aspects: np.ndarray,
+    step: float,
+) -> Mapping[str, object]:
+    """Summarise a valid access window spanning indices ``start`` to ``end``."""
+
+    start_time = times[start]
+    end_time = times[end]
+    if end > start:
+        duration_seconds = max((end_time - start_time).total_seconds(), 0.0)
+    else:
+        half_step = timedelta(seconds=0.5 * step)
+        earlier = start_time - half_step
+        later = end_time + half_step
+        # Preserve the original timezone information when clamping.
+        if earlier < times[0]:
+            earlier = times[0]
+        if later > times[-1]:
+            later = times[-1]
+        duration_seconds = float(step)
+        start_time = earlier
+        end_time = later
+
+    slice_obj = slice(start, end + 1)
+    window_distances = distances_km[slice_obj]
+    window_aspects = aspects[slice_obj]
+    centroid_index = start + (end - start) // 2
+    centroid_time = times[centroid_index]
 
     return {
-        "duration_s": float(duration),
-        "start": times[window_start].isoformat().replace("+00:00", "Z"),
-        "end": times[window_end].isoformat().replace("+00:00", "Z"),
+        "start": start_time.isoformat().replace("+00:00", "Z"),
+        "end": end_time.isoformat().replace("+00:00", "Z"),
+        "duration_s": float(duration_seconds),
+        "sample_count": int(end - start + 1),
+        "max_ground_distance_km": float(np.max(window_distances)),
+        "min_ground_distance_km": float(np.min(window_distances)),
+        "max_aspect_ratio": float(np.max(window_aspects)),
+        "centroid_time": centroid_time.isoformat().replace("+00:00", "Z"),
     }
+
+
+def _summarise_window_recurrence(
+    windows: Sequence[Mapping[str, object]],
+    semi_major_axis_m: float,
+) -> Mapping[str, object]:
+    """Quantify the repeatability of access windows over the simulation horizon."""
+
+    if not windows:
+        return {
+            "window_count": 0,
+            "mean_duration_s": 0.0,
+            "min_duration_s": 0.0,
+            "max_duration_s": 0.0,
+            "mean_interval_s": 0.0,
+            "min_interval_s": 0.0,
+            "max_interval_s": 0.0,
+            "std_interval_s": 0.0,
+            "expected_orbit_period_s": _orbital_period(semi_major_axis_m),
+            "repeatability_score": 0.0,
+            "interval_samples": 0,
+        }
+
+    durations = np.array([float(window.get("duration_s", 0.0)) for window in windows])
+    mean_duration = float(np.mean(durations)) if durations.size else 0.0
+    min_duration = float(np.min(durations)) if durations.size else 0.0
+    max_duration = float(np.max(durations)) if durations.size else 0.0
+
+    midpoints: list[datetime] = []
+    for window in windows:
+        start = window.get("start")
+        end = window.get("end")
+        if not start or not end:
+            continue
+        start_time = _parse_time(start)
+        end_time = _parse_time(end)
+        delta = end_time - start_time
+        midpoint = start_time + delta / 2 if delta.total_seconds() >= 0.0 else start_time
+        midpoints.append(midpoint)
+
+    intervals = []
+    for first, second in zip(midpoints, midpoints[1:]):
+        delta = (second - first).total_seconds()
+        if delta > 0.0:
+            intervals.append(delta)
+
+    if intervals:
+        interval_array = np.asarray(intervals, dtype=float)
+        mean_interval = float(np.mean(interval_array))
+        min_interval = float(np.min(interval_array))
+        max_interval = float(np.max(interval_array))
+        std_interval = float(np.std(interval_array))
+        if mean_interval > 0.0:
+            repeatability = max(0.0, 1.0 - std_interval / mean_interval)
+        else:
+            repeatability = 0.0
+    else:
+        mean_interval = min_interval = max_interval = std_interval = 0.0
+        repeatability = 1.0 if len(windows) == 1 else 0.0
+
+    return {
+        "window_count": len(windows),
+        "mean_duration_s": mean_duration,
+        "min_duration_s": min_duration,
+        "max_duration_s": max_duration,
+        "mean_interval_s": mean_interval,
+        "min_interval_s": min_interval,
+        "max_interval_s": max_interval,
+        "std_interval_s": std_interval,
+        "expected_orbit_period_s": _orbital_period(semi_major_axis_m),
+        "repeatability_score": repeatability,
+        "interval_samples": len(intervals),
+    }
+
+
+def _orbital_period(semi_major_axis_m: float) -> float:
+    if semi_major_axis_m <= 0.0:
+        return 0.0
+    mean_motion = math.sqrt(MU_EARTH / semi_major_axis_m**3)
+    return float(2.0 * math.pi / mean_motion)
+
+
+def _assess_station_keeping(
+    times: Sequence[datetime],
+    triangle_sides: np.ndarray,
+    formation: Mapping[str, object],
+    maintenance: Mapping[str, object],
+    step: float,
+) -> Mapping[str, object]:
+    """Detect when the triangular geometry exceeds the maintenance tolerance."""
+
+    if not len(times):
+        return {
+            "status": "insufficient_data",
+            "events": [],
+            "tolerance_m": 0.0,
+            "violation_fraction": 0.0,
+            "recommended_delta_v_mps": 0.0,
+            "max_deviation_m": 0.0,
+        }
+
+    base_length = float(formation.get("side_length_m", 0.0))
+    default_tolerance = base_length * 0.01 if base_length > 0.0 else 10.0
+    tolerance = float(
+        formation.get(
+            "station_keeping_tolerance_m",
+            formation.get("repeatability_tolerance_m", default_tolerance),
+        )
+    )
+    if tolerance <= 0.0:
+        tolerance = default_tolerance
+
+    deviations = np.abs(triangle_sides - base_length)
+    max_deviation_series = np.max(deviations, axis=1)
+    violation_mask = max_deviation_series > tolerance
+
+    events: list[Mapping[str, object]] = []
+    start_index: Optional[int] = None
+    peak_violation = 0.0
+    for index, violated in enumerate(violation_mask):
+        if violated:
+            if start_index is None:
+                start_index = index
+                peak_violation = float(max_deviation_series[index])
+            else:
+                peak_violation = max(peak_violation, float(max_deviation_series[index]))
+            continue
+        if start_index is not None:
+            events.append(
+                _build_station_event(
+                    start_index,
+                    index - 1,
+                    times,
+                    max_deviation_series,
+                    peak_violation,
+                    step,
+                )
+            )
+            start_index = None
+            peak_violation = 0.0
+
+    if start_index is not None:
+        events.append(
+            _build_station_event(
+                start_index,
+                len(times) - 1,
+                times,
+                max_deviation_series,
+                peak_violation,
+                step,
+            )
+        )
+
+    recommended_delta_v = _recommended_delta_v(maintenance)
+    for event in events:
+        event.setdefault("recommended_delta_v_mps", recommended_delta_v)
+
+    violation_fraction = (
+        float(np.count_nonzero(violation_mask)) / float(len(max_deviation_series))
+        if len(max_deviation_series)
+        else 0.0
+    )
+
+    max_deviation = float(np.max(max_deviation_series)) if len(max_deviation_series) else 0.0
+
+    status = "nominal" if not events else "correction_required"
+    return {
+        "status": status,
+        "events": events,
+        "tolerance_m": tolerance,
+        "violation_fraction": violation_fraction,
+        "recommended_delta_v_mps": recommended_delta_v,
+        "max_deviation_m": max_deviation,
+    }
+
+
+def _build_station_event(
+    start_index: int,
+    end_index: int,
+    times: Sequence[datetime],
+    deviations: np.ndarray,
+    peak_violation: float,
+    step: float,
+) -> Mapping[str, object]:
+    start_time = times[start_index]
+    end_time = times[end_index]
+    if end_index > start_index:
+        duration_seconds = max((end_time - start_time).total_seconds(), 0.0)
+    else:
+        half_step = timedelta(seconds=0.5 * step)
+        start_time = max(start_time - half_step, times[0])
+        end_time = min(end_time + half_step, times[-1])
+        duration_seconds = float(step)
+
+    slice_obj = slice(start_index, end_index + 1)
+    peak = max(peak_violation, float(np.max(deviations[slice_obj])))
+
+    return {
+        "start": start_time.isoformat().replace("+00:00", "Z"),
+        "end": end_time.isoformat().replace("+00:00", "Z"),
+        "duration_s": float(duration_seconds),
+        "violation_samples": int(end_index - start_index + 1),
+        "peak_deviation_m": float(peak),
+    }
+
+
+def _recommended_delta_v(maintenance: Mapping[str, object]) -> float:
+    per_spacecraft = maintenance.get("per_spacecraft") if isinstance(maintenance, Mapping) else None
+    if isinstance(per_spacecraft, Mapping) and per_spacecraft:
+        deltas = [
+            float(entry.get("delta_v_per_burn_mps", 0.0))
+            for entry in per_spacecraft.values()
+        ]
+        if deltas:
+            return float(np.mean(deltas))
+
+    assumptions = maintenance.get("assumptions") if isinstance(maintenance, Mapping) else None
+    if isinstance(assumptions, Mapping):
+        return float(assumptions.get("delta_v_budget_mps", 0.0))
+    return 0.0
+
+
+def _write_formation_windows_csv(
+    path: Path,
+    windows: Sequence[Mapping[str, object]],
+) -> None:
+    """Serialise the detected formation windows to ``path``."""
+
+    records: list[MutableMapping[str, object]] = []
+    for index, window in enumerate(windows):
+        record: MutableMapping[str, object] = {"window_index": index}
+        record["start"] = window.get("start")
+        record["end"] = window.get("end")
+        record["duration_s"] = float(window.get("duration_s", 0.0))
+        record["sample_count"] = int(window.get("sample_count", 0))
+        record["max_ground_distance_km"] = float(
+            window.get("max_ground_distance_km", float("nan"))
+        )
+        record["min_ground_distance_km"] = float(
+            window.get("min_ground_distance_km", float("nan"))
+        )
+        record["max_aspect_ratio"] = float(window.get("max_aspect_ratio", float("nan")))
+        record["centroid_time"] = window.get("centroid_time")
+        records.append(record)
+
+    dataframe = pd.DataFrame.from_records(records)
+    if dataframe.empty:
+        dataframe = pd.DataFrame(
+            columns=[
+                "window_index",
+                "start",
+                "end",
+                "duration_s",
+                "sample_count",
+                "max_ground_distance_km",
+                "min_ground_distance_km",
+                "max_aspect_ratio",
+                "centroid_time",
+            ]
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    dataframe.to_csv(path, index=False)
+
+
+def _write_station_keeping_csv(
+    path: Path,
+    station_keeping: Mapping[str, object],
+) -> None:
+    """Write the station-keeping assessment events to ``path``."""
+
+    events = station_keeping.get("events") if isinstance(station_keeping, Mapping) else []
+    records: list[MutableMapping[str, object]] = []
+    if isinstance(events, Sequence):
+        for index, event in enumerate(events):
+            record: MutableMapping[str, object] = {"event_index": index}
+            record["start"] = event.get("start")
+            record["end"] = event.get("end")
+            record["duration_s"] = float(event.get("duration_s", 0.0))
+            record["violation_samples"] = int(event.get("violation_samples", 0))
+            record["peak_deviation_m"] = float(event.get("peak_deviation_m", 0.0))
+            record["recommended_delta_v_mps"] = float(
+                event.get("recommended_delta_v_mps", station_keeping.get("recommended_delta_v_mps", 0.0))
+            )
+            records.append(record)
+
+    dataframe = pd.DataFrame.from_records(records)
+    if dataframe.empty:
+        dataframe = pd.DataFrame(
+            columns=[
+                "event_index",
+                "start",
+                "end",
+                "duration_s",
+                "violation_samples",
+                "peak_deviation_m",
+                "recommended_delta_v_mps",
+            ]
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    dataframe.to_csv(path, index=False)
 
 
 def _estimate_maintenance_delta_v(
