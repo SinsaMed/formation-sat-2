@@ -696,17 +696,38 @@ def fetch_metrics_report(run_id: str) -> Mapping[str, Any]:
             vertices.append(samples[index])
         triangle_series.append({"time": timestamp, "vertices": vertices})
 
-    formation_window = (
-        summary.get("metrics", {}).get("formation_window")
-        if isinstance(summary.get("metrics"), Mapping)
-        else None
-    )
+    metrics_block = summary.get("metrics") if isinstance(summary, Mapping) else {}
     window_events: List[Mapping[str, Any]] = []
-    if isinstance(formation_window, Mapping):
-        start = formation_window.get("start")
-        end = formation_window.get("end")
-        if start and end:
-            window_events.append({"start": start, "end": end})
+
+    formation_windows = (
+        metrics_block.get("formation_windows") if isinstance(metrics_block, Mapping) else None
+    )
+    if isinstance(formation_windows, Sequence):
+        for window in formation_windows:
+            if not isinstance(window, Mapping):
+                continue
+            start = window.get("start")
+            end = window.get("end")
+            if start and end:
+                event: MutableMapping[str, Any] = {"start": start, "end": end}
+                duration = window.get("duration_s")
+                if duration is not None:
+                    event["duration_s"] = duration
+                window_events.append(event)
+
+    if not window_events:
+        formation_window = (
+            metrics_block.get("formation_window") if isinstance(metrics_block, Mapping) else None
+        )
+        if isinstance(formation_window, Mapping):
+            start = formation_window.get("start")
+            end = formation_window.get("end")
+            if start and end:
+                event = {"start": start, "end": end}
+                duration = formation_window.get("duration_s")
+                if duration is not None:
+                    event["duration_s"] = duration
+                window_events.append(event)
 
     delta_v_log = [
         {"spacecraft": sat_id, "delta_v_mps": 0.0}

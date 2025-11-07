@@ -17,6 +17,21 @@ def test_triangle_formation_meets_requirements() -> None:
     window = metrics["formation_window"]
     assert window["duration_s"] >= 90.0
 
+    windows = metrics["formation_windows"]
+    assert isinstance(windows, list)
+    assert windows
+    assert any(
+        window["start"] == entry.get("start") and window["end"] == entry.get("end")
+        for entry in windows
+    )
+    for entry in windows:
+        assert "duration_s" in entry
+        assert "sample_count" in entry
+
+    recurrence = metrics["formation_recurrence"]
+    assert recurrence["window_count"] == len(windows)
+    assert recurrence["max_duration_s"] >= window["duration_s"]
+
     triangle_metrics = metrics["triangle"]
     assert triangle_metrics["aspect_ratio_max"] <= 1.02
 
@@ -63,6 +78,11 @@ def test_triangle_formation_meets_requirements() -> None:
     assert maintenance["annual_delta_v_mps"]["max"] <= budget
     for entry in maintenance["per_spacecraft"].values():
         assert entry["annual_delta_v_mps"] <= budget
+
+    station_keeping = metrics["station_keeping"]
+    assert station_keeping["status"] == "nominal"
+    assert station_keeping["violation_fraction"] == 0.0
+    assert not station_keeping["events"]
 
     command_latency = metrics["command_latency"]
     assert command_latency["max_latency_hours"] <= 12.0
