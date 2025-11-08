@@ -7,7 +7,7 @@ VENV_PIP := $(VENV)/bin/pip
 PLOTS_DIR := artefacts/plots
 DOCS_DIR := artefacts/docs
 
-.PHONY: setup lint test simulate baselines docs clean help scenario triangle
+.PHONY: setup lint test simulate baselines docs clean help scenario triangle rgt
 
 .DEFAULT_GOAL := help
 
@@ -18,7 +18,8 @@ help:
 	@echo "  test      - Execute the pytest suite with concise output."
 	@echo "  simulate  - Produce placeholder simulation artefacts and verify interfaces."
 	@echo "  baselines - Exercise baseline and metric scaffolding entry points."
-	@echo "  scenario  - Run the lightweight scenario pipeline and store a summary."
+\t@echo "  scenario  - Run the lightweight scenario pipeline and store a summary."
+\t@echo "  rgt       - Optimise the repeat ground track and archive artefacts."
 	@echo "  triangle  - Simulate the Tehran triangular formation and export STK files."
 	@echo "  docs      - Refresh documentation placeholders for downstream publishing."
 	@echo "  clean     - Remove generated artefacts and caches."
@@ -54,6 +55,9 @@ scenario: $(VENV_PYTHON)
 
 triangle: $(VENV_PYTHON)
 	$(VENV_PYTHON) -m sim.scripts.run_triangle --output-dir artefacts/triangle
+
+rgt: $(VENV_PYTHON)
+	$(VENV_PYTHON) -m sim.scripts.rgt_optimizer tehran_daily_pass
 
 docs: $(VENV_PYTHON)
 	$(VENV_PYTHON) tools/generate_docs_summary.py --output-dir $(DOCS_DIR)
