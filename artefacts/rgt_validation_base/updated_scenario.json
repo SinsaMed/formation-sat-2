@@ -1,0 +1,122 @@
+{
+  "metadata": {
+    "scenario_name": "Tehran Daily Pass",
+    "identifier": "tehran_daily_pass",
+    "description": "Daily dawn-dusk imaging opportunity over Tehran for infrastructure resilience monitoring.",
+    "region": {
+      "city": "Tehran",
+      "country": "Iran",
+      "latitude_deg": 35.6892,
+      "longitude_deg": 51.389
+    },
+    "author": "Orbit Dynamics Team",
+    "created": "2024-06-02",
+    "stakeholders": [
+      "Imaging Payload Working Group",
+      "Mission Planning Cell"
+    ],
+    "validated_against_stk_export": true,
+    "alignment_validation": {
+      "run_id": "run_20251020_1900Z_tehran_daily_pass_locked",
+      "epoch_utc": "2026-03-21T07:40:10Z"
+    }
+  },
+  "orbital_elements": {
+    "epoch_utc": "2026-03-21T09:32:00Z",
+    "frame": "TEME",
+    "classical": {
+      "semi_major_axis_km": 6939.241838277424,
+      "eccentricity": 0.00012,
+      "inclination_deg": 97.7,
+      "raan_deg": 350.7885044642857,
+      "argument_of_perigee_deg": 87.0,
+      "mean_anomaly_deg": 14.5
+    },
+    "repeat_ground_track": {
+      "repeat_cycle_days": 1.0,
+      "orbits_per_cycle": 15.0,
+      "local_time_descending_node": "10:30",
+      "residual_tau": 4.3597139787188155e-11
+    }
+  },
+  "access_window": {
+    "start_utc": "2026-03-21T07:39:25Z",
+    "end_utc": "2026-03-21T07:40:55Z",
+    "midpoint_utc": "2026-03-21T07:40:10Z"
+  },
+  "cross_track_limits": {
+    "primary_km": 30.0,
+    "waiver_km": 70.0
+  },
+  "raan_alignment": {
+    "midpoint_utc": "2026-03-21T07:40:10Z",
+    "window_duration_s": 90.0,
+    "time_step_s": 10.0,
+    "propagation_margin_s": 300.0
+  },
+  "timing": {
+    "planning_horizon": {
+      "start_utc": "2026-03-21T00:00:00Z",
+      "stop_utc": "2026-03-28T00:00:00Z"
+    },
+    "propagation": {
+      "start_utc": "2026-03-21T07:34:25Z",
+      "end_utc": "2026-03-21T07:45:55Z",
+      "margin_s": 300.0,
+      "time_step_s": 10.0
+    },
+    "daily_access_windows": [
+      {
+        "label": "Morning Imaging",
+        "start_utc": "2026-03-21T07:39:25Z",
+        "end_utc": "2026-03-21T07:40:55Z",
+        "midpoint_utc": "2026-03-21T07:40:10Z",
+        "min_elevation_deg": 20.0,
+        "target": "Tehran Urban Core"
+      },
+      {
+        "label": "Evening Downlink",
+        "start_utc": "2026-03-21T20:55:00Z",
+        "end_utc": "2026-03-21T21:08:00Z",
+        "ground_station": "Svalbard",
+        "min_elevation_deg": 12.0,
+        "notes": "Allocated for priority data return following daily imaging."
+      }
+    ],
+    "attitude_preconditioning_minutes": 18
+  },
+  "payload_constraints": {
+    "imager": {
+      "max_off_nadir_deg": 25.0,
+      "required_ground_sample_distance_m": 1.0,
+      "dwell_time_s": 12.0,
+      "spectral_bands": [
+        "VNIR",
+        "SWIR"
+      ],
+      "calibration_required_daily": true
+    },
+    "thermal": {
+      "max_component_temp_c": 35.0,
+      "cooldown_requirement_min": 15
+    },
+    "data_handling": {
+      "daily_imagery_quota_gb": 96,
+      "preferred_downlink_nodes": [
+        "Svalbard",
+        "Inuvik"
+      ],
+      "encryption_standard": "CCSDS 355.0-B-1"
+    }
+  },
+  "operational_constraints": {
+    "power": {
+      "min_state_of_charge_pct": 35,
+      "payload_duty_cycle_pct": 28
+    },
+    "attitude": {
+      "slew_rate_deg_s": 0.5,
+      "stability_requirement_arcsec": 45
+    }
+  }
+}

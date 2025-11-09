@@ -1,0 +1,13 @@
+stk.v.11.0
+WrittenBy    formation-sat-exporter
+
+BEGIN Satellite
+
+    Name            tehran_daily_pass
+    CentralBody     Earth
+
+    BEGIN Ephemeris
+        Type    External
+        File    "tehran_daily_pass.e"
+    END Ephemeris
+END Satellite
