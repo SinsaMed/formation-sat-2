@@ -30,6 +30,16 @@ def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:
         type=Path,
         help="Directory in which to write simulation artefacts.",
     )
+    parser.add_argument(
+        "--extended-days",
+        type=float,
+        help="Extend the formation propagation horizon to the specified number of days.",
+    )
+    parser.add_argument(
+        "--time-step-s",
+        type=float,
+        help="Override the formation propagation time step in seconds.",
+    )
     return parser.parse_args(args)
 
 
@@ -37,7 +47,12 @@ def main(args: Optional[Iterable[str]] = None) -> int:
     namespace = parse_args(args)
 
     output_dir = _resolve_output_directory(namespace.output_dir)
-    result = simulate_triangle_formation(namespace.config, output_directory=output_dir)
+    result = simulate_triangle_formation(
+        namespace.config,
+        output_directory=output_dir,
+        extended_days=namespace.extended_days,
+        sample_step_s=namespace.time_step_s,
+    )
 
     csv_bundle = export_triangle_time_series(result, output_dir)
     debug_outputs = _safe_generate_debug_plots(output_dir)

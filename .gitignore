@@ -1,3 +1,7 @@
 # Byte-compiled / cache files
 __pycache__/
 *.py[cod]
+.venv/
+validation_log.txt
+*.svg
+*.html
