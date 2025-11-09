@@ -1128,15 +1128,38 @@ def generate_access_timeline(summary: SummaryData, plot_dir: Path) -> None:
     if not start or not end:
         return
     duration = end - start
-    periods = [start + timedelta(days=day) for day in range(7)]
+
+    # Determine the actual simulation duration from run.times
+    if summary.run.times.size > 1:
+        sim_start_time = summary.run.times[0]
+        sim_end_time = summary.run.times[-1]
+        total_sim_duration_days = (sim_end_time - sim_start_time).total_seconds() / SECONDS_PER_DAY
+    else:
+        total_sim_duration_days = 1.0 # Default to 1 day if only one time point
+
+    # Generate periods based on actual simulation duration
+    # If total_sim_duration_days is less than 1, plot for 1 day to show the window clearly
+    num_days_to_plot = max(1, math.ceil(total_sim_duration_days))
+    periods = [start + timedelta(days=day) for day in range(int(num_days_to_plot))]
+
     fig, ax = plt.subplots(figsize=(10, 3))
     for day_start in periods:
-        ax.plot([day_start, day_start + duration], [1, 1], linewidth=6)
+        # Only plot if the window falls within the simulation time frame
+        if sim_start_time <= day_start + duration and day_start <= sim_end_time:
+            ax.plot([day_start, day_start + duration], [1, 1], linewidth=6)
+
     ax.set_ylim(0, 2)
     ax.set_yticks([])
     ax.set_xlabel("UTC date")
     ax.set_title("Daily recurrence of the ninety-second access window")
-    fig.autofmt_xdate()
+
+    # Adjust x-axis ticks and labels for short durations
+    if total_sim_duration_days <= 1.0:
+        ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%H:%M:%S'))
+        ax.set_xlabel("UTC Time")
+    else:
+        fig.autofmt_xdate()
+
     fig.tight_layout()
     fig.savefig(plot_dir / "access_timeline.svg", format="svg")
     plt.close(fig)

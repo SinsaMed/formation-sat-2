@@ -191,6 +191,28 @@ def _handle_triangle_run(config_path: Path, output_directory: Path) -> Sequence[
     finally:
         sys.argv = original_argv
 
+    # Generate 14-day RGT ground track and plot
+    LOGGER.info("Generating 14-day RGT ground track and plot...")
+    try:
+        # Run propagate_long_duration.py
+        propagate_argv = ['propagate_long_duration.py', '--config', str(config_path), '--output-dir', str(output_directory)]
+        from tools.propagate_long_duration import main as propagate_long_duration_main
+        propagate_long_duration_main(propagate_argv)
+        LOGGER.info("14-day RGT ground track data generated successfully.")
+
+        # Run render_14day_ground_track.py
+        plots_dir = output_directory / "plots"
+        render_argv = ['render_14day_ground_track.py', '--input-csv', str(output_directory / "ground_track_14day.csv"), '--output-dir', str(plots_dir)]
+        from tools.render_14day_ground_track import main as render_14day_ground_track_main
+        render_14day_ground_track_main(render_argv)
+        LOGGER.info("14-day RGT ground track plot generated successfully.")
+
+        summary.append(f"  • 14-day Ground Track CSV: {output_directory / 'ground_track_14day.csv'}")
+        summary.append(f"  • 14-day Ground Track SVG: {plots_dir / '14day_ground_track.svg'}")
+
+    except Exception as e:
+        LOGGER.error(f"Failed to generate 14-day RGT ground track and plot: {e}")
+
     return summary
 
 

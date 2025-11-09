@@ -28,6 +28,8 @@ from src.constellation.orbit import EARTH_EQUATORIAL_RADIUS_M
 from src.constellation.web.jobs import JobManager, SubprocessJob
 from tools.generate_triangle_report import main as generate_triangle_report_main
 from tools.render_debug_plots import generate_visualisations as generate_debug_visualisations
+from tools.propagate_long_duration import main as propagate_long_duration_main
+from tools.render_14day_ground_track import main as render_14day_ground_track_main
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCENARIO_DIR = PROJECT_ROOT / "config" / "scenarios"
@@ -177,6 +179,26 @@ def _generate_triangle_documentation(
                 config_path,
                 exc,
             )
+
+    # Generate 14-day RGT ground track and plot
+    try:
+        # Run propagate_long_duration.py
+        propagate_argv = ['propagate_long_duration.py', '--config', str(config_path), '--output-dir', str(output_directory)]
+        propagate_long_duration_main(propagate_argv)
+        LOGGER.info("14-day RGT ground track data generated successfully.")
+
+        # Run render_14day_ground_track.py
+        plots_dir = output_directory / "plots"
+        plots_dir.mkdir(parents=True, exist_ok=True) # Ensure plots directory exists
+        render_argv = ['render_14day_ground_track.py', '--input-csv', str(output_directory / "ground_track_14day.csv"), '--output-dir', str(plots_dir)]
+        render_14day_ground_track_main(render_argv)
+        LOGGER.info("14-day RGT ground track plot generated successfully.")
+
+        artefacts["rgt_ground_track_csv"] = str(output_directory / 'ground_track_14day.csv')
+        artefacts["rgt_ground_track_svg"] = str(plots_dir / '14day_ground_track.svg')
+
+    except Exception as exc:
+        LOGGER.error(f"Failed to generate 14-day RGT ground track and plot for web run: {exc}")
 
     plots_dir = output_directory / "plots"
     if plots_dir.exists():
