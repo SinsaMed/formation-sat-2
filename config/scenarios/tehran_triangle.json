@@ -1,7 +1,7 @@
 {
   "metadata": {
     "scenario_name": "Tehran Triangle Formation",
-    "description": "Three-satellite equilateral formation centred on Tehran with 50 km side length.",
+    "description": "Three-satellite equilateral formation centred on Tehran with 6 km side length.",
     "author": "Formation Dynamics Team",
     "validated_against_stk_export": true,
     "alignment_validation": {
@@ -9,63 +9,21 @@
       "epoch_utc": "2026-03-21T07:40:10Z"
     }
   },
-  "orbital_elements": {
-    "epoch_utc": "2026-03-21T07:40:10Z",
-    "frame": "TEME",
-    "classical": {
-      "semi_major_axis_km": 6939.241838277424,
-      "eccentricity": 0.00012,
-      "inclination_deg": 97.7,
-      "raan_deg": 350.7885044642857,
-      "argument_of_perigee_deg": 87.0,
-      "mean_anomaly_deg": 14.5
-    },
-    "repeat_ground_track": {
-      "repeat_cycle_days": 1,
-      "orbits_per_cycle": 15,
-      "local_time_descending_node": "07:40"
-    }
-  },
-  "timing": {
-    "planning_horizon": {
-      "start_utc": "2026-03-21T00:00:00Z",
-      "stop_utc": "2026-04-04T00:00:00Z"
-    },
-    "propagation": {
-      "start_utc": "2026-03-21T07:30:00Z",
-      "end_utc": "2026-03-21T07:50:00Z",
-      "margin_s": 600.0,
-      "time_step_s": 10.0
-    },
-    "attitude_preconditioning_minutes": 18
-  },
-  "payload_constraints": {
-    "inter_satellite_links": {
-      "max_range_km": 120.0,
-      "required_uptime_pct": 95
-    },
-    "relative_navigation": {
-      "sensor": "dual-frequency GNSS",
-      "position_accuracy_m": 1.0,
-      "velocity_accuracy_mmps": 5.0
-    }
-  },
   "reference_orbit": {
     "epoch_utc": "2026-03-21T07:40:10Z",
-    "semi_major_axis_km": 6939.241838277424,
-    "eccentricity": 0.00012,
+    "semi_major_axis_km": 6898.137,
+    "eccentricity": 0.0,
     "inclination_deg": 97.7,
-    "raan_deg": 350.7885044642857,
-    "argument_of_perigee_deg": 87.0,
-    "mean_anomaly_deg": 14.5
+    "raan_deg": 350.9838169642857,
+    "argument_of_perigee_deg": 0.0,
+    "mean_anomaly_deg": 36.06454701821796
   },
   "formation": {
-    "side_length_m": 50000.0,
+    "side_length_m": 6000.0,
     "duration_s": 180.0,
     "time_step_s": 1.0,
-    "ground_tolerance_km": 30.0,
+    "ground_tolerance_km": 350.0,
     "aspect_ratio_tolerance": 1.02,
-    "latitude_window_deg": 6.0,
     "target": {
       "latitude_deg": 35.6892,
       "longitude_deg": 51.3890

@@ -147,9 +147,6 @@ class TriangleFormationResult:
 def simulate_triangle_formation(
     config_source: Mapping[str, object] | Path | str,
     output_directory: Optional[Path | str] = None,
-    *,
-    extended_days: Optional[float] = None,
-    sample_step_s: Optional[float] = None,
 ) -> TriangleFormationResult:
     """Simulate the triangular formation described by *config_source*."""
 
@@ -177,10 +174,6 @@ def simulate_triangle_formation(
 
     duration_s = float(formation.get("duration_s", 180.0))
     time_step_s = float(formation.get("time_step_s", 1.0))
-    if extended_days is not None and extended_days > 0.0:
-        duration_s = max(extended_days * SECONDS_PER_DAY, time_step_s)
-    if sample_step_s is not None and sample_step_s > 0.0:
-        time_step_s = float(sample_step_s)
     half_duration = 0.5 * duration_s
     sample_count = int(round(duration_s / time_step_s)) + 1
 
