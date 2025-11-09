@@ -48,7 +48,6 @@ from tools.stk_export import (
 
 from . import configuration
 from . import perturbation_analysis
-from .rgt_optimizer import compute_repeat_ground_track_solution, estimate_visibility
 
 LOGGER = logging.getLogger(__name__)
 
@@ -124,15 +123,6 @@ def run_scenario(
 
     stage_sequence: list[str] = []
 
-    rgt_summary = _derive_repeat_ground_track_summary(scenario)
-    if rgt_summary:
-        stage_sequence.append("repeat_ground_track")
-        LOGGER.info(
-            "Repeat-ground-track semi-major axis %.3f km with residual %.3e.",
-            float(rgt_summary.get("solution", {}).get("semi_major_axis_km", 0.0)),
-            float(rgt_summary.get("solution", {}).get("residual_tau", 0.0)),
-        )
-
     raan_alignment = _resolve_raan_alignment(scenario)
     if raan_alignment:
         stage_sequence.append("raan_alignment")
@@ -205,9 +195,6 @@ def run_scenario(
         "metrics": metrics,
         "stage_sequence": stage_sequence,
     }
-
-    if rgt_summary:
-        summary["repeat_ground_track"] = rgt_summary
 
     if raan_alignment:
         summary["raan_alignment"] = raan_alignment
@@ -1131,24 +1118,6 @@ def _summarise_configuration(scenario: Mapping[str, object]) -> MutableMapping[s
             }
 
     return summary
-
-
-def _derive_repeat_ground_track_summary(
-    scenario: Mapping[str, object]
-) -> MutableMapping[str, object]:
-    """Return repeat-ground-track solution metadata for the scenario."""
-
-    solution = compute_repeat_ground_track_solution(scenario)
-    if solution is None:
-        return {}
-
-    payload: MutableMapping[str, object] = {"solution": solution.as_mapping()}
-
-    visibility = estimate_visibility(scenario, solution.semi_major_axis_km)
-    if visibility:
-        payload["visibility"] = visibility
-
-    return payload
 
 
 def _export_stk_products(

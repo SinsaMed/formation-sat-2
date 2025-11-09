@@ -16,10 +16,6 @@ from .baseline_generation import generate_baseline
 from .metric_extraction import extract_metrics as extract_metrics_summary
 from . import extract_metrics as extract_metrics  # type: ignore[F401]  # Re-export module
 from .configuration import load_scenario, resolve_scenario_path
-from .rgt_optimizer import (
-    compute_repeat_ground_track_solution,
-    estimate_visibility,
-)
 
 __all__ = [
     "run_scenario",
@@ -28,6 +24,4 @@ __all__ = [
     "extract_metrics_summary",
     "load_scenario",
     "resolve_scenario_path",
-    "compute_repeat_ground_track_solution",
-    "estimate_visibility",
 ]
