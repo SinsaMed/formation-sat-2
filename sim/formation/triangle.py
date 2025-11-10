@@ -163,7 +163,7 @@ def simulate_triangle_formation(
     arg_perigee = math.radians(float(reference.get("argument_of_perigee_deg", 0.0)))
     mean_anomaly = math.radians(float(reference.get("mean_anomaly_deg", 0.0)))
 
-    elements = OrbitalElements(
+    reference_elements = OrbitalElements(
         semi_major_axis=semi_major_axis_m,
         eccentricity=eccentricity,
         inclination=inclination,
@@ -188,19 +188,28 @@ def simulate_triangle_formation(
             satellite_ids[2]: "Plane B",
         }
 
+    # Get initial state of the reference orbit
+    ref_pos_at_epoch, ref_vel_at_epoch = propagate_kepler(reference_elements, 0)
+
+    # Get initial LVLH frame
+    frame_at_epoch = _lvlh_frame(ref_pos_at_epoch, ref_vel_at_epoch)
+
+    # Calculate initial orbital elements for each satellite
+    satellite_elements: dict[str, OrbitalElements] = {}
+    for sat_id in satellite_ids:
+        offset_vec = frame_at_epoch @ offsets_m[sat_id]
+        # Approximate velocity by assuming the offset is small and the angular
+        # velocity of the frame is the same as the reference orbit's
+        ref_angular_velocity = np.cross(ref_pos_at_epoch, ref_vel_at_epoch) / np.linalg.norm(ref_pos_at_epoch)**2
+        offset_vel = np.cross(ref_angular_velocity, offset_vec)
+
+        sat_pos = ref_pos_at_epoch + offset_vec
+        sat_vel = ref_vel_at_epoch + offset_vel
+        satellite_elements[sat_id] = cartesian_to_classical(sat_pos, sat_vel)
+
+
     offsets = np.arange(sample_count, dtype=float) * time_step_s - half_duration
     times = [epoch + timedelta(seconds=float(offset)) for offset in offsets]
-
-    reference_positions: list[np.ndarray] = []
-    orientation_frames: list[np.ndarray] = []
-
-    for delta_t in offsets:
-        position, velocity = propagate_kepler(elements, delta_t)
-        reference_positions.append(position)
-        orientation_frames.append(_lvlh_frame(position, velocity))
-
-    reference_positions = np.asarray(reference_positions)
-    orientation_frames = np.asarray(orientation_frames)
 
     positions: dict[str, np.ndarray] = {
         sat_id: np.zeros((sample_count, 3), dtype=float) for sat_id in satellite_ids
@@ -236,19 +245,26 @@ def simulate_triangle_formation(
     command_lat = math.radians(float(command_station.get("latitude_deg", default_lat_deg)))
     command_lon = math.radians(float(command_station.get("longitude_deg", default_lon_deg)))
 
-    for index, (position, frame) in enumerate(zip(reference_positions, orientation_frames)):
-        vertices = []
-        for sat_id in satellite_ids:
-            offset_vec = frame @ offsets_m[sat_id]
-            inertial = position + offset_vec
-            positions[sat_id][index] = inertial
-            vertices.append(inertial)
+    # Propagate each satellite independently
+    velocities_temp: dict[str, list[np.ndarray]] = {sat_id: [] for sat_id in satellite_ids}
 
-            ecef = inertial_to_ecef(inertial, times[index])
+    for index, delta_t in enumerate(offsets):
+        inertial_positions = {}
+        for sat_id in satellite_ids:
+            pos, vel = propagate_kepler(satellite_elements[sat_id], delta_t)
+            positions[sat_id][index] = pos
+            velocities_temp[sat_id].append(vel)
+            inertial_positions[sat_id] = pos
+
+            ecef = inertial_to_ecef(pos, times[index])
             lat, lon, alt = geodetic_coordinates(ecef)
             latitudes[sat_id][index] = lat
             longitudes[sat_id][index] = lon
             altitudes[sat_id][index] = alt
+
+        # Now, compute triangle geometry based on the actual positions
+        # The order of vertices matters for side length calculations, so sort by sat_id
+        vertices = [inertial_positions[sat_id] for sat_id in satellite_ids]
 
         triangle_area_series[index] = triangle_area(vertices)
         triangle_aspect_series[index] = triangle_aspect_ratio(vertices)
@@ -283,7 +299,7 @@ def simulate_triangle_formation(
         min_command_distance[index] = min_command
 
     velocities: dict[str, np.ndarray] = {
-        sat_id: _differentiate(positions[sat_id], time_step_s) for sat_id in satellite_ids
+        sat_id: np.array(velocities_temp[sat_id]) for sat_id in satellite_ids
     }
 
     classical_series = _compute_classical_elements_series(positions, velocities)

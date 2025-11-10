@@ -708,22 +708,41 @@ def generate_ground_track_animation(summary: SummaryData, plot_dir: Path) -> Non
     fig.write_html(output_path, include_plotlyjs="cdn", full_html=True)
 
 
-def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -> None:
+def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, plot_dir: Path) -> None:
     sat_ids = sorted(summary.run.positions)
     if len(sat_ids) < 3:
         return
 
-    window = summary.metrics.get("formation_window", {})
-    start = _parse_iso8601(window.get("start"))
+    # Load triangle geometry to find the best formation time
+    geometry_path = run_dir / "triangle_geometry.csv"
+    if not geometry_path.exists():
+        # Fallback to the old method if the geometry file doesn't exist
+        window = summary.metrics.get("formation_window", {})
+        start = _parse_iso8601(window.get("start"))
+        if isinstance(summary.run.times, np.ndarray):
+            times = list(summary.run.times)
+        else:
+            times = list(summary.run.times)
+        if not times:
+            return
+        index = _find_nearest_epoch_index(times, start) if start else 0
+        if index is None:
+            index = 0
+    else:
+        geometry_df = pd.read_csv(geometry_path)
+        if 'triangle_aspect_ratio' in geometry_df.columns and not geometry_df['triangle_aspect_ratio'].empty:
+            # Find the index of the minimum aspect ratio
+            index = geometry_df['triangle_aspect_ratio'].idxmin()
+        else:
+            index = 0 # Fallback to the first index
+
     if isinstance(summary.run.times, np.ndarray):
         times = list(summary.run.times)
     else:
         times = list(summary.run.times)
-    if not times:
-        return
-    index = _find_nearest_epoch_index(times, start) if start else 0
-    if index is None:
-        index = 0
+
+    if not times or index >= len(times):
+        return # not enough data
 
     time_step = float(summary.run.time_step)
     centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
@@ -844,7 +863,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, plot_dir: Path) -
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
     ax.set_aspect("equal", adjustable="datalim")
-    ax.set_title(f"Formation geometry at window start ({timestamp_str})")
+    ax.set_title(f"Formation geometry at best aspect ratio ({timestamp_str})")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="upper right", fontsize="small")
     fig.tight_layout()
@@ -1346,6 +1365,92 @@ def generate_access_sensitivity(config_path: Path, grid: int, plot_dir: Path) ->
     plt.close(fig)
 
 
+def generate_formation_lvlh_animation(summary: SummaryData, plot_dir: Path) -> None:
+    """Generate an animated plot of the LVLH formation geometry."""
+    sat_ids = sorted(summary.run.positions)
+    if len(sat_ids) < 3:
+        return
+
+    times = list(summary.run.times)
+    if not times:
+        return
+
+    # Calculate centroid positions and velocities
+    centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
+    centroid_velocities = _differentiate(centroid_positions, summary.run.time_step)
+
+    # Calculate LVLH coordinates for each satellite at each time step
+    lvlh_coords_over_time = {sat: [] for sat in sat_ids}
+    for i in range(len(times)):
+        for sat in sat_ids:
+            rel_vec = summary.run.positions[sat][i] - centroid_positions[i]
+            try:
+                lvlh = eci_to_lvlh(centroid_positions[i], centroid_velocities[i], rel_vec)
+                lvlh_coords_over_time[sat].append(lvlh / 1e3)  # convert to km
+            except (ValueError, IndexError):
+                lvlh_coords_over_time[sat].append(np.array([np.nan, np.nan, np.nan]))
+
+    for sat in sat_ids:
+        lvlh_coords_over_time[sat] = np.array(lvlh_coords_over_time[sat])
+
+    time_labels = [t.isoformat().replace("+00:00", "Z") if isinstance(t, datetime) else str(t) for t in times]
+
+    colours = {
+        sat: colour
+        for sat, colour in zip(sat_ids, ["#1b9e77", "#d95f02", "#7570b3", "#66a61e", "#e7298a"])
+    }
+
+    # Create initial traces
+    initial_traces = []
+    for sat in sat_ids:
+        initial_traces.append(go.Scatter(
+            x=[lvlh_coords_over_time[sat][0, 1]],  # along-track
+            y=[lvlh_coords_over_time[sat][0, 0]],  # radial
+            mode='markers',
+            marker=dict(color=colours.get(sat, "#3182bd"), size=12),
+            name=sat
+        ))
+
+    fig = go.Figure(data=initial_traces)
+
+    # Create frames for the animation
+    frames = []
+    for i, time_label in enumerate(time_labels):
+        frame_data = []
+        for sat in sat_ids:
+            frame_data.append(go.Scatter(
+                x=[lvlh_coords_over_time[sat][i, 1]],
+                y=[lvlh_coords_over_time[sat][i, 0]],
+            ))
+        frames.append(go.Frame(data=frame_data, name=time_label, traces=list(range(len(sat_ids)))))
+
+    fig.frames = frames
+
+    # Configure slider and buttons
+    slider_steps = [
+        {"args": [[label], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
+         "label": label.split('T')[-1].replace('Z', ''), "method": "animate"}
+        for label in time_labels
+    ]
+
+    fig.update_layout(
+        title="Animated Formation Geometry in LVLH Frame",
+        xaxis=dict(title="Along-track [km]", scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Radial [km]"),
+        updatemenus=[{
+            "type": "buttons",
+            "buttons": [
+                {"label": "Play", "method": "animate", "args": [None, {"frame": {"duration": 100, "redraw": True}, "fromcurrent": True}]},
+                {"label": "Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
+            ],
+        }],
+        sliders=[{"steps": slider_steps}]
+    )
+
+    output_path = plot_dir / "formation_lvlh_animation.html"
+    fig.write_html(output_path, include_plotlyjs='cdn', full_html=True)
+
+
 def _differentiate(series: np.ndarray, step: float) -> np.ndarray:
     if series.size == 0 or step <= 0.0:
         return np.zeros_like(series)
@@ -1421,7 +1526,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     long_result = generate_ground_track_figure(summary, args.config, plot_dir)
     generate_orbital_plane_figure(summary, args.config, plot_dir, long_result)
     generate_orbital_elements_timeseries(args.run_dir, plot_dir)
-    generate_formation_triangle_snapshot(summary, plot_dir)
+    generate_formation_triangle_snapshot(summary, args.run_dir, plot_dir)
     generate_relative_position_plots(summary, plot_dir)
     generate_pairwise_distance_plot(summary, plot_dir)
     generate_access_timeline(summary, plot_dir)
@@ -1431,6 +1536,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     generate_analytical_vs_stk(summary, args.run_dir, plot_dir)
     generate_performance_metrics(summary, plot_dir)
     generate_access_sensitivity(args.config, args.contour_grid, plot_dir)
+    generate_formation_lvlh_animation(summary, plot_dir)
 
     return 0
 
