@@ -1000,7 +1000,7 @@ def _plot_ground_track(
         ax.set_xlabel("Longitude (degrees)")
         ax.set_ylabel("Latitude (degrees)")
         ax.legend(loc="best")
-        ax.set_aspect("equal", adjustable="datalim")
+        ax.set_aspect("equal", adjustable="box")
         ax.grid(True, linestyle=":", linewidth=0.5)
         fig.savefig(output_path, format="svg", bbox_inches="tight")
         plt.close(fig)
