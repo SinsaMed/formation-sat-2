@@ -151,62 +151,95 @@ def simulate_triangle_formation(
     """Simulate the triangular formation described by *config_source*."""
 
     configuration = _load_configuration(config_source)
-    reference = configuration["reference_orbit"]
     formation = configuration["formation"]
     metadata = configuration.get("metadata", {})
 
-    epoch = _parse_time(reference["epoch_utc"])
-    semi_major_axis_m = float(reference["semi_major_axis_km"]) * 1_000.0
-    eccentricity = float(reference.get("eccentricity", 0.0))
-    inclination = math.radians(float(reference.get("inclination_deg", 0.0)))
-    raan = math.radians(float(reference.get("raan_deg", 0.0)))
-    arg_perigee = math.radians(float(reference.get("argument_of_perigee_deg", 0.0)))
-    mean_anomaly = math.radians(float(reference.get("mean_anomaly_deg", 0.0)))
+    satellite_elements: dict[str, OrbitalElements] = {}
+    if "satellites" in configuration:
+        satellite_ids = [sat["id"] for sat in configuration["satellites"]]
+        plane_allocations = {
+            sat["id"]: sat["plane"] for sat in configuration["satellites"]
+        }
+        epoch = _parse_time(
+            configuration["satellites"][0]["orbital_elements"]["epoch_utc"]
+        )
+        semi_major_axis_m = (
+            float(
+                configuration["satellites"][0]["orbital_elements"]["semi_major_axis_km"]
+            )
+            * 1_000.0
+        )
+        inclination = math.radians(
+            float(
+                configuration["satellites"][0]["orbital_elements"].get(
+                    "inclination_deg", 0.0
+                )
+            )
+        )
 
-    reference_elements = OrbitalElements(
-        semi_major_axis=semi_major_axis_m,
-        eccentricity=eccentricity,
-        inclination=inclination,
-        raan=raan,
-        arg_perigee=arg_perigee,
-        mean_anomaly=mean_anomaly,
-    )
+        for sat_config in configuration["satellites"]:
+            elements = sat_config["orbital_elements"]
+            satellite_elements[sat_config["id"]] = OrbitalElements(
+                semi_major_axis=float(elements["semi_major_axis_km"]) * 1_000.0,
+                eccentricity=float(elements.get("eccentricity", 0.0)),
+                inclination=math.radians(float(elements.get("inclination_deg", 0.0))),
+                raan=math.radians(float(elements.get("raan_deg", 0.0))),
+                arg_perigee=math.radians(
+                    float(elements.get("argument_of_perigee_deg", 0.0))
+                ),
+                mean_anomaly=math.radians(float(elements.get("mean_anomaly_deg", 0.0))),
+            )
+    else:
+        reference = configuration["reference_orbit"]
+        epoch = _parse_time(reference["epoch_utc"])
+        semi_major_axis_m = float(reference["semi_major_axis_km"]) * 1_000.0
+        eccentricity = float(reference.get("eccentricity", 0.0))
+        inclination = math.radians(float(reference.get("inclination_deg", 0.0)))
+        raan = math.radians(float(reference.get("raan_deg", 0.0)))
+        arg_perigee = math.radians(
+            float(reference.get("argument_of_perigee_deg", 0.0))
+        )
+        mean_anomaly = math.radians(float(reference.get("mean_anomaly_deg", 0.0)))
+
+        reference_elements = OrbitalElements(
+            semi_major_axis=semi_major_axis_m,
+            eccentricity=eccentricity,
+            inclination=inclination,
+            raan=raan,
+            arg_perigee=arg_perigee,
+            mean_anomaly=mean_anomaly,
+        )
+        offsets_m = _formation_offsets(float(formation["side_length_m"]))
+        satellite_ids = tuple(sorted(offsets_m))
+
+        plane_allocations = formation.get("plane_allocations", {})
+        if not plane_allocations:
+            plane_allocations = {
+                satellite_ids[0]: "Plane A",
+                satellite_ids[1]: "Plane A",
+                satellite_ids[2]: "Plane B",
+            }
+
+        # Get initial state of the reference orbit
+        ref_pos_at_epoch, ref_vel_at_epoch = propagate_kepler(reference_elements, 0)
+
+        # Get initial LVLH frame
+        frame_at_epoch = _lvlh_frame(ref_pos_at_epoch, ref_vel_at_epoch)
+
+        # Calculate initial orbital elements for each satellite
+        for sat_id in satellite_ids:
+            offset_vec = frame_at_epoch @ offsets_m[sat_id]
+            # For a stable formation with zero radial offset, the initial relative velocity in the LVLH frame should be zero.
+            offset_vel = np.array([0.0, 0.0, 0.0])
+
+            sat_pos = ref_pos_at_epoch + offset_vec
+            sat_vel = ref_vel_at_epoch + offset_vel
+            satellite_elements[sat_id] = cartesian_to_classical(sat_pos, sat_vel)
 
     duration_s = float(formation.get("duration_s", 180.0))
     time_step_s = float(formation.get("time_step_s", 1.0))
     half_duration = 0.5 * duration_s
     sample_count = int(round(duration_s / time_step_s)) + 1
-
-    offsets_m = _formation_offsets(float(formation["side_length_m"]))
-    satellite_ids = tuple(sorted(offsets_m))
-
-    plane_allocations = formation.get("plane_allocations", {})
-    if not plane_allocations:
-        plane_allocations = {
-            satellite_ids[0]: "Plane A",
-            satellite_ids[1]: "Plane A",
-            satellite_ids[2]: "Plane B",
-        }
-
-    # Get initial state of the reference orbit
-    ref_pos_at_epoch, ref_vel_at_epoch = propagate_kepler(reference_elements, 0)
-
-    # Get initial LVLH frame
-    frame_at_epoch = _lvlh_frame(ref_pos_at_epoch, ref_vel_at_epoch)
-
-    # Calculate initial orbital elements for each satellite
-    satellite_elements: dict[str, OrbitalElements] = {}
-    for sat_id in satellite_ids:
-        offset_vec = frame_at_epoch @ offsets_m[sat_id]
-        # Approximate velocity by assuming the offset is small and the angular
-        # velocity of the frame is the same as the reference orbit's
-        ref_angular_velocity = np.cross(ref_pos_at_epoch, ref_vel_at_epoch) / np.linalg.norm(ref_pos_at_epoch)**2
-        offset_vel = np.cross(ref_angular_velocity, offset_vec)
-
-        sat_pos = ref_pos_at_epoch + offset_vec
-        sat_vel = ref_vel_at_epoch + offset_vel
-        satellite_elements[sat_id] = cartesian_to_classical(sat_pos, sat_vel)
-
 
     offsets = np.arange(sample_count, dtype=float) * time_step_s - half_duration
     times = [epoch + timedelta(seconds=float(offset)) for offset in offsets]
@@ -260,9 +293,9 @@ def simulate_triangle_formation(
         for sat_id in satellite_ids:
             pos, vel = propagate_kepler(satellite_elements[sat_id], delta_t)
 
-            if position_noise_sigma_m > 0.0:
-                noise = rng.normal(0.0, position_noise_sigma_m, size=3)
-                pos += noise
+            # if position_noise_sigma_m > 0.0:
+            #     noise = rng.normal(0.0, position_noise_sigma_m, size=3)
+            #     pos += noise
 
             positions[sat_id][index] = pos
             velocities_temp[sat_id].append(vel)
@@ -579,9 +612,12 @@ def _load_configuration(source: Mapping[str, object] | Path | str) -> Mapping[st
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
         raise TypeError("Triangle configuration must be a mapping.")
-    for key in ("reference_orbit", "formation"):
-        if key not in payload:
-            raise ValueError(f"Configuration missing required section: {key}")
+    if "satellites" not in payload and "reference_orbit" not in payload:
+        raise ValueError(
+            "Configuration missing required section: satellites or reference_orbit"
+        )
+    if "formation" not in payload:
+        raise ValueError("Configuration missing required section: formation")
     return payload
 
 
@@ -1636,4 +1672,3 @@ def _export_to_stk(result: TriangleFormationResult, output_dir: Path, scenario_n
 
 
 __all__ = ["simulate_triangle_formation", "TriangleFormationResult"]
-
