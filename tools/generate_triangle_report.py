@@ -139,6 +139,7 @@ def _simulate_extended_pass(
     formation = config_long.setdefault("formation", {})
     formation["duration_s"] = float(duration_s)
     formation["time_step_s"] = float(time_step_s)
+    # The simulate_triangle_formation function is already updated to handle both formats.
     return simulate_triangle_formation(config_long, output_directory=None)
 
 
@@ -1331,7 +1332,10 @@ def generate_performance_metrics(summary: SummaryData, plot_dir: Path) -> None:
 
 def generate_access_sensitivity(config_path: Path, grid: int, plot_dir: Path) -> None:
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    reference = config.get("reference_orbit", {})
+    if "satellites" in config:
+        reference = config["satellites"][0]["orbital_elements"]
+    else:
+        reference = config.get("reference_orbit", {})
     base_alt = float(reference.get("semi_major_axis_km", 6898.137))
     base_inc = float(reference.get("inclination_deg", 97.7))
 
@@ -1342,10 +1346,17 @@ def generate_access_sensitivity(config_path: Path, grid: int, plot_dir: Path) ->
     for i, d_alt in enumerate(alt_offsets):
         for j, d_inc in enumerate(inc_offsets):
             variant = deepcopy(config)
-            variant["reference_orbit"]["semi_major_axis_km"] = base_alt + d_alt
-            variant["reference_orbit"]["inclination_deg"] = base_inc + d_inc
+            if "satellites" in variant:
+                for sat in variant["satellites"]:
+                    sat["orbital_elements"]["semi_major_axis_km"] = base_alt + d_alt
+                    sat["orbital_elements"]["inclination_deg"] = base_inc + d_inc
+            else:
+                variant["reference_orbit"]["semi_major_axis_km"] = base_alt + d_alt
+                variant["reference_orbit"]["inclination_deg"] = base_inc + d_inc
             result = simulate_triangle_formation(variant, output_directory=None)
-            durations[i, j] = float(result.metrics["formation_window"].get("duration_s", 0.0))
+            durations[i, j] = float(
+                result.metrics["formation_window"].get("duration_s", 0.0)
+            )
 
     fig, ax = plt.subplots(figsize=(8, 6))
     contour = ax.contourf(

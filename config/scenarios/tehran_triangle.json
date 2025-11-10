@@ -64,6 +64,10 @@
       "time_horizon_orbits": 12.0,
       "integration_step_s": 120.0,
       "seed": 20260321
+    },
+    "perturbations": {
+      "position_noise_sigma_m": 1.0,
+      "seed": 12345
     }
   }
 }
