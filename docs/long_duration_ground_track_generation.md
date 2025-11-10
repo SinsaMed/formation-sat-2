@@ -8,7 +8,7 @@ The `sim.scripts.run_triangle` script is primarily designed for detailed analysi
 
 ## 2. Long-Duration Ground Track Propagation (`tools/propagate_long_duration.py`)
 
-This script performs a manual, step-by-step propagation of the satellite constellation's orbit over a specified duration, logging the geodetic coordinates (latitude, longitude, altitude) at each time step. It incorporates J2 secular perturbations and a simplified atmospheric drag model to provide a more realistic long-term propagation. It utilizes the orbital elements defined in a scenario configuration file.
+This script performs a manual, step-by-step propagation of the satellite constellation's orbit over a specified duration, logging the geodetic coordinates (latitude, longitude, altitude) at each time step. The propagation duration is dynamically determined by the `formation.duration_s` parameter within the provided scenario configuration file. It incorporates J2 secular perturbations and a simplified atmospheric drag model to provide a more realistic long-term propagation. It utilizes the orbital elements defined in a scenario configuration file.
 
 ### Usage:
 
@@ -16,15 +16,13 @@ This script performs a manual, step-by-step propagation of the satellite constel
 python -m tools.propagate_long_duration \
     --config /path/to/scenario_config.json \
     --output-dir /path/to/output_directory \
-    --duration-days <number_of_days> \
     --time-step-s <time_step_in_seconds>
 ```
 
 ### Parameters:
 
-*   `--config`: **(Required)** Path to the JSON scenario configuration file (e.g., `config/scenarios/tehran_triangle_14day.json`). This file provides the initial orbital elements and formation geometry.
+*   `--config`: **(Required)** Path to the JSON scenario configuration file (e.g., `config/scenarios/tehran_triangle_14day.json`). This file provides the initial orbital elements, formation geometry, and **now also defines the total simulation duration via `formation.duration_s`**.
 *   `--output-dir`: **(Required)** Directory where the generated ground track CSV file will be saved.
-*   `--duration-days`: **(Optional)** The total duration of the propagation in days. Defaults to 14 days.
 *   `--time-step-s`: **(Optional)** The time step for the propagation in seconds. Defaults to 60 seconds.
 
 ### Output:

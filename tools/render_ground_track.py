@@ -1,7 +1,8 @@
 """
-Generates a plot of the 14-day repeating ground track from CSV data.
+Generates a plot of the repeating ground track from CSV data.
 """
 import argparse
+import re
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ def main():
         "--input-csv",
         type=Path,
         required=True,
-        help="Path to the 14-day ground track CSV file.",
+        help="Path to the ground track CSV file.",
     )
     parser.add_argument(
         "--output-dir",
@@ -25,6 +26,16 @@ def main():
     args = parser.parse_args()
 
     df = pd.read_csv(args.input_csv)
+
+    # Determine plot title and output filename from input CSV name
+    duration_days_str = "N-Day"
+    match = re.search(r'_(\d+)day\.csv', str(args.input_csv.name))
+    if match:
+        duration_days_str = f"{match.group(1)}-Day"
+
+    plot_title = f'{duration_days_str} Repeating Ground Track over Tehran'
+    output_filename = f"{duration_days_str.replace('-','').lower()}_ground_track.svg"
+
 
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
@@ -47,14 +58,14 @@ def main():
     ax.plot(tehran_lon, tehran_lat, 'ro', markersize=8, transform=ccrs.PlateCarree(), label='Tehran')
     ax.text(tehran_lon + 3, tehran_lat + 3, 'Tehran', transform=ccrs.PlateCarree())
 
-    ax.set_title('14-Day Repeating Ground Track over Tehran')
+    ax.set_title(plot_title)
     ax.legend()
     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = args.output_dir / "14day_ground_track.svg"
+    output_path = args.output_dir / output_filename
     plt.savefig(output_path, dpi=300, format='svg')
-    print(f"14-day ground track plot saved to: {output_path}")
+    print(f"Ground track plot saved to: {output_path}")
 
 if __name__ == "__main__":
     main()

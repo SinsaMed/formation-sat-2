@@ -60,12 +60,6 @@ def main():
         help="Directory in which to write the ground track data.",
     )
     parser.add_argument(
-        "--duration-days",
-        type=int,
-        default=14,
-        help="Duration of the simulation in days.",
-    )
-    parser.add_argument(
         "--time-step-s",
         type=int,
         default=60,
@@ -94,9 +88,10 @@ def main():
     satellite_ids = sorted(offsets_m.keys())
     ballistic_coefficient = float(formation.get("ballistic_coefficient_m2_kg", 0.05)) # Read from config
 
-    # Simulation loop
-    duration_s = args.duration_days * 24 * 3600
-    num_steps = duration_s // args.time_step_s
+    # Determine simulation duration from configuration
+    simulation_duration_s = float(formation.get("duration_s", 14 * 24 * 3600)) # Default to 14 days if not specified
+    duration_days = int(round(simulation_duration_s / 86400.0))
+    num_steps = int(simulation_duration_s // args.time_step_s)
     records = []
 
     current_elements = {sat_id: elements for sat_id in satellite_ids}
@@ -133,9 +128,10 @@ def main():
     # Save data
     df = pd.DataFrame.from_records(records)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = args.output_dir / "ground_track_14day.csv"
+    output_filename = f"ground_track_{duration_days}day.csv"
+    output_path = args.output_dir / output_filename
     df.to_csv(output_path, index=False)
-    print(f"14-day ground track data saved to: {output_path}")
+    print(f"{duration_days}-day ground track data saved to: {output_path}")
 
 if __name__ == "__main__":
     main()
