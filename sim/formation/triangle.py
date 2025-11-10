@@ -248,10 +248,22 @@ def simulate_triangle_formation(
     # Propagate each satellite independently
     velocities_temp: dict[str, list[np.ndarray]] = {sat_id: [] for sat_id in satellite_ids}
 
+    perturbations = formation.get("perturbations", {})
+    position_noise_sigma_m = float(perturbations.get("position_noise_sigma_m", 0.0))
+
+    # Seed the random number generator for reproducibility
+    seed = perturbations.get("seed")
+    rng = np.random.default_rng(seed)
+
     for index, delta_t in enumerate(offsets):
         inertial_positions = {}
         for sat_id in satellite_ids:
             pos, vel = propagate_kepler(satellite_elements[sat_id], delta_t)
+
+            if position_noise_sigma_m > 0.0:
+                noise = rng.normal(0.0, position_noise_sigma_m, size=3)
+                pos += noise
+
             positions[sat_id][index] = pos
             velocities_temp[sat_id].append(vel)
             inertial_positions[sat_id] = pos
