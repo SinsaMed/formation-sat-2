@@ -21,13 +21,14 @@ python -m tools.propagate_long_duration \
 
 ### Parameters:
 
-*   `--config`: **(Required)** Path to the JSON scenario configuration file (e.g., `config/scenarios/tehran_triangle_14day.json`). This file provides the initial orbital elements, formation geometry, and **now also defines the total simulation duration via `formation.duration_s`**.
+*   `--config`: **(Required)** Path to the JSON scenario configuration file (e.g., `config/scenarios/tehran_triangle.json`). This file provides the initial orbital elements and formation geometry. The total simulation duration is now typically defined via a CLI argument (e.g., `--duration-days`) or web interface input, which overrides the `formation.duration_s` parameter in the configuration.
 *   `--output-dir`: **(Required)** Directory where the generated ground track CSV file will be saved.
 *   `--time-step-s`: **(Optional)** The time step for the propagation in seconds. Defaults to 60 seconds.
+*   `--duration-days`: **(Optional)** The total simulation duration in days. This value will override any `duration_s` specified in the configuration file.
 
 ### Output:
 
-The script generates a single CSV file named `ground_track_14day.csv` within the specified `--output-dir`. This file contains columns for `time_utc`, `satellite_id`, `latitude_deg`, `longitude_deg`, and `altitude_km` for every satellite at each time step throughout the propagation duration.
+The script generates a single CSV file named `ground_track_<duration>day.csv` (e.g., `ground_track_14day.csv` if `--duration-days 14` was used) within the specified `--output-dir`. This file contains columns for `time_utc`, `satellite_id`, `latitude_deg`, `longitude_deg`, and `altitude_km` for every satellite at each time step throughout the propagation duration.
 
 ## 3. 14-Day Ground Track Visualization (`tools/render_14day_ground_track.py`)
 

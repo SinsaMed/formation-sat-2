@@ -14,8 +14,7 @@ def main():
     parser.add_argument(
         "--input-csv",
         type=Path,
-        required=True,
-        help="Path to the ground track CSV file.",
+        help="Path to the ground track CSV file. If not provided, it will be constructed using --duration-days.",
     )
     parser.add_argument(
         "--output-dir",
@@ -23,15 +22,27 @@ def main():
         required=True,
         help="Directory in which to save the plot.",
     )
+    parser.add_argument(
+        "--duration-days",
+        type=int,
+        help="The duration in days for which the ground track was propagated. Used for input/output filename construction.",
+    )
     args = parser.parse_args()
 
-    df = pd.read_csv(args.input_csv)
+    if args.input_csv:
+        input_csv_path = args.input_csv
+        match = re.search(r'_(\d+)day\.csv', str(input_csv_path.name))
+        if match:
+            duration_days_str = f"{match.group(1)}-Day"
+        else:
+            duration_days_str = "N-Day"
+    elif args.duration_days is not None:
+        duration_days_str = f"{args.duration_days}-Day"
+        input_csv_path = args.output_dir.parent / f"ground_track_{args.duration_days}day.csv"
+    else:
+        raise ValueError("Either --input-csv or --duration-days must be provided.")
 
-    # Determine plot title and output filename from input CSV name
-    duration_days_str = "N-Day"
-    match = re.search(r'_(\d+)day\.csv', str(args.input_csv.name))
-    if match:
-        duration_days_str = f"{match.group(1)}-Day"
+    df = pd.read_csv(input_csv_path)
 
     plot_title = f'{duration_days_str} Repeating Ground Track over Tehran'
     output_filename = f"{duration_days_str.replace('-','').lower()}_ground_track.svg"

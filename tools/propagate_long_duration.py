@@ -65,6 +65,11 @@ def main():
         default=60,
         help="Time step for the simulation in seconds.",
     )
+    parser.add_argument(
+        "--duration-days",
+        type=float,
+        help="Override the simulation duration in days. Will be converted to seconds.",
+    )
     args = parser.parse_args()
 
     # Load configuration
@@ -88,8 +93,12 @@ def main():
     satellite_ids = sorted(offsets_m.keys())
     ballistic_coefficient = float(formation.get("ballistic_coefficient_m2_kg", 0.05)) # Read from config
 
-    # Determine simulation duration from configuration
-    simulation_duration_s = float(formation.get("duration_s", 14 * 24 * 3600)) # Default to 14 days if not specified
+    # Determine simulation duration
+    if args.duration_days is not None:
+        simulation_duration_s = args.duration_days * 86400.0
+    else:
+        simulation_duration_s = float(formation.get("duration_s", 14 * 24 * 3600)) # Default to 14 days if not specified
+    
     duration_days = int(round(simulation_duration_s / 86400.0))
     num_steps = int(simulation_duration_s // args.time_step_s)
     records = []
