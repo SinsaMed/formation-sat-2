@@ -127,58 +127,70 @@ def propagate_kepler(elements: OrbitalElements, dt: float, mu: float = MU_EARTH)
     return classical_to_cartesian(propagated, mu=mu)
 
 def propagate_perturbed(
-    elements: OrbitalElements, dt: float, ballistic_coefficient: float, mu: float = MU_EARTH
+    elements: OrbitalElements,
+    dt: float,
+    ballistic_coefficient: float,
+    mu: float = MU_EARTH,
+    C_R: float = 1.5,
+    A_srp: float = 1.0,
+    m: float = 150.0,
 ) -> OrbitalElements:
-    """Propagate *elements* forward by *dt* seconds including J2 and drag perturbations."""
+    """Propagate *elements* forward by *dt* seconds including J2, drag, and SRP perturbations."""
 
-    a = elements.semi_major_axis
-    e = elements.eccentricity
-    i = elements.inclination
-    n = elements.mean_motion(mu)
-    p = a * (1 - e**2)
+    def rk4_step(f, y, t, h):
+        k1 = h * f(t, y)
+        k2 = h * f(t + 0.5 * h, y + 0.5 * k1)
+        k3 = h * f(t + 0.5 * h, y + 0.5 * k2)
+        k4 = h * f(t + h, y + k3)
+        return y + (k1 + 2 * k2 + 2 * k3 + k4) / 6.0
 
-    # J2 Secular Perturbations (from determining_orbital_elements_for_repeat_ground_track_orbits.md)
-    # Eq. 9
-    dot_omega_j2 = (3 * n * EARTH_EQUATORIAL_RADIUS_M**2 * J2_TERM) / (4 * p**2) * (4 - 5 * math.sin(i)**2)
-    # Eq. 10
-    dot_Omega_j2 = -(3 * n * EARTH_EQUATORIAL_RADIUS_M**2 * J2_TERM) / (2 * p**2) * math.cos(i)
-    # Eq. 11
-    dot_M_j2 = (3 * n * EARTH_EQUATORIAL_RADIUS_M**2 * J2_TERM * math.sqrt(1 - e**2)) / (4 * p**2) * (2 - 3 * math.sin(i)**2)
+    def dynamics(t, y):
+        r_vec = y[:3]
+        v_vec = y[3:]
+        r_norm = np.linalg.norm(r_vec)
 
-    # Simplified Atmospheric Drag Model (secular decay of semi-major axis)
-    # This is a very simplified model. A more accurate model would use an atmospheric density model (e.g., NRLMSISE-00)
-    # and integrate the drag force. For secular effects, we can approximate a constant decay rate.
-    # Reference density at ~500km altitude is very low, but non-zero.
-    # This value is a placeholder and would need to be tuned based on mission requirements and atmospheric models.
-    ATMOSPHERIC_DENSITY_AT_ALTITUDE = 1e-12 # kg/m^3 (placeholder for LEO, highly variable)
-    orbital_velocity = math.sqrt(mu / a) # Approximation for circular orbit
-    drag_acceleration = 0.5 * ATMOSPHERIC_DENSITY_AT_ALTITUDE * ballistic_coefficient * orbital_velocity**2
-    
-    # Rate of change of semi-major axis due to drag (simplified)
-    da_dt_drag = -2.0 * drag_acceleration * a / orbital_velocity
+        # Two-body acceleration
+        a_two_body = -mu * r_vec / r_norm**3
 
-    # Update orbital elements
-    updated_a = a + da_dt_drag * dt
-    updated_e = elements.eccentricity # For simplicity, assume eccentricity is not secularly perturbed by J2 or drag for now
-    updated_i = elements.inclination # For simplicity, assume inclination is not secularly perturbed by J2 or drag for now
-    updated_raan = _wrap_angle(elements.raan + dot_Omega_j2 * dt)
-    updated_arg_perigee = _wrap_angle(elements.arg_perigee + dot_omega_j2 * dt)
-    
-    # Mean anomaly update includes mean motion and J2 secular term
-    updated_mean_anomaly = _wrap_angle(elements.mean_anomaly + (n + dot_M_j2) * dt)
+        # J2 perturbation
+        a_j2 = np.zeros(3)
+        if J2_TERM > 0:
+            z2 = r_vec[2] ** 2
+            r2 = r_norm**2
+            tx = r_vec[0] / r_norm * (5 * z2 / r2 - 1)
+            ty = r_vec[1] / r_norm * (5 * z2 / r2 - 1)
+            tz = r_vec[2] / r_norm * (5 * z2 / r2 - 3)
+            a_j2 = (
+                -1.5
+                * J2_TERM
+                * mu
+                * EARTH_EQUATORIAL_RADIUS_M**2
+                / r_norm**4
+                * np.array([tx, ty, tz])
+            )
 
-    # Ensure semi-major axis does not go below Earth's radius
-    if updated_a < EARTH_EQUATORIAL_RADIUS_M + 100_000: # Minimum altitude of 100km
-        updated_a = EARTH_EQUATORIAL_RADIUS_M + 100_000
+        # Atmospheric drag
+        a_drag = np.zeros(3)
+        altitude_m = r_norm - EARTH_EQUATORIAL_RADIUS_M
+        # Simple exponential atmospheric model
+        H = 6000.0  # Scale height for ~500km altitude
+        rho0 = 3.614e-13  # kg/m^3 at 500km
+        rho = rho0 * math.exp(-(altitude_m - 500000) / H)
+        v_rel = v_vec  # Simplified assumption
+        a_drag = -0.5 * rho * np.linalg.norm(v_rel) * v_rel * ballistic_coefficient
 
-    return OrbitalElements(
-        semi_major_axis=updated_a,
-        eccentricity=updated_e,
-        inclination=updated_i,
-        raan=updated_raan,
-        arg_perigee=updated_arg_perigee,
-        mean_anomaly=updated_mean_anomaly,
-    )
+        # Solar Radiation Pressure (SRP)
+        P_srp = 4.56e-6  # Solar pressure at 1 AU in N/m^2
+        sun_direction = np.array([1, 0, 0])  # Simplified: sun along x-axis
+        a_srp = -P_srp * C_R * A_srp / m * sun_direction
+
+        a_total = a_two_body + a_j2 + a_drag + a_srp
+        return np.concatenate((v_vec, a_total))
+
+    y0 = np.concatenate(classical_to_cartesian(elements, mu))
+    y_final = rk4_step(dynamics, y0, 0, dt)
+
+    return cartesian_to_classical(y_final[:3], y_final[3:], mu)
 
 def cartesian_to_classical(
     position: Sequence[float], velocity: Sequence[float], mu: float = MU_EARTH

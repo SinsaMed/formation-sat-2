@@ -28,11 +28,10 @@ This memorandum collates the procedural knowledge required to reproduce the Tehr
 ## RAAN Provenance and Traceability
 The \(18.880656^{\circ}\) right-ascension-of-the-ascending-node value that surfaces in the triangle artefacts belongs to the validated ninety-second window generated on 21 March 2026 between 09:31:12Z and 09:32:48Z, as archived in both `artefacts/triangle_run/triangle_summary.json` and the reproduced `run_20251018_1207Z` catalogue.[Ref1][Ref3] These files retain the equilateral-formation solution that satisfied the Tehran access and geometry constraints during the dedicated triangle campaign, so the RAAN figure is deliberately preserved for historical replay and Systems Tool Kit ingestion.
 
-By contrast, the daily pass scenario file `config/scenarios/tehran_daily_pass.json` and its locked alignment artefact `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/scenario_summary.json` document the \(350.788504^{\circ}\) RAAN derived from the repeat-ground-track optimisation conducted later in the programme.[Ref4][Ref5] Keeping both data sets in the repository clarifies that the triangle demonstration remained successful while the daily operations baseline migrated to the refined nodal alignment; analysts selecting inputs for renewed studies should therefore choose the RAAN that matches the mission thread they are reproducing rather than assuming the \(18.880656^{\circ}\) entry represents a failure case.
+
 
 ## References
 - [Ref1] `docs/triangle_formation_results.md`.
 - [Ref2] `docs/stk_export.md`.
 - [Ref3] `artefacts/run_20251018_1207Z/triangle_summary.json` – Triangle run catalogue confirming the 96 s formation window and \(18.880656^{\circ}\) RAAN.
-- [Ref4] `config/scenarios/tehran_daily_pass.json` – Daily pass configuration capturing the \(350.788504^{\circ}\) RAAN used for routine operations.
 - [Ref5] `artefacts/run_20251020_1900Z_tehran_daily_pass_locked/scenario_summary.json` – Locked alignment ledger documenting the optimised RAAN lineage and solver sweep.

@@ -19,7 +19,7 @@ This register consolidates the simulation and analysis run identifiers that unde
 
 ## References
 - [Ref1] `docs/triangle_formation_results.md` – Tehran triangular formation analysis memorandum and compliance summary.
-- [Ref2] `docs/tehran_daily_pass_scenario.md` – Tehran daily-pass scenario overview and validation record.
-- [Ref3] `docs/how_to_import_tehran_daily_pass_into_stk.md` – STK 11.2 validation workflow aligned with the locked daily-pass artefacts.
+
+
 - [Ref4] `artefacts/run_20260321_0740Z_tehran_daily_pass_resampled/scenario_summary.json` – Exploratory resampled daily-pass dataset for methodological comparison.
 - [Ref5] `docs/run_20251101_0803Z_triangle_report.md` – Analytical memorandum for the `run_20251101_0803Z` triangle refresh and derived figures.

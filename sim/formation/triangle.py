@@ -36,6 +36,8 @@ from src.constellation.orbit import (
     haversine_distance,
     inertial_to_ecef,
     propagate_kepler,
+    propagate_perturbed,
+    classical_to_cartesian,
 )
 from src.constellation.roe import MU_EARTH, OrbitalElements
 from tools.stk_export import (
@@ -291,7 +293,33 @@ def simulate_triangle_formation(
     for index, delta_t in enumerate(offsets):
         inertial_positions = {}
         for sat_id in satellite_ids:
-            pos, vel = propagate_kepler(satellite_elements[sat_id], delta_t)
+            elements = satellite_elements[sat_id]
+            sat_config = next(
+                (s for s in configuration.get("satellites", []) if s["id"] == sat_id),
+                None,
+            )
+            C_R = 1.5
+            A_srp = 1.0
+            m = 150.0
+            ballistic_coefficient = 0.025  # Default value
+            if sat_config and "physical_properties" in sat_config:
+                phys_props = sat_config["physical_properties"]
+                C_D = float(phys_props.get("drag_coefficient", 2.2))
+                A_drag = float(phys_props.get("area_m2", 1.0))
+                m = float(phys_props.get("mass_kg", 150.0))
+                ballistic_coefficient = C_D * A_drag / m
+                C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
+                A_srp = float(phys_props.get("srp_area_m2", 1.0))
+
+            propagated_elements = propagate_perturbed(
+                elements,
+                delta_t,
+                ballistic_coefficient,
+                C_R=C_R,
+                A_srp=A_srp,
+                m=m,
+            )
+            pos, vel = classical_to_cartesian(propagated_elements)
 
             # if position_noise_sigma_m > 0.0:
             #     noise = rng.normal(0.0, position_noise_sigma_m, size=3)

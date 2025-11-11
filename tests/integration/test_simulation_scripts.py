@@ -81,7 +81,7 @@ def test_scenario_runner_cli_smoke(tmp_path: Path) -> None:
         sys.executable,
         "-m",
         "sim.scripts.run_scenario",
-        "tehran_daily_pass",
+        "tehran_triangle",
         "--output-dir",
         str(output_dir),
     ]

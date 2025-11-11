@@ -18,6 +18,19 @@
     "argument_of_perigee_deg": 0.0,
     "mean_anomaly_deg": 36.06454701821796
   },
+  "orbital_elements": {
+    "epoch_utc": "2026-03-21T07:40:10Z",
+    "classical": {
+      "semi_major_axis_km": 6939.242,
+      "eccentricity": 0.0,
+      "inclination_deg": 97.7,
+      "raan_deg": 350.9838169642857,
+      "argument_of_perigee_deg": 0.0,
+      "mean_anomaly_deg": 36.06454701821796
+    }
+  },
+  "timing": {},
+  "payload_constraints": {},
   "formation": {
     "side_length_m": 6000.0,
     "duration_s": 180.0,

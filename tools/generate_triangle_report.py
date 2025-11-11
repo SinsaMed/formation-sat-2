@@ -748,10 +748,12 @@ def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, pl
     time_step = float(summary.run.time_step)
     centroid_positions = np.mean([summary.run.positions[sat] for sat in sat_ids], axis=0)
     if time_step > 0.0:
-        centroid_velocities = _differentiate(centroid_positions, time_step)
         satellite_velocities = {
             sat: _differentiate(summary.run.positions[sat], time_step) for sat in sat_ids
         }
+        centroid_velocities = np.mean(
+            [satellite_velocities[sat] for sat in sat_ids], axis=0
+        )
     else:
         centroid_velocities = np.zeros_like(centroid_positions)
         satellite_velocities = {
@@ -863,7 +865,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, pl
     ax.set_ylim(radial.min() - radial_margin, radial.max() + radial_margin)
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
-    ax.set_aspect("equal", adjustable="box")
+    ax.set_aspect("equal", adjustable="datalim")
     ax.set_title(f"Formation geometry at best aspect ratio ({timestamp_str})")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="upper right", fontsize="small")
