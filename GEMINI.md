@@ -7,7 +7,7 @@ The project is structured as a scientific computing workflow, with a clear separ
 - **`tools/`**: Scripts for running simulations, generating reports, and exporting data.
 - **`config/`**: Configuration files for different simulation scenarios.
 - **`artefacts/`**: Output directory for simulation results, plots, and reports.
-- **`docs/`**: Detailed project documentation.
+- **`docs/`**: Detailed project documentation, including `formation_analysis_report.md`.
 - **`tests/`**: Automated tests for the simulation code.
 
 The project also includes a FastAPI web server (`run.py`) that provides a web interface for running simulations and viewing results.
