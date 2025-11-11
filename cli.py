@@ -74,7 +74,15 @@ def run_triangle_simulation(args: argparse.Namespace) -> int:
     output_dir = _resolve_output_directory(args.output_dir, DEFAULT_TRIANGLE_OUTPUT_ROOT)
     config_path = _resolve_configuration_path(args.config)
     
-    result = simulate_triangle_formation(config_path, output_directory=output_dir)
+    # Load configuration
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    # Override duration if provided via CLI
+    if args.duration_days is not None:
+        config.setdefault("formation", {})["duration_s"] = args.duration_days * 86400.0
+    
+    result = simulate_triangle_formation(config, output_directory=output_dir)
 
     csv_bundle = export_triangle_time_series(result, output_dir)
     debug_outputs = _safe_generate_debug_plots(output_dir)
@@ -130,7 +138,15 @@ def run_debug_simulation(args: argparse.Namespace) -> int:
     config_path = _resolve_configuration_path(args.triangle_config)
     logger.info("Running triangle formation from %s", config_path)
     
-    result = simulate_triangle_formation(config_path, output_directory=output_dir)
+    # Load configuration
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    # Override duration if provided via CLI
+    if args.duration_days is not None:
+        config.setdefault("formation", {})["duration_s"] = args.duration_days * 86400.0
+
+    result = simulate_triangle_formation(config, output_directory=output_dir)
     export_triangle_time_series(result, output_dir)
 
     window = result.metrics.get("formation_window", {})
@@ -217,6 +233,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         type=Path,
         help="Directory in which to write simulation artefacts.",
     )
+    parser_triangle.add_argument(
+        "--duration-days",
+        type=float,
+        help="Override the simulation duration in days. Will be converted to seconds.",
+    )
     parser_triangle.set_defaults(func=run_triangle_simulation)
 
     # --- Debug command ---
@@ -234,6 +255,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         type=Path,
         default=DEFAULT_DEBUG_ROOT,
         help="Directory under which timestamped debug artefacts are created.",
+    )
+    parser_debug.add_argument(
+        "--duration-days",
+        type=float,
+        help="Override the simulation duration in days. Will be converted to seconds.",
     )
     parser_debug.set_defaults(func=run_debug_simulation)
 

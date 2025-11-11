@@ -378,6 +378,10 @@ class TriangleRunRequest(BaseModel):
         default=None,
         description="Optional random seed recorded alongside the run metadata.",
     )
+    duration_days: Optional[float] = Field(
+        default=None,
+        description="Override the simulation duration in days. Will be converted to seconds.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -512,17 +516,23 @@ def run_triangle(request: TriangleRunRequest) -> Mapping[str, Any]:
     configuration_source: Mapping[str, Any] | Path | str
     source_descriptor: Mapping[str, Any]
 
+    # Load configuration based on request
     if request.configuration is not None:
-        configuration_source = request.configuration
+        config = request.configuration
         source_descriptor = {"mode": "inline_configuration"}
     else:
         scenario_path = _resolve_triangle_scenario(request.scenario_id)
-        configuration_source = scenario_path
+        with open(scenario_path, "r") as f:
+            config = json.load(f)
         source_descriptor = {"mode": "stored_scenario", "path": str(scenario_path)}
+
+    # Override duration if provided via web request
+    if request.duration_days is not None:
+        config.setdefault("formation", {})["duration_s"] = request.duration_days * 86400.0
 
     try:
         result = simulate_triangle_formation(
-            configuration_source,
+            config, # Pass the modified config dictionary
             output_directory=output_directory,
         )
     except Exception as error:
@@ -539,7 +549,7 @@ def run_triangle(request: TriangleRunRequest) -> Mapping[str, Any]:
         )
         raise HTTPException(status_code=500, detail=str(error)) from error
 
-    _generate_triangle_documentation(result, output_directory, configuration_source)
+    _generate_triangle_documentation(result, output_directory, config) # Pass the modified config
 
     summary = result.to_summary()
     artefacts = _collect_triangle_artefacts(result, output_directory)
