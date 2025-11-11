@@ -287,10 +287,13 @@ def simulate_triangle_formation(
     seed = perturbations.get("seed")
     rng = np.random.default_rng(seed)
 
-    for index, delta_t in enumerate(offsets):
+    # Initialize current_elements for step-by-step propagation
+    current_elements = {sat_id: satellite_elements[sat_id] for sat_id in satellite_ids}
+
+    for index in range(sample_count):
         inertial_positions = {}
         for sat_id in satellite_ids:
-            elements = satellite_elements[sat_id]
+            elements = current_elements[sat_id]
             sat_config = next(
                 (s for s in configuration.get("satellites", []) if s["id"] == sat_id),
                 None,
@@ -308,14 +311,17 @@ def simulate_triangle_formation(
                 C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
                 A_srp = float(phys_props.get("srp_area_m2", 1.0))
 
+            # Propagate for one time_step_s from the current elements
             propagated_elements = propagate_perturbed(
                 elements,
-                delta_t,
+                time_step_s,  # Propagate for a single time step
                 ballistic_coefficient,
                 C_R=C_R,
                 A_srp=A_srp,
                 m=m,
             )
+            current_elements[sat_id] = propagated_elements # Update current elements for next iteration
+
             pos, vel = classical_to_cartesian(propagated_elements)
 
             # if position_noise_sigma_m > 0.0:

@@ -842,7 +842,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, pl
         ax.text(
             midpoint[1],
             midpoint[0],
-            f"{separation:.2f} km",
+            f"{separation:.4f} km",
             fontsize="x-small",
             ha="center",
             va="center",
@@ -865,7 +865,7 @@ def generate_formation_triangle_snapshot(summary: SummaryData, run_dir: Path, pl
     ax.set_ylim(radial.min() - radial_margin, radial.max() + radial_margin)
     ax.set_xlabel("Along-track [km]")
     ax.set_ylabel("Radial [km]")
-    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_aspect("equal", adjustable="box")
     ax.set_title(f"Formation geometry at best aspect ratio ({timestamp_str})")
     ax.grid(True, linestyle=":", linewidth=0.6)
     ax.legend(loc="upper right", fontsize="small")

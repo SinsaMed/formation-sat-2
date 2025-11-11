@@ -1,0 +1,2 @@
+window_index,start,end,duration_s,sample_count,max_ground_distance_km,min_ground_distance_km,max_aspect_ratio,centroid_time
+0,2026-03-21T07:38:40Z,2026-03-21T07:39:26Z,46.0,47,345.8601889812842,54.441062422149486,1.0000031226429795,2026-03-21T07:39:03Z
