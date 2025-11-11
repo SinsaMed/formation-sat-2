@@ -288,5 +288,5 @@ def _format_number(value: float) -> str:
     if value is None:
         return ""
     if isinstance(value, (float, int)) and not isinstance(value, bool):
-        return f"{float(value):.9g}"
+        return f"{float(value):.15g}"
     return str(value)

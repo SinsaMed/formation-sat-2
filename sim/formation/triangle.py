@@ -259,9 +259,6 @@ def simulate_triangle_formation(
         sat_id: np.zeros(sample_count, dtype=float) for sat_id in satellite_ids
     }
 
-    triangle_area_series = np.zeros(sample_count, dtype=float)
-    triangle_aspect_series = np.zeros(sample_count, dtype=float)
-    triangle_sides_series = np.zeros((sample_count, 3), dtype=float)
     centroid_positions = np.zeros((sample_count, 3), dtype=float)
     centroid_latitudes = np.zeros(sample_count, dtype=float)
     centroid_longitudes = np.zeros(sample_count, dtype=float)
@@ -339,10 +336,6 @@ def simulate_triangle_formation(
         # The order of vertices matters for side length calculations, so sort by sat_id
         vertices = [inertial_positions[sat_id] for sat_id in satellite_ids]
 
-        triangle_area_series[index] = triangle_area(vertices)
-        triangle_aspect_series[index] = triangle_aspect_ratio(vertices)
-        triangle_sides_series[index] = triangle_side_lengths(vertices)
-
         centroid = sum(vertices) / len(vertices)
         centroid_positions[index] = centroid
         centroid_ecef = inertial_to_ecef(centroid, times[index])
@@ -374,6 +367,10 @@ def simulate_triangle_formation(
     velocities: dict[str, np.ndarray] = {
         sat_id: np.array(velocities_temp[sat_id]) for sat_id in satellite_ids
     }
+
+    triangle_area_series, triangle_aspect_series, triangle_sides_series = (
+        _compute_triangle_geometry_from_positions(positions)
+    )
 
     classical_series = _compute_classical_elements_series(positions, velocities)
 
@@ -697,6 +694,33 @@ def _differentiate(samples: np.ndarray, step: float) -> np.ndarray:
         else:
             derivatives[index] = (samples[index] - samples[index - 1]) / step
     return derivatives
+
+
+def _compute_triangle_geometry_from_positions(
+    positions: Mapping[str, np.ndarray]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Derive triangle diagnostics directly from the propagated positions."""
+
+    if not positions:
+        return (
+            np.zeros(0, dtype=float),
+            np.zeros(0, dtype=float),
+            np.zeros((0, 3), dtype=float),
+        )
+
+    satellite_ids = sorted(positions)
+    sample_count = next(iter(positions.values())).shape[0]
+    areas = np.zeros(sample_count, dtype=float)
+    aspects = np.zeros(sample_count, dtype=float)
+    sides = np.zeros((sample_count, 3), dtype=float)
+
+    for index in range(sample_count):
+        vertices = [positions[sat_id][index] for sat_id in satellite_ids]
+        areas[index] = triangle_area(vertices)
+        aspects[index] = triangle_aspect_ratio(vertices)
+        sides[index] = triangle_side_lengths(vertices)
+
+    return areas, aspects, sides
 
 
 def _compute_classical_elements_series(
