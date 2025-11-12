@@ -37,6 +37,9 @@
     "time_step_s": 1.0,
     "ground_tolerance_km": 350.0,
     "aspect_ratio_tolerance": 1.02,
+    "station_keeping_interval_s": 21600.0,
+    "prediction_horizon_s": 86400.0,
+    "station_keeping_tolerance_m": 60.0,
     "target": {
       "latitude_deg": 35.6892,
       "longitude_deg": 51.3890

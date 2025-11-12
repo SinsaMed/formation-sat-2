@@ -39,6 +39,7 @@ from src.constellation.orbit import (
     propagate_perturbed,
     classical_to_cartesian,
 )
+from src.constellation.frames import eci_to_lvlh
 from src.constellation.roe import MU_EARTH, OrbitalElements
 from tools.stk_export import (
     FacilityDefinition,
@@ -156,7 +157,12 @@ def simulate_triangle_formation(
     formation = configuration["formation"]
     metadata = configuration.get("metadata", {})
 
+    offsets_m = _formation_offsets(float(formation["side_length_m"]))
+    satellite_ids = tuple(sorted(offsets_m))
+
     satellite_elements: dict[str, OrbitalElements] = {}
+    reference_elements: OrbitalElements # Declare reference_elements here
+
     if "satellites" in configuration:
         satellite_ids = [sat["id"] for sat in configuration["satellites"]]
         plane_allocations = {
@@ -191,17 +197,19 @@ def simulate_triangle_formation(
                 ),
                 mean_anomaly=math.radians(float(elements.get("mean_anomaly_deg", 0.0))),
             )
+        # For explicit satellite definitions, assume the first satellite's elements as reference
+        reference_elements = satellite_elements[satellite_ids[0]]
     else:
-        reference = configuration["reference_orbit"]
-        epoch = _parse_time(reference["epoch_utc"])
-        semi_major_axis_m = float(reference["semi_major_axis_km"]) * 1_000.0
-        eccentricity = float(reference.get("eccentricity", 0.0))
-        inclination = math.radians(float(reference.get("inclination_deg", 0.0)))
-        raan = math.radians(float(reference.get("raan_deg", 0.0)))
+        reference_config = configuration["reference_orbit"]
+        epoch = _parse_time(reference_config["epoch_utc"])
+        semi_major_axis_m = float(reference_config["semi_major_axis_km"]) * 1_000.0
+        eccentricity = float(reference_config.get("eccentricity", 0.0))
+        inclination = math.radians(float(reference_config.get("inclination_deg", 0.0)))
+        raan = math.radians(float(reference_config.get("raan_deg", 0.0)))
         arg_perigee = math.radians(
-            float(reference.get("argument_of_perigee_deg", 0.0))
+            float(reference_config.get("argument_of_perigee_deg", 0.0))
         )
-        mean_anomaly = math.radians(float(reference.get("mean_anomaly_deg", 0.0)))
+        mean_anomaly = math.radians(float(reference_config.get("mean_anomaly_deg", 0.0)))
 
         reference_elements = OrbitalElements(
             semi_major_axis=semi_major_axis_m,
@@ -211,9 +219,7 @@ def simulate_triangle_formation(
             arg_perigee=arg_perigee,
             mean_anomaly=mean_anomaly,
         )
-        offsets_m = _formation_offsets(float(formation["side_length_m"]))
-        satellite_ids = tuple(sorted(offsets_m))
-
+        # offsets_m = _formation_offsets(float(formation["side_length_m"])) # Already defined globally
         plane_allocations = formation.get("plane_allocations", {})
         if not plane_allocations:
             plane_allocations = {
@@ -240,6 +246,19 @@ def simulate_triangle_formation(
 
     duration_s = float(formation.get("duration_s", 180.0))
     time_step_s = float(formation.get("time_step_s", 1.0))
+
+    station_keeping_interval_s = float(formation.get("station_keeping_interval_s", 86400.0))
+    prediction_horizon_s = float(formation.get("prediction_horizon_s", 86400.0))
+    station_keeping_tolerance_m = float(formation.get("station_keeping_tolerance_m", 60.0))
+
+    last_maneuver_time = epoch
+    total_delta_v_consumed = 0.0
+
+    satellite_physical_properties: MutableMapping[str, Mapping[str, float]] = {}
+    for sat_config in configuration.get("satellites", []):
+        if "physical_properties" in sat_config:
+            satellite_physical_properties[sat_config["id"]] = sat_config["physical_properties"]
+
     half_duration = 0.5 * duration_s
     sample_count = int(round(duration_s / time_step_s)) + 1
 
@@ -290,7 +309,25 @@ def simulate_triangle_formation(
     # Initialize current_elements for step-by-step propagation
     current_elements = {sat_id: satellite_elements[sat_id] for sat_id in satellite_ids}
 
+    # Main propagation loop
     for index in range(sample_count):
+        # Check for station-keeping maneuver
+        if (times[index] - last_maneuver_time).total_seconds() >= station_keeping_interval_s:
+            updated_elements, delta_v = _plan_and_execute_maneuver(
+                times[index],
+                current_elements,
+                formation,
+                satellite_physical_properties,
+                offsets_m,
+                satellite_elements, # Pass initial_satellite_elements
+                epoch, # Pass simulation_epoch
+                configuration, # Pass the full configuration
+                reference_elements, # Pass reference_elements
+            )
+            current_elements = updated_elements
+            total_delta_v_consumed += delta_v
+            last_maneuver_time = times[index]
+
         inertial_positions = {}
         for sat_id in satellite_ids:
             elements = current_elements[sat_id]
@@ -450,6 +487,7 @@ def simulate_triangle_formation(
         formation,
         maintenance,
         time_step_s,
+        total_delta_v_consumed,
     )
 
     metrics: MutableMapping[str, object] = {
@@ -687,6 +725,114 @@ def _formation_offsets(side_length_m: float) -> Mapping[str, np.ndarray]:
         ),
         "SAT-3": np.array([0.0, 0.0, sqrt_three / 3.0 * side_length_m]),
     }
+
+
+def _plan_and_execute_maneuver(
+    current_epoch: datetime,
+    current_elements: dict[str, OrbitalElements],
+    formation_config: Mapping[str, object],
+    satellite_physical_properties: Mapping[str, Mapping[str, float]],
+    formation_offsets: Mapping[str, np.ndarray],
+    initial_satellite_elements: Mapping[str, OrbitalElements],
+    simulation_epoch: datetime,
+    configuration: Mapping[str, object],
+    reference_elements: OrbitalElements,
+) -> tuple[dict[str, OrbitalElements], float]:
+    """
+    Plans and executes a station-keeping maneuver if the predicted formation
+    deviation exceeds tolerance.
+
+    Returns the updated orbital elements and the total delta-V applied.
+    """
+    prediction_horizon_s = float(formation_config.get("prediction_horizon_s", 86400.0))
+    station_keeping_tolerance_m = float(formation_config.get("station_keeping_tolerance_m", 60.0))
+    side_length_m = float(formation_config.get("side_length_m", 6000.0))
+
+    # 1. Predict formation state at the end of the prediction horizon
+    predicted_elements: dict[str, OrbitalElements] = {}
+    for sat_id, elements in current_elements.items():
+        phys_props = satellite_physical_properties.get(sat_id, {})
+        ballistic_coefficient = float(phys_props.get("ballistic_coefficient_m2_kg", 0.025))
+        C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
+        A_srp = float(phys_props.get("srp_area_m2", 1.0))
+        m = float(phys_props.get("mass_kg", 150.0))
+
+        predicted_elements[sat_id] = propagate_kepler(
+            elements,
+            prediction_horizon_s,
+            return_elements=True,
+        )
+
+    # 2. Evaluate predicted formation geometry
+    predicted_positions: dict[str, np.ndarray] = {}
+    for sat_id, elements in predicted_elements.items():
+        pos, _ = classical_to_cartesian(elements)
+        predicted_positions[sat_id] = pos
+
+    # Extract vertices for the single predicted time step
+    satellite_ids_sorted = sorted(predicted_positions.keys())
+    vertices = [predicted_positions[sat_id] for sat_id in satellite_ids_sorted]
+
+    # Calculate geometry for this single time step
+    predicted_area = triangle_area(vertices)
+    predicted_aspect = triangle_aspect_ratio(vertices)
+    predicted_sides_array = np.array(triangle_side_lengths(vertices)) # Convert to numpy array
+
+    # Find max deviation from desired side length
+    max_predicted_deviation = 0.0
+    # predicted_sides_array is a 1D array of 3 side lengths
+    deviations = np.abs(predicted_sides_array - side_length_m)
+    max_predicted_deviation = np.max(deviations)
+
+    total_delta_v_applied = 0.0
+    updated_elements = current_elements.copy()
+
+    # 3. Check tolerance and decide on maneuver
+    if max_predicted_deviation > station_keeping_tolerance_m:
+        # Maneuver needed: Apply a simplified correction
+        # For simplicity, we'll "reset" the relative positions/velocities
+        # to the ideal formation at the current epoch, based on the perturbed reference orbit.
+
+        # Propagate the reference orbit to the current epoch under perturbations
+        ref_phys_props = configuration["formation"].get("reference_physical_properties", {})
+        ref_ballistic_coefficient = float(ref_phys_props.get("ballistic_coefficient_m2_kg", 0.025))
+        ref_C_R = float(ref_phys_props.get("reflectivity_coefficient", 1.5))
+        ref_A_srp = float(ref_phys_props.get("srp_area_m2", 1.0))
+        ref_m = float(ref_phys_props.get("mass_kg", 150.0))
+
+        time_since_sim_epoch_s = (current_epoch - simulation_epoch).total_seconds()
+
+        perturbed_reference_elements = propagate_perturbed(
+            reference_elements,
+            time_since_sim_epoch_s,
+            ref_ballistic_coefficient,
+            C_R=ref_C_R,
+            A_srp=ref_A_srp,
+            m=ref_m,
+        )
+        perturbed_ref_pos, perturbed_ref_vel = classical_to_cartesian(perturbed_reference_elements)
+        perturbed_ref_frame = _lvlh_frame(perturbed_ref_pos, perturbed_ref_vel)
+
+        for sat_id in sorted(current_elements.keys()):
+            # Calculate the ideal perturbed position and velocity for this satellite
+            ideal_perturbed_offset_vec = perturbed_ref_frame @ formation_offsets[sat_id]
+            ideal_perturbed_sat_pos = perturbed_ref_pos + ideal_perturbed_offset_vec
+            ideal_perturbed_sat_vel = perturbed_ref_vel # Assuming zero relative velocity in LVLH for simplicity
+
+            # Convert to orbital elements
+            ideal_propagated_elements = cartesian_to_classical(ideal_perturbed_sat_pos, ideal_perturbed_sat_vel)
+
+            # Current position and velocity in ECI
+            current_sat_pos_eci, current_sat_vel_eci = classical_to_cartesian(current_elements[sat_id])
+
+            # Calculate delta-V needed to match desired state
+            delta_v_eci = ideal_perturbed_sat_vel - current_sat_vel_eci
+            delta_v_mag = np.linalg.norm(delta_v_eci)
+            total_delta_v_applied += delta_v_mag
+
+            # Apply delta-V by updating orbital elements to the ideal perturbed ones at current_epoch
+            updated_elements[sat_id] = ideal_propagated_elements
+    return updated_elements, total_delta_v_applied
 
 
 def _differentiate(samples: np.ndarray, step: float) -> np.ndarray:
@@ -1059,6 +1205,7 @@ def _assess_station_keeping(
     formation: Mapping[str, object],
     maintenance: Mapping[str, object],
     step: float,
+    total_delta_v_consumed: float,
 ) -> Mapping[str, object]:
     """Detect when the triangular geometry exceeds the maintenance tolerance."""
 
@@ -1144,6 +1291,7 @@ def _assess_station_keeping(
         "violation_fraction": violation_fraction,
         "recommended_delta_v_mps": recommended_delta_v,
         "max_deviation_m": max_deviation,
+        "total_delta_v_consumed_mps": total_delta_v_consumed,
     }
 
 

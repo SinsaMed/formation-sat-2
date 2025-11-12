@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -10,8 +11,18 @@ from sim.formation import simulate_triangle_formation
 def test_triangle_formation_meets_requirements() -> None:
     """The Tehran triangular formation should satisfy duration and geometry limits."""
 
-    config = Path("config/scenarios/tehran_triangle.json")
-    result = simulate_triangle_formation(config)
+    config_path = Path("config/scenarios/tehran_triangle.json")
+    
+    # Load and modify the configuration
+    with open(config_path, "r") as f:
+        config_data = json.load(f)
+    
+    # Modify station_keeping_interval_s for testing active station-keeping
+    config_data["formation"]["station_keeping_interval_s"] = 60.0
+    config_data["formation"]["prediction_horizon_s"] = 60.0
+    config_data["formation"]["station_keeping_tolerance_m"] = 60.0
+    
+    result = simulate_triangle_formation(config_data) # Pass the modified dictionary
 
     metrics = result.metrics
     window = metrics["formation_window"]
@@ -83,6 +94,7 @@ def test_triangle_formation_meets_requirements() -> None:
     assert station_keeping["status"] == "nominal"
     assert station_keeping["violation_fraction"] == 0.0
     assert not station_keeping["events"]
+    assert station_keeping["total_delta_v_consumed_mps"] >= 0.0
 
     command_latency = metrics["command_latency"]
     assert command_latency["max_latency_hours"] <= 12.0

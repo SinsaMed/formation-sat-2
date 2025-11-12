@@ -182,23 +182,34 @@ def _generate_triangle_documentation(
 
     # Generate RGT ground track and plot
     try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        # The config passed here already has the potentially overridden duration_s
+        # So we can directly use it to determine duration_days
         duration_s = float(config.get("formation", {}).get("duration_s", 14 * 24 * 3600))
         duration_days = int(round(duration_s / 86400.0))
 
         # Run propagate_long_duration.py
-        propagate_argv = ['propagate_long_duration.py', '--config', str(config_path), '--output-dir', str(output_directory)]
+        propagate_argv = [
+            'propagate_long_duration.py',
+            '--config', str(config_path),
+            '--output-dir', str(output_directory),
+            '--duration-days', str(duration_days) # Pass duration_days
+        ]
         propagate_long_duration_main(propagate_argv)
         LOGGER.info(f"{duration_days}-day RGT ground track data generated successfully.")
 
         # Run render_ground_track.py
         plots_dir = output_directory / "plots"
         plots_dir.mkdir(parents=True, exist_ok=True) # Ensure plots directory exists
-        ground_track_csv_filename = f"ground_track_{duration_days}day.csv"
-        render_argv = ['render_ground_track.py', '--input-csv', str(output_directory / ground_track_csv_filename), '--output-dir', str(plots_dir)]
+        
+        render_argv = [
+            'render_ground_track.py',
+            '--output-dir', str(plots_dir),
+            '--duration-days', str(duration_days) # Pass duration_days
+        ]
         render_ground_track_main(render_argv)
         LOGGER.info(f"{duration_days}-day RGT ground track plot generated successfully.")
 
+        ground_track_csv_filename = f"ground_track_{duration_days}day.csv"
         ground_track_svg_filename = f"{duration_days}day_ground_track.svg"
         artefacts["rgt_ground_track_csv"] = str(output_directory / ground_track_csv_filename)
         artefacts["rgt_ground_track_svg"] = str(plots_dir / ground_track_svg_filename)

@@ -112,7 +112,7 @@ def classical_to_cartesian(elements: OrbitalElements, mu: float = MU_EARTH) -> T
     return position, velocity
 
 
-def propagate_kepler(elements: OrbitalElements, dt: float, mu: float = MU_EARTH) -> Tuple[np.ndarray, np.ndarray]:
+def propagate_kepler(elements: OrbitalElements, dt: float, mu: float = MU_EARTH, return_elements: bool = False) -> OrbitalElements | Tuple[np.ndarray, np.ndarray]:
     """Propagate *elements* forward by *dt* seconds using Keplerian motion."""
 
     mean_motion = elements.mean_motion(mu)
@@ -124,6 +124,8 @@ def propagate_kepler(elements: OrbitalElements, dt: float, mu: float = MU_EARTH)
         arg_perigee=elements.arg_perigee,
         mean_anomaly=_wrap_angle(elements.mean_anomaly + mean_motion * dt),
     )
+    if return_elements:
+        return propagated
     return classical_to_cartesian(propagated, mu=mu)
 
 def propagate_perturbed(
@@ -180,6 +182,7 @@ def propagate_perturbed(
         a_drag = -0.5 * rho * np.linalg.norm(v_rel) * v_rel * ballistic_coefficient
 
         # Solar Radiation Pressure (SRP)
+        a_srp = np.zeros(3)
         P_srp = 4.56e-6  # Solar pressure at 1 AU in N/m^2
         sun_direction = np.array([1, 0, 0])  # Simplified: sun along x-axis
         a_srp = -P_srp * C_R * A_srp / m * sun_direction
