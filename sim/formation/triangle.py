@@ -311,10 +311,11 @@ def simulate_triangle_formation(
 
     # Main propagation loop
     for index in range(sample_count):
+        current_time = times[index]
         # Check for station-keeping maneuver
-        if (times[index] - last_maneuver_time).total_seconds() >= station_keeping_interval_s:
+        if (current_time - last_maneuver_time).total_seconds() >= station_keeping_interval_s:
             updated_elements, delta_v = _plan_and_execute_maneuver(
-                times[index],
+                current_time,
                 current_elements,
                 formation,
                 satellite_physical_properties,
@@ -326,10 +327,23 @@ def simulate_triangle_formation(
             )
             current_elements = updated_elements
             total_delta_v_consumed += delta_v
-            last_maneuver_time = times[index]
+            last_maneuver_time = current_time
 
         inertial_positions = {}
         for sat_id in satellite_ids:
+            # First, record the state for the current time step
+            pos, vel = classical_to_cartesian(current_elements[sat_id])
+            positions[sat_id][index] = pos
+            velocities_temp[sat_id].append(vel)
+            inertial_positions[sat_id] = pos
+
+            ecef = inertial_to_ecef(pos, current_time)
+            lat, lon, alt = geodetic_coordinates(ecef)
+            latitudes[sat_id][index] = lat
+            longitudes[sat_id][index] = lon
+            altitudes[sat_id][index] = alt
+
+            # Now, propagate the state to get the elements for the *next* time step
             elements = current_elements[sat_id]
             sat_config = next(
                 (s for s in configuration.get("satellites", []) if s["id"] == sat_id),
@@ -348,32 +362,15 @@ def simulate_triangle_formation(
                 C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
                 A_srp = float(phys_props.get("srp_area_m2", 1.0))
 
-            # Propagate for one time_step_s from the current elements
             propagated_elements = propagate_perturbed(
                 elements,
-                time_step_s,  # Propagate for a single time step
+                time_step_s,
                 ballistic_coefficient,
                 C_R=C_R,
                 A_srp=A_srp,
                 m=m,
             )
-            current_elements[sat_id] = propagated_elements # Update current elements for next iteration
-
-            pos, vel = classical_to_cartesian(propagated_elements)
-
-            # if position_noise_sigma_m > 0.0:
-            #     noise = rng.normal(0.0, position_noise_sigma_m, size=3)
-            #     pos += noise
-
-            positions[sat_id][index] = pos
-            velocities_temp[sat_id].append(vel)
-            inertial_positions[sat_id] = pos
-
-            ecef = inertial_to_ecef(pos, times[index])
-            lat, lon, alt = geodetic_coordinates(ecef)
-            latitudes[sat_id][index] = lat
-            longitudes[sat_id][index] = lon
-            altitudes[sat_id][index] = alt
+            current_elements[sat_id] = propagated_elements # This is now the state for the next iteration
 
         # Now, compute triangle geometry based on the actual positions
         # The order of vertices matters for side length calculations, so sort by sat_id
@@ -741,97 +738,93 @@ def _plan_and_execute_maneuver(
     """
     Plans and executes a station-keeping maneuver if the predicted formation
     deviation exceeds tolerance.
-
     Returns the updated orbital elements and the total delta-V applied.
     """
     prediction_horizon_s = float(formation_config.get("prediction_horizon_s", 86400.0))
     station_keeping_tolerance_m = float(formation_config.get("station_keeping_tolerance_m", 60.0))
-    side_length_m = float(formation_config.get("side_length_m", 6000.0))
 
-    # 1. Predict formation state at the end of the prediction horizon
-    predicted_elements: dict[str, OrbitalElements] = {}
-    for sat_id, elements in current_elements.items():
+    # 1. Predict the deviation from the ideal trajectory at the prediction horizon.
+    time_since_sim_epoch_s = (current_epoch - simulation_epoch).total_seconds()
+    time_at_horizon_s = time_since_sim_epoch_s + prediction_horizon_s
+    max_predicted_deviation = 0.0
+
+    for sat_id, current_sat_elements in current_elements.items():
+        # Get physical properties for this satellite
         phys_props = satellite_physical_properties.get(sat_id, {})
         ballistic_coefficient = float(phys_props.get("ballistic_coefficient_m2_kg", 0.025))
         C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
         A_srp = float(phys_props.get("srp_area_m2", 1.0))
         m = float(phys_props.get("mass_kg", 150.0))
 
-        predicted_elements[sat_id] = propagate_kepler(
-            elements,
+        # Predict where the satellite WILL BE by propagating its current state
+        predicted_elements_at_horizon = propagate_perturbed(
+            current_sat_elements,
             prediction_horizon_s,
-            return_elements=True,
+            ballistic_coefficient,
+            C_R=C_R,
+            A_srp=A_srp,
+            m=m,
         )
+        predicted_pos, _ = classical_to_cartesian(predicted_elements_at_horizon)
 
-    # 2. Evaluate predicted formation geometry
-    predicted_positions: dict[str, np.ndarray] = {}
-    for sat_id, elements in predicted_elements.items():
-        pos, _ = classical_to_cartesian(elements)
-        predicted_positions[sat_id] = pos
+        # Calculate where the satellite SHOULD BE by propagating its initial state
+        initial_elements_for_sat = initial_satellite_elements[sat_id]
+        ideal_elements_at_horizon = propagate_perturbed(
+            initial_elements_for_sat,
+            time_at_horizon_s,
+            ballistic_coefficient,
+            C_R=C_R,
+            A_srp=A_srp,
+            m=m,
+        )
+        ideal_pos, _ = classical_to_cartesian(ideal_elements_at_horizon)
 
-    # Extract vertices for the single predicted time step
-    satellite_ids_sorted = sorted(predicted_positions.keys())
-    vertices = [predicted_positions[sat_id] for sat_id in satellite_ids_sorted]
-
-    # Calculate geometry for this single time step
-    predicted_area = triangle_area(vertices)
-    predicted_aspect = triangle_aspect_ratio(vertices)
-    predicted_sides_array = np.array(triangle_side_lengths(vertices)) # Convert to numpy array
-
-    # Find max deviation from desired side length
-    max_predicted_deviation = 0.0
-    # predicted_sides_array is a 1D array of 3 side lengths
-    deviations = np.abs(predicted_sides_array - side_length_m)
-    max_predicted_deviation = np.max(deviations)
+        # The deviation is the distance between the predicted and ideal positions
+        deviation = np.linalg.norm(predicted_pos - ideal_pos)
+        if deviation > max_predicted_deviation:
+            max_predicted_deviation = deviation
 
     total_delta_v_applied = 0.0
     updated_elements = current_elements.copy()
 
-    # 3. Check tolerance and decide on maneuver
+    # 2. Check tolerance and decide on maneuver
     if max_predicted_deviation > station_keeping_tolerance_m:
-        # Maneuver needed: Apply a simplified correction
-        # For simplicity, we'll "reset" the relative positions/velocities
-        # to the ideal formation at the current epoch, based on the perturbed reference orbit.
-
-        # Propagate the reference orbit to the current epoch under perturbations
-        ref_phys_props = configuration["formation"].get("reference_physical_properties", {})
-        ref_ballistic_coefficient = float(ref_phys_props.get("ballistic_coefficient_m2_kg", 0.025))
-        ref_C_R = float(ref_phys_props.get("reflectivity_coefficient", 1.5))
-        ref_A_srp = float(ref_phys_props.get("srp_area_m2", 1.0))
-        ref_m = float(ref_phys_props.get("mass_kg", 150.0))
-
-        time_since_sim_epoch_s = (current_epoch - simulation_epoch).total_seconds()
-
-        perturbed_reference_elements = propagate_perturbed(
-            reference_elements,
-            time_since_sim_epoch_s,
-            ref_ballistic_coefficient,
-            C_R=ref_C_R,
-            A_srp=ref_A_srp,
-            m=ref_m,
-        )
-        perturbed_ref_pos, perturbed_ref_vel = classical_to_cartesian(perturbed_reference_elements)
-        perturbed_ref_frame = _lvlh_frame(perturbed_ref_pos, perturbed_ref_vel)
-
+        # Maneuver needed. The "ideal" state for each satellite at the current epoch
+        # is found by propagating its own initial ideal elements forward using the
+        # same perturbed dynamics model.
         for sat_id in sorted(current_elements.keys()):
-            # Calculate the ideal perturbed position and velocity for this satellite
-            ideal_perturbed_offset_vec = perturbed_ref_frame @ formation_offsets[sat_id]
-            ideal_perturbed_sat_pos = perturbed_ref_pos + ideal_perturbed_offset_vec
-            ideal_perturbed_sat_vel = perturbed_ref_vel # Assuming zero relative velocity in LVLH for simplicity
+            initial_elements_for_sat = initial_satellite_elements[sat_id]
 
-            # Convert to orbital elements
-            ideal_propagated_elements = cartesian_to_classical(ideal_perturbed_sat_pos, ideal_perturbed_sat_vel)
+            phys_props = satellite_physical_properties.get(sat_id, {})
+            ballistic_coefficient = float(phys_props.get("ballistic_coefficient_m2_kg", 0.025))
+            C_R = float(phys_props.get("reflectivity_coefficient", 1.5))
+            A_srp = float(phys_props.get("srp_area_m2", 1.0))
+            m = float(phys_props.get("mass_kg", 150.0))
 
-            # Current position and velocity in ECI
+            # Propagate the initial ideal elements to the current time to find the ideal state
+            ideal_propagated_elements = propagate_perturbed(
+                initial_elements_for_sat,
+                time_since_sim_epoch_s,
+                ballistic_coefficient,
+                C_R=C_R,
+                A_srp=A_srp,
+                m=m,
+            )
+
+            # Get current and ideal states in cartesian
             current_sat_pos_eci, current_sat_vel_eci = classical_to_cartesian(current_elements[sat_id])
+            _ideal_sat_pos_eci, ideal_sat_vel_eci = classical_to_cartesian(ideal_propagated_elements)
 
-            # Calculate delta-V needed to match desired state
-            delta_v_eci = ideal_perturbed_sat_vel - current_sat_vel_eci
+            # Calculate delta-V needed to "teleport" to the ideal state
+            delta_v_eci = ideal_sat_vel_eci - current_sat_vel_eci
             delta_v_mag = np.linalg.norm(delta_v_eci)
             total_delta_v_applied += delta_v_mag
 
-            # Apply delta-V by updating orbital elements to the ideal perturbed ones at current_epoch
-            updated_elements[sat_id] = ideal_propagated_elements
+            # Apply maneuver as an impulsive burn: update velocity but not position.
+            # The new state is the current position with the ideal velocity.
+            new_elements = cartesian_to_classical(current_sat_pos_eci, ideal_sat_vel_eci)
+            updated_elements[sat_id] = new_elements
+
     return updated_elements, total_delta_v_applied
 
 
