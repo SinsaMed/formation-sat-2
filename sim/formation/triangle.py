@@ -41,6 +41,7 @@ from src.constellation.orbit import (
 )
 from src.constellation.frames import eci_to_lvlh
 from src.constellation.roe import MU_EARTH, OrbitalElements
+from .design import design_j2_invariant_formation
 from tools.stk_export import (
     FacilityDefinition,
     GroundContactInterval,
@@ -161,7 +162,7 @@ def simulate_triangle_formation(
     satellite_ids = tuple(sorted(offsets_m))
 
     satellite_elements: dict[str, OrbitalElements] = {}
-    reference_elements: OrbitalElements # Declare reference_elements here
+    reference_elements: OrbitalElements
 
     if "satellites" in configuration:
         satellite_ids = [sat["id"] for sat in configuration["satellites"]]
@@ -219,7 +220,6 @@ def simulate_triangle_formation(
             arg_perigee=arg_perigee,
             mean_anomaly=mean_anomaly,
         )
-        # offsets_m = _formation_offsets(float(formation["side_length_m"])) # Already defined globally
         plane_allocations = formation.get("plane_allocations", {})
         if not plane_allocations:
             plane_allocations = {
@@ -228,21 +228,8 @@ def simulate_triangle_formation(
                 satellite_ids[2]: "Plane B",
             }
 
-        # Get initial state of the reference orbit
-        ref_pos_at_epoch, ref_vel_at_epoch = propagate_kepler(reference_elements, 0)
-
-        # Get initial LVLH frame
-        frame_at_epoch = _lvlh_frame(ref_pos_at_epoch, ref_vel_at_epoch)
-
-        # Calculate initial orbital elements for each satellite
-        for sat_id in satellite_ids:
-            offset_vec = frame_at_epoch @ offsets_m[sat_id]
-            # For a stable formation with zero radial offset, the initial relative velocity in the LVLH frame should be zero.
-            offset_vel = np.array([0.0, 0.0, 0.0])
-
-            sat_pos = ref_pos_at_epoch + offset_vec
-            sat_vel = ref_vel_at_epoch + offset_vel
-            satellite_elements[sat_id] = cartesian_to_classical(sat_pos, sat_vel)
+        design_result = design_j2_invariant_formation(reference_elements, offsets_m)
+        satellite_elements = dict(design_result.satellite_elements)
 
     duration_s = float(formation.get("duration_s", 180.0))
     time_step_s = float(formation.get("time_step_s", 1.0))
@@ -251,7 +238,6 @@ def simulate_triangle_formation(
     prediction_horizon_s = float(formation.get("prediction_horizon_s", 86400.0))
     station_keeping_tolerance_m = float(formation.get("station_keeping_tolerance_m", 60.0))
 
-    last_maneuver_time = epoch
     total_delta_v_consumed = 0.0
 
     satellite_physical_properties: MutableMapping[str, Mapping[str, float]] = {}
@@ -264,6 +250,7 @@ def simulate_triangle_formation(
 
     offsets = np.arange(sample_count, dtype=float) * time_step_s - half_duration
     times = [epoch + timedelta(seconds=float(offset)) for offset in offsets]
+    last_maneuver_time = times[0]
 
     positions: dict[str, np.ndarray] = {
         sat_id: np.zeros((sample_count, 3), dtype=float) for sat_id in satellite_ids
@@ -306,8 +293,19 @@ def simulate_triangle_formation(
     seed = perturbations.get("seed")
     rng = np.random.default_rng(seed)
 
-    # Initialize current_elements for step-by-step propagation
-    current_elements = {sat_id: satellite_elements[sat_id] for sat_id in satellite_ids}
+    # Initialize current_elements for step-by-step propagation aligned with the first
+    # recorded epoch.
+    start_offset_s = -half_duration
+    current_elements: dict[str, OrbitalElements] = {}
+    for sat_id in satellite_ids:
+        base_elements = satellite_elements[sat_id]
+        if math.isclose(start_offset_s, 0.0, abs_tol=1e-9):
+            current_elements[sat_id] = base_elements
+            continue
+
+        current_elements[sat_id] = propagate_kepler(
+            base_elements, start_offset_s, return_elements=True
+        )
 
     # Main propagation loop
     for index in range(sample_count):
@@ -696,18 +694,6 @@ def _parse_time(value: object) -> datetime:
             text = text[:-1] + "+00:00"
         return datetime.fromisoformat(text)
     raise TypeError("Configuration epoch must be a datetime or ISO 8601 string.")
-
-
-def _lvlh_frame(position: Sequence[float], velocity: Sequence[float]) -> np.ndarray:
-    r = np.asarray(position, dtype=float)
-    v = np.asarray(velocity, dtype=float)
-    r_hat = r / np.linalg.norm(r)
-    h = np.cross(r, v)
-    k_hat = h / np.linalg.norm(h)
-    j_hat = np.cross(k_hat, r_hat)
-    j_hat /= np.linalg.norm(j_hat)
-    return np.column_stack((r_hat, j_hat, k_hat))
-
 
 def _formation_offsets(side_length_m: float) -> Mapping[str, np.ndarray]:
     """Return equilateral offsets constrained to the local horizontal plane."""

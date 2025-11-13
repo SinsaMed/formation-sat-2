@@ -5,6 +5,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from sim.formation import simulate_triangle_formation
 
 
@@ -113,3 +115,29 @@ def test_triangle_formation_meets_requirements() -> None:
     assert 0.0 <= drag_dispersion["success_rate"] <= 1.0
     aggregate = drag_dispersion["aggregate"]
     assert aggregate["max_ground_distance_delta_km"] >= 0.0
+
+
+def test_passive_stability_without_station_keeping() -> None:
+    """Long-duration propagation without control should preserve the geometry."""
+
+    config_path = Path("config/scenarios/tehran_triangle.json")
+    with open(config_path, "r", encoding="utf-8") as handle:
+        configuration = json.load(handle)
+
+    formation = configuration["formation"]
+    formation["duration_s"] = 21_600.0  # Six-hour window spanning multiple orbits
+    formation["time_step_s"] = 30.0
+    formation["station_keeping_interval_s"] = 10.0 * 86_400.0
+    formation["prediction_horizon_s"] = 3_600.0
+    formation["station_keeping_tolerance_m"] = 1_000.0
+
+    result = simulate_triangle_formation(configuration)
+
+    sides = np.asarray(result.triangle_sides_m, dtype=float)
+    baseline_sides = sides[0]
+    side_drift = float(np.max(np.abs(sides - baseline_sides)))
+    assert side_drift <= 2_000.0
+
+    areas = np.asarray(result.triangle_area_m2, dtype=float)
+    area_drift = float(np.max(np.abs(areas - areas[0])))
+    assert area_drift <= 1.2e7
