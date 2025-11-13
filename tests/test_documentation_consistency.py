@@ -51,7 +51,7 @@ def test_stk_guide_windows_match_alignment() -> None:
     # assert "20:55:00–21:08:00Z" in guide
 
     # config = json.loads(
-    #     (REPO_ROOT / "config" / "scenarios" / "tehran_daily_pass.json").read_text(encoding="utf-8")
+    #     (REPO_ROOT / "config" / "scenarios" / "tehran_triangle.json").read_text(encoding="utf-8")
     # )
     # access_windows = config["timing"]["daily_access_windows"]
     # morning = access_windows[0]

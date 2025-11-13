@@ -41,7 +41,7 @@ WEB_ARTEFACT_DIR.mkdir(parents=True, exist_ok=True)
 RUN_LOG_PATH = WEB_ARTEFACT_DIR / "run_log.jsonl"
 DEBUG_LOG_PATH = PROJECT_ROOT / "debug.txt"
 DEFAULT_TRIANGLE_SCENARIO = "tehran_triangle"
-DEFAULT_PIPELINE_SCENARIO = "tehran_daily_pass"
+DEFAULT_PIPELINE_SCENARIO = "tehran_triangle"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -262,6 +262,10 @@ def _describe_duration_source(identifier: str) -> str:
     """Provide contextual text for duration origins."""
 
     mapping = {
+        "prediction_horizon": "برآورد افق پیش‌بینى از سناریوى مثلث تهران.",
+        "station_keeping_interval": "هم‌راستا با دوره بازتنظیم صفحه در سناریوى مثلث تهران.",
+        "maintenance_interval": "مطابق فاصله‌گذارى مانور نگهداشت تعریف‌شده براى آرایش.",
+        "formation_window": "طول پنجره تشکیل آرایش در سناریوى مثلث تهران.",
         "repeat_ground_track": "برگرفته از دوره تکرار زمینی سناریوى عبور روزانه.",
         "planning_horizon": "مطابق افق برنامه‌ریزى سناریوى تهران در فایل پیکربندى.",
         "manoeuvre_cadence": "هم‌راستا با دوره مانور نگهداشت تعریف‌شده در project.yaml.",
@@ -274,28 +278,34 @@ def _derive_duration_options() -> List[Mapping[str, object]]:
 
     options: List[tuple[float, str]] = []
 
-    daily_pass = _load_json(SCENARIO_DIR / "tehran_daily_pass.json")
-    repeat_cycle = (
-        daily_pass.get("orbital_elements", {})
-        .get("repeat_ground_track", {})
-        .get("repeat_cycle_days")
-    )
-    if isinstance(repeat_cycle, (int, float)):
-        options.append((float(repeat_cycle), "repeat_ground_track"))
-
-    planning = daily_pass.get("timing", {}).get("planning_horizon", {})
-    start = planning.get("start_utc")
-    stop = planning.get("stop_utc")
-    if isinstance(start, str) and isinstance(stop, str):
+    def _add_duration(
+        value: object,
+        source: str,
+        *,
+        scale: float = 1.0,
+        min_days: float = 0.0,
+    ) -> None:
         try:
-            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
-            stop_dt = datetime.fromisoformat(stop.replace("Z", "+00:00"))
-        except ValueError:
-            pass
-        else:
-            horizon_days = (stop_dt - start_dt).total_seconds() / 86_400.0
-            if horizon_days > 0.1:
-                options.append((float(horizon_days), "planning_horizon"))
+            numeric = float(value) * scale
+        except (TypeError, ValueError):
+            return
+        if numeric <= 0.0 or numeric < max(min_days, 0.0):
+            return
+        options.append((numeric, source))
+
+    triangle = _load_json(SCENARIO_DIR / f"{DEFAULT_PIPELINE_SCENARIO}.json")
+    formation = triangle.get("formation", {}) if isinstance(triangle, Mapping) else {}
+
+    _add_duration(formation.get("prediction_horizon_s"), "prediction_horizon", scale=1.0 / 86_400.0)
+    _add_duration(formation.get("station_keeping_interval_s"), "station_keeping_interval", scale=1.0 / 86_400.0)
+    maintenance = formation.get("maintenance", {}) if isinstance(formation, Mapping) else {}
+    _add_duration(maintenance.get("interval_days"), "maintenance_interval")
+    _add_duration(
+        formation.get("duration_s"),
+        "formation_window",
+        scale=1.0 / 86_400.0,
+        min_days=0.05,
+    )
 
     project_text = ""
     try:
@@ -454,7 +464,7 @@ class DebugRunRequest(BaseModel):
     )
     scenario_id: Optional[str] = Field(
         default=None,
-        description="Identifier used when mode='scenario'. Defaults to tehran_daily_pass.",
+        description="Identifier used when mode='scenario'. Defaults to tehran_triangle.",
     )
     triangle_config: Optional[str] = Field(
         default=None,
@@ -470,7 +480,7 @@ class DebugRunRequest(BaseModel):
         if self.mode == "triangle":
             self.scenario_id = None
         elif self.mode == "scenario" and self.scenario_id is None:
-            self.scenario_id = "tehran_daily_pass"
+            self.scenario_id = DEFAULT_PIPELINE_SCENARIO
         return self
 
 

@@ -237,7 +237,7 @@ def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:
         nargs="?",
         help=(
             "Scenario identifier or configuration file path."
-            " Defaults to the canonical Tehran daily pass scenario."
+            " Defaults to the canonical Tehran triangle scenario."
         ),
     )
     parser.add_argument(
@@ -277,7 +277,7 @@ def main(args: Optional[Iterable[str]] = None) -> int:
     elif namespace.scenario:
         config_source = namespace.scenario
     else:
-        config_source = "tehran_daily_pass"
+        config_source = "tehran_triangle"
 
     results = run_scenario(
         config_source,
