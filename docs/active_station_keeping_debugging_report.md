@@ -48,22 +48,18 @@ The investigation revealed not one, but three critical, interacting bugs that co
 **Final Conclusion:**
 The failure of the active station-keeping system was due to a chain of three distinct bugs. A flawed maneuver trigger was masked by a time-step recording error in the main loop, and both of these issues were exacerbated by a fundamentally unstable set of initial conditions for the satellite formation. By correcting the simulation loop, implementing a physically correct trigger mechanism, and ensuring the initial satellite elements shared a common semi-major axis, the system was made to function as intended.
 
-  Based on the debugging process, here are the recommended TODOs for future improvement:
+  Based on the debugging process, here is a more concrete plan for future improvements:
 
-   1. Implement a J2-Invariant Formation Design:
-       * Problem: The current method of initializing the satellite formation is a "first-order" fix. It ensures the orbital periods are the same but doesn't account for other long-term drift
-         caused by the Earth's oblateness (J2 effect).
-       * TODO: Research and implement a method for generating "J2-invariant" initial orbital elements. This would involve carefully selecting all orbital elements for each satellite so their
-         relative drift is minimized over long periods, drastically reducing the amount of fuel (delta-V) needed for station-keeping.
+   1. **Implement a J2-Invariant Formation Design (Highest Priority):**
+       * **Problem:** The current initialization is a "first-order" fix. It equalizes orbital periods but does not cancel long-term relative drift caused by the Earth's oblateness (the J2 effect), which is the largest perturbation.
+       * **TODO:** Research and implement a method for generating "J2-invariant" initial orbital elements. A common approach is using the **Gim-Alfriend conditions** to select orbital elements that nullify the secular drift rates between satellites. This will create an inherently stable relative orbit, drastically reducing the fuel required for station-keeping.
 
-   2. Upgrade the Station-Keeping Strategy:
-       * Problem: The current strategy is a simple "impulsive burn" that occurs at a fixed time interval. This is not very efficient.
-       * TODO: Replace the current logic with a feedback control system, such as a Linear-Quadratic Regulator (LQR). An LQR controller would continuously monitor the formation's deviation and
-         calculate optimal, small thruster burns to maintain the formation precisely, leading to significant fuel savings and better accuracy.
+   2. **Upgrade the Station-Keeping Controller:**
+       * **Problem:** After achieving inherent stability, the simple "impulsive burn" strategy will be inefficient for correcting minor, higher-order perturbations.
+       * **TODO:** Once the J2-invariant design is in place, replace the current impulsive logic with a continuous feedback control system, such as a **Linear-Quadratic Regulator (LQR)**. An LQR can compute optimal, small thruster burns to maintain the formation with high precision and minimal fuel.
 
-   3. Refactor the Simulation Code:
-       * Problem: The simulate_triangle_formation function is extremely long and handles simulation, analysis, and report generation. This makes it difficult to maintain and improve.
-       * TODO: Refactor the function by breaking it up into smaller, more specialized functions (e.g., one for initialization, one for propagation, one for analysis). This would improve code
-         quality and make future development easier.
+   3. **Refactor the Simulation and Create a Dedicated Formation Design Module:**
+       * **Problem:** The `simulate_triangle_formation` function is monolithic, handling initialization, propagation, and analysis. This makes it difficult to maintain and test new features like a J2-invariant designer.
+       * **TODO:** Refactor the simulation code by separating concerns. Specifically, create a new, dedicated module or function responsible for **formation design**. This module will encapsulate the J2-invariant initialization logic, separating it from the main propagation loop and improving overall code quality.
 
-  Implementing these changes would evolve the simulation from its current state to a much more robust, efficient, and professional-grade tool.
+  Implementing these changes will evolve the simulation from its current state to a much more robust, efficient, and professional-grade tool.
