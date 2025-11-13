@@ -478,7 +478,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Path to the scenario artefact directory (e.g. "
-            "artefacts/run_20251020_1900Z_tehran_daily_pass_locked)."
+            "artefacts/triangle/run_20251110_1755Z)."
         ),
     )
     return parser

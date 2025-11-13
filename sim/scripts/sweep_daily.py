@@ -35,7 +35,7 @@ def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "scenario",
         nargs="?",
-        default="tehran_daily_pass",
+        default="tehran_triangle",
         help="Scenario identifier or explicit path to evaluate.",
     )
     parser.add_argument(
