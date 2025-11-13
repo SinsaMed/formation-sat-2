@@ -30,12 +30,12 @@ The project provides several `make` targets for running different simulation sce
 
 - **`make simulate`**: Runs a stub simulation to generate placeholder plots and verify interfaces.
 - **`make scenario`**: Runs the "Tehran Daily Pass" scenario, which is based on a repeating ground track (RGT) orbit.
-- **`make triangle`**: Runs the "Tehran Triangle" formation scenario, which uses a fixed, hardcoded orbit.
+- **`make triangle`**: Runs the "Tehran Triangle" formation scenario, which is based on a repeating ground track (RGT) orbit and configured by `config/scenarios/tehran_triangle.json`.
 
 You can also run the simulations directly using the Python scripts in `sim/scripts/` and `tools/`. For example, to run the "Tehran Daily Pass" scenario:
 
 ```bash
-python -m sim.scripts.run_scenario tehran_daily_pass --output-dir artefacts/scenario
+python -m sim.scripts.run_scenario tehran_triangle --output-dir artefacts/scenario
 ```
 
 ## Running the Web Server
