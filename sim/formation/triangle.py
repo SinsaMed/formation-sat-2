@@ -39,7 +39,8 @@ from src.constellation.orbit import (
     propagate_perturbed,
     classical_to_cartesian,
 )
-from src.constellation.frames import eci_to_lvlh
+from src.constellation.control import compute_lqr_delta_v
+from src.constellation.frames import eci_to_lvlh, lvlh_to_eci, rotation_matrix_eci_to_lvlh
 from src.constellation.roe import MU_EARTH, OrbitalElements
 from .design import design_j2_invariant_formation
 from tools.stk_export import (
@@ -297,15 +298,28 @@ def simulate_triangle_formation(
     # recorded epoch.
     start_offset_s = -half_duration
     current_elements: dict[str, OrbitalElements] = {}
+    propagation_step_s = 120.0
     for sat_id in satellite_ids:
         base_elements = satellite_elements[sat_id]
         if math.isclose(start_offset_s, 0.0, abs_tol=1e-9):
             current_elements[sat_id] = base_elements
             continue
 
-        current_elements[sat_id] = propagate_kepler(
-            base_elements, start_offset_s, return_elements=True
-        )
+        propagated = base_elements
+        remaining = abs(start_offset_s)
+        direction = -1.0 if start_offset_s < 0.0 else 1.0
+        while remaining > 0.0:
+            step = min(propagation_step_s, remaining) * direction
+            propagated = propagate_perturbed(
+                propagated,
+                step,
+                0.025,
+                C_R=1.5,
+                A_srp=1.0,
+                m=150.0,
+            )
+            remaining -= min(propagation_step_s, remaining)
+        current_elements[sat_id] = propagated
 
     # Main propagation loop
     for index in range(sample_count):
@@ -727,7 +741,33 @@ def _plan_and_execute_maneuver(
     Returns the updated orbital elements and the total delta-V applied.
     """
     prediction_horizon_s = float(formation_config.get("prediction_horizon_s", 86400.0))
-    station_keeping_tolerance_m = float(formation_config.get("station_keeping_tolerance_m", 60.0))
+    station_keeping_tolerance_m = float(
+        formation_config.get("station_keeping_tolerance_m", 60.0)
+    )
+    maintenance_config = formation_config.get("maintenance", {})
+    burn_duration_s = float(maintenance_config.get("burn_duration_s", 1.0))
+    lqr_config = formation_config.get("lqr", {}) if isinstance(formation_config, Mapping) else {}
+    q_matrix = None
+    r_matrix = None
+    max_delta_v_mps = np.inf
+    integration_step_s = 600.0
+    if isinstance(lqr_config, Mapping):
+        if "Q" in lqr_config:
+            q_matrix = np.asarray(lqr_config["Q"], dtype=float)
+        elif "q_diagonal" in lqr_config:
+            diag = np.asarray(lqr_config["q_diagonal"], dtype=float)
+            q_matrix = np.diag(diag)
+        if "R" in lqr_config:
+            r_matrix = np.asarray(lqr_config["R"], dtype=float)
+        elif "r_diagonal" in lqr_config:
+            diag = np.asarray(lqr_config["r_diagonal"], dtype=float)
+            r_matrix = np.diag(diag)
+        if "max_delta_v_mps" in lqr_config:
+            max_delta_v_mps = float(lqr_config["max_delta_v_mps"])
+        if "integration_step_s" in lqr_config:
+            integration_step_s = max(float(lqr_config["integration_step_s"]), 1.0)
+
+    mean_motion = reference_elements.mean_motion()
 
     # 1. Predict the deviation from the ideal trajectory at the prediction horizon.
     time_since_sim_epoch_s = (current_epoch - simulation_epoch).total_seconds()
@@ -742,26 +782,37 @@ def _plan_and_execute_maneuver(
         A_srp = float(phys_props.get("srp_area_m2", 1.0))
         m = float(phys_props.get("mass_kg", 150.0))
 
+        def propagate_with_segments(
+            elements: OrbitalElements, duration_s: float
+        ) -> OrbitalElements:
+            remaining = abs(duration_s)
+            if remaining == 0.0:
+                return elements
+            sign = 1.0 if duration_s >= 0.0 else -1.0
+            propagated = elements
+            while remaining > 0.0:
+                step = min(integration_step_s, remaining) * sign
+                propagated = propagate_perturbed(
+                    propagated,
+                    step,
+                    ballistic_coefficient,
+                    C_R=C_R,
+                    A_srp=A_srp,
+                    m=m,
+                )
+                remaining -= min(integration_step_s, remaining)
+            return propagated
+
         # Predict where the satellite WILL BE by propagating its current state
-        predicted_elements_at_horizon = propagate_perturbed(
-            current_sat_elements,
-            prediction_horizon_s,
-            ballistic_coefficient,
-            C_R=C_R,
-            A_srp=A_srp,
-            m=m,
+        predicted_elements_at_horizon = propagate_with_segments(
+            current_sat_elements, prediction_horizon_s
         )
         predicted_pos, _ = classical_to_cartesian(predicted_elements_at_horizon)
 
         # Calculate where the satellite SHOULD BE by propagating its initial state
         initial_elements_for_sat = initial_satellite_elements[sat_id]
-        ideal_elements_at_horizon = propagate_perturbed(
-            initial_elements_for_sat,
-            time_at_horizon_s,
-            ballistic_coefficient,
-            C_R=C_R,
-            A_srp=A_srp,
-            m=m,
+        ideal_elements_at_horizon = propagate_with_segments(
+            initial_elements_for_sat, time_at_horizon_s
         )
         ideal_pos, _ = classical_to_cartesian(ideal_elements_at_horizon)
 
@@ -788,27 +839,62 @@ def _plan_and_execute_maneuver(
             m = float(phys_props.get("mass_kg", 150.0))
 
             # Propagate the initial ideal elements to the current time to find the ideal state
-            ideal_propagated_elements = propagate_perturbed(
-                initial_elements_for_sat,
-                time_since_sim_epoch_s,
-                ballistic_coefficient,
-                C_R=C_R,
-                A_srp=A_srp,
-                m=m,
+            ideal_propagated_elements = propagate_with_segments(
+                initial_elements_for_sat, time_since_sim_epoch_s
             )
 
             # Get current and ideal states in cartesian
-            current_sat_pos_eci, current_sat_vel_eci = classical_to_cartesian(current_elements[sat_id])
-            _ideal_sat_pos_eci, ideal_sat_vel_eci = classical_to_cartesian(ideal_propagated_elements)
+            current_sat_pos_eci, current_sat_vel_eci = classical_to_cartesian(
+                current_elements[sat_id]
+            )
+            ideal_sat_pos_eci, ideal_sat_vel_eci = classical_to_cartesian(
+                ideal_propagated_elements
+            )
 
-            # Calculate delta-V needed to "teleport" to the ideal state
-            delta_v_eci = ideal_sat_vel_eci - current_sat_vel_eci
-            delta_v_mag = np.linalg.norm(delta_v_eci)
-            total_delta_v_applied += delta_v_mag
+            position_error_eci = current_sat_pos_eci - ideal_sat_pos_eci
+            velocity_error_eci = current_sat_vel_eci - ideal_sat_vel_eci
 
-            # Apply maneuver as an impulsive burn: update velocity but not position.
-            # The new state is the current position with the ideal velocity.
-            new_elements = cartesian_to_classical(current_sat_pos_eci, ideal_sat_vel_eci)
+            rotation_lvlh = rotation_matrix_eci_to_lvlh(
+                ideal_sat_pos_eci, ideal_sat_vel_eci
+            )
+            position_error_lvlh = rotation_lvlh @ position_error_eci
+            omega_matrix = np.array(
+                [
+                    [0.0, -mean_motion, 0.0],
+                    [mean_motion, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ],
+                dtype=float,
+            )
+            velocity_error_lvlh = (
+                rotation_lvlh @ velocity_error_eci - omega_matrix @ position_error_lvlh
+            )
+            relative_state = np.hstack((position_error_lvlh, velocity_error_lvlh))
+
+            delta_v_lvlh = compute_lqr_delta_v(
+                -relative_state,
+                mean_motion,
+                burn_duration_s,
+                q_matrix=q_matrix,
+                r_matrix=r_matrix,
+            )
+            delta_v_eci = lvlh_to_eci(current_sat_pos_eci, current_sat_vel_eci, delta_v_lvlh)
+            delta_v_mag = float(np.linalg.norm(delta_v_eci))
+            if not np.isfinite(max_delta_v_mps) or max_delta_v_mps <= 0.0:
+                capped_delta_v = delta_v_eci
+                capped_delta_v_mag = delta_v_mag
+            elif delta_v_mag > max_delta_v_mps:
+                scale = max_delta_v_mps / delta_v_mag
+                capped_delta_v = delta_v_eci * scale
+                capped_delta_v_mag = max_delta_v_mps
+            else:
+                capped_delta_v = delta_v_eci
+                capped_delta_v_mag = delta_v_mag
+
+            total_delta_v_applied += capped_delta_v_mag
+
+            corrected_velocity = current_sat_vel_eci + capped_delta_v
+            new_elements = cartesian_to_classical(current_sat_pos_eci, corrected_velocity)
             updated_elements[sat_id] = new_elements
 
     return updated_elements, total_delta_v_applied
