@@ -75,15 +75,13 @@ def test_referenced_paths_exist(doc_path: str) -> None:
 
     text = _load_text(doc_path)
     allowed_prefixes = (
-        "artefacts/run_",
-        "artefacts/triangle_run",
+        "artefacts/run/",
         "config/",
         "docs/",
         "sim/",
         "tools/",
         "tests/",
     )
-
     for match in re.finditer(r"`([A-Za-z0-9_./-]+)`", text):
         candidate = match.group(1)
         if "/" not in candidate:

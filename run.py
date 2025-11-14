@@ -27,6 +27,7 @@ from sim.scripts import extract_metrics as metrics_module
 from src.constellation.orbit import EARTH_EQUATORIAL_RADIUS_M
 from src.constellation.web.jobs import JobManager, SubprocessJob
 from tools.generate_triangle_report import main as generate_triangle_report_main
+from tools.history import update_history_file
 from tools.render_debug_plots import generate_visualisations as generate_debug_visualisations
 from tools.propagate_long_duration import main as propagate_long_duration_main
 from tools.render_ground_track import main as render_ground_track_main
@@ -536,16 +537,19 @@ def run_triangle(request: TriangleRunRequest) -> Mapping[str, Any]:
 
     configuration_source: Mapping[str, Any] | Path | str
     source_descriptor: Mapping[str, Any]
+    scenario_path_for_history: str
 
     # Load configuration based on request
     if request.configuration is not None:
         config = request.configuration
         source_descriptor = {"mode": "inline_configuration"}
+        scenario_path_for_history = "inline_configuration"
     else:
         scenario_path = _resolve_triangle_scenario(request.scenario_id)
         with open(scenario_path, "r") as f:
             config = json.load(f)
         source_descriptor = {"mode": "stored_scenario", "path": str(scenario_path)}
+        scenario_path_for_history = str(scenario_path)
 
     # Override duration if provided via web request
     if request.duration_days is not None:
@@ -586,6 +590,8 @@ def run_triangle(request: TriangleRunRequest) -> Mapping[str, Any]:
         summary=summary,
     )
 
+    update_history_file(run_id, scenario_path_for_history, "\n".join(request.assumptions))
+
     response = {
         "run_id": run_id,
         "timestamp": timestamp,
@@ -601,14 +607,18 @@ def run_scenario_pipeline(request: ScenarioRunRequest) -> Mapping[str, Any]:
 
     run_id, timestamp = _generate_run_identifiers()
     output_directory = WEB_ARTEFACT_DIR / run_id
+    
+    scenario_path_for_history: str
 
     if request.configuration is not None:
         configuration_source: Mapping[str, Any] | Path | str = request.configuration
         source_descriptor = {"mode": "inline_configuration"}
+        scenario_path_for_history = "inline_configuration"
     else:
         scenario_path = _resolve_generic_scenario(request.scenario_id)
         configuration_source = scenario_path
         source_descriptor = {"mode": "stored_scenario", "path": str(scenario_path)}
+        scenario_path_for_history = str(scenario_path)
 
     try:
         result = run_scenario(
@@ -642,6 +652,8 @@ def run_scenario_pipeline(request: ScenarioRunRequest) -> Mapping[str, Any]:
         artefacts=artefacts,
         summary=result,
     )
+
+    update_history_file(run_id, scenario_path_for_history, "\n".join(request.assumptions))
 
     response = {
         "run_id": run_id,

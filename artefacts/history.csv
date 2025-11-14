@@ -1,0 +1,10 @@
+run_id,timestamp_utc,next_due_utc,scenario_path,notes
+run_20251018_1424Z,2025-10-18T14:24:25.333551+00:00,2026-01-16T14:24:25.333551+00:00,/workspace/formation-sat-2/config/scenarios/tehran_triangle.json,Quarterly drag dispersion rerun
+run_20251101_0803Z,2025-11-01T08:08:06.124146+00:00,2026-01-30T08:08:06.124146+00:00,/workspace/formation-sat-2/config/scenarios/tehran_triangle.json,Tehran triangle visualisation refresh
+pytest_run_20251114T112354Z,2025-11-14T11:23:54.540346+00:00,test_suite,"Pytest session finished. Passed: 49, Failed: 1"
+pytest_run_20251114T113032Z,2025-11-14T11:30:32.607127+00:00,test_suite,"Pytest session finished. Passed: 49, Failed: 1"
+pytest_run_20251114T113109Z,2025-11-14T11:31:09.289733+00:00,test_suite,"Pytest session finished. Passed: -1, Failed: 1"
+pytest_run_20251114T113415Z,2025-11-14T11:34:15.030115+00:00,test_suite,"Pytest session finished. Passed: 49, Failed: 1"
+pytest_run_20251114T113733Z,2025-11-14T11:37:33.166013+00:00,test_suite,"Pytest session finished. Passed: 49, Failed: 1"
+pytest_run_20251114T114126Z,2025-11-14T11:41:26.823437+00:00,test_suite,"Pytest session finished. Passed: 49, Failed: 1"
+pytest_run_20251114T114554Z,2025-11-14T11:45:54.791112+00:00,test_suite,"Pytest session finished. Passed: 50, Failed: 0"

@@ -1,3 +1,0 @@
-run_id,timestamp_utc,next_due_utc,scenario_path,notes
-run_20251018_1424Z,2025-10-18T14:24:25.333551+00:00,2026-01-16T14:24:25.333551+00:00,/workspace/formation-sat-2/config/scenarios/tehran_triangle.json,Quarterly drag dispersion rerun
-run_20251101_0803Z,2025-11-01T08:08:06.124146+00:00,2026-01-30T08:08:06.124146+00:00,/workspace/formation-sat-2/config/scenarios/tehran_triangle.json,Tehran triangle visualisation refresh

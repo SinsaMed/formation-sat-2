@@ -6,11 +6,12 @@ import pathlib
 import sys
 import csv
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Mapping
 
 import pytest
 
+# --- Path Setup ---
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
@@ -18,6 +19,25 @@ if str(SRC_DIR) not in sys.path:
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tools.history import update_history_file
+
+# --- Pytest Hooks ---
+
+def pytest_sessionfinish(session):
+    """Hook called after the entire test session finishes."""
+    
+    run_id = f"pytest_run_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    scenario_path = "test_suite"
+    
+    # Correctly access the number of passed and failed tests
+    passed = session.testscollected - session.testsfailed
+    failed = session.testsfailed
+    
+    notes = f"Pytest session finished. Passed: {passed}, Failed: {failed}"
+    
+    update_history_file(run_id, scenario_path, notes)
+
+# --- Fixtures ---
 
 @pytest.fixture(scope="session")
 def scenario_configuration() -> Mapping[str, object]:
