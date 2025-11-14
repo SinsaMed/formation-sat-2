@@ -106,11 +106,11 @@
         },
         "artefact_key": "orbital_elements_csv",
         "per_satellite_directory_key": "orbital_elements_directory",
-        "artefact": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements.csv",
+        "artefact": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements.csv",
         "per_satellite_files": {
-          "SAT-1": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements/sat-1_orbital_elements.csv",
-          "SAT-2": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements/sat-2_orbital_elements.csv",
-          "SAT-3": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements/sat-3_orbital_elements.csv"
+          "SAT-1": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements/sat-1_orbital_elements.csv",
+          "SAT-2": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements/sat-2_orbital_elements.csv",
+          "SAT-3": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements/sat-3_orbital_elements.csv"
         }
       }
     },
@@ -3141,17 +3141,17 @@
     }
   ],
   "artefacts": {
-    "summary_path": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/triangle_summary.json",
-    "stk_directory": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/stk",
-    "maintenance_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/maintenance_summary.csv",
-    "command_windows_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/command_windows.csv",
-    "injection_recovery_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/injection_recovery.csv",
-    "injection_recovery_plot": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/injection_recovery_cdf.svg",
-    "drag_dispersion_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/drag_dispersion.csv",
-    "formation_windows_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/formation_windows.csv",
-    "station_keeping_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/station_keeping_events.csv",
-    "orbital_elements_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements.csv",
-    "orbital_elements_directory": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle/orbital_elements"
+    "summary_path": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/triangle_summary.json",
+    "stk_directory": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/stk",
+    "maintenance_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/maintenance_summary.csv",
+    "command_windows_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/command_windows.csv",
+    "injection_recovery_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/injection_recovery.csv",
+    "injection_recovery_plot": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/injection_recovery_cdf.svg",
+    "drag_dispersion_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/drag_dispersion.csv",
+    "formation_windows_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/formation_windows.csv",
+    "station_keeping_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/station_keeping_events.csv",
+    "orbital_elements_csv": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements.csv",
+    "orbital_elements_directory": "/home/sinsamail_seo/formation-sat-2/artefacts/triangle_20251113T201211Z/orbital_elements"
   },
   "geometry": {
     "times": [

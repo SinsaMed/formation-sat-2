@@ -47,7 +47,7 @@ baselines: $(VENV_PYTHON)
 	$(VENV_PYTHON) tests/baseline_compare.py --baseline-dir $(BASELINE_DIR) --candidate-dir $(BASELINE_OUTPUT_DIR) --allow-missing
 
 triangle: $(VENV_PYTHON)
-	$(VENV_PYTHON) cli.py triangle --output-dir artefacts/triangle
+	$(VENV_PYTHON) cli.py triangle --output-dir artefacts/triangle_$(shell date +%Y%m%dT%H%M%SZ)
 
 docs: $(VENV_PYTHON)
 	$(VENV_PYTHON) tools/generate_docs_summary.py --output-dir $(DOCS_DIR)
